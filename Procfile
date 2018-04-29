@@ -1,0 +1,1 @@
+web: ./bot.native

@@ -1,0 +1,7 @@
+*.cm*
+*~
+*.o
+*_rsa
+*.pub
+*.native
+*.tar.gz
