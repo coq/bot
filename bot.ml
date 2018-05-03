@@ -2,6 +2,8 @@ open Cohttp
 open Cohttp_lwt_unix
 open Lwt
 
+let repo_to_push_to = "git@gitlab.com:coq/coq"
+
 let report_status command report code =
   print_string "Command \"";
   print_string command;
@@ -24,6 +26,19 @@ let execute_cmd command =
 let git =
   "cd ~/repo && GIT_SSH_COMMAND='ssh -i ~/bot_rsa -o \"StrictHostKeyChecking=no\"' git "
 
+let git_fetch repo remote_ref =
+  git ^ "fetch " ^ repo ^ " " ^ remote_ref
+
+let git_force_push repo local_ref remote_branch_name =
+  git ^ "push " ^ repo ^ " +" ^ local_ref ^ ":refs/heads/" ^ remote_branch_name
+
+let git_delete repo remote_branch_name =
+  git ^ "push " ^ repo ^ " :refs/heads/" ^ remote_branch_name
+
+let remote_branch_name number = "pr-" ^ string_of_int number
+
+let (|&&) command1 command2 = command1 ^ " && " ^ command2
+
 let pull_request body =
   try
     let json = Yojson.Basic.from_string body in
@@ -39,22 +54,21 @@ let pull_request body =
     match action with
     | "opened" | "reopened" | "synchronize" ->
        print_endline "Action warrants fetch / push.";
+       let pull_request_head = json |> member "pull_request" |> member "head" in
+       let branch = pull_request_head |> member "ref" |> to_string in
+       let commit = pull_request_head |> member "sha" |> to_string in
+       let repo =
+         pull_request_head |> member "repo" |> member "html_url" |> to_string
+       in
        (fun () ->
-         git
-         ^ "fetch https://github.com/coq/coq refs/pull/"
-         ^ string_of_int number
-         ^ "/head && "
-         ^ git
-         ^ "push git@gitlab.com:coq/coq +FETCH_HEAD:refs/heads/pr-"
-         ^ string_of_int number
+         git_fetch repo branch
+         |&& git_force_push repo_to_push_to commit (remote_branch_name number)
          |> execute_cmd)
        |> Lwt.async
     | "closed" ->
        print_endline "Branch will be deleted following PR closing.";
        (fun () ->
-         git
-         ^ "push git@gitlab.com:coq/coq :refs/heads/pr-"
-         ^ string_of_int number
+         git_delete repo_to_push_to (remote_branch_name number)
          |> execute_cmd)
        |> Lwt.async
     | _ -> ()
