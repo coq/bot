@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 if ! type heroku > /dev/null 2>&1; then
 
 heroku(){
