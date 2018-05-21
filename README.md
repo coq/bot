@@ -9,7 +9,8 @@ It also reacts to "closed" events by deleting the corresponding branch
 on GitLab.
 
 The bot will need access to an SSH key without passphrase `bot_rsa`
-to be able to push to GitLab.
+to be able to push to GitLab, unless the environment variables
+`USERNAME` and `PASSWORD` are defined.
 
 ## Build locally ##
 
@@ -30,8 +31,6 @@ to your local machine and set up the GitHub webhook accordingly.
 Heroku doesn't support OCaml and there is no up-to-date community-provided
 support so we deploy binaries directly as explained here:
 https://medium.com/cryptosense-tech/how-to-deploy-ocaml-on-heroku-9903548aafa5
-
-Don't forget the `bot_rsa` file to be deployed together with the binary.
 
 If on NixOS, a first step is to patch the binary to make it work on non-NixOS
 platforms:

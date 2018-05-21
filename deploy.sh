@@ -20,5 +20,9 @@ heroku(){
 
 fi
 
-tar czf bot.tar.gz bot.native Procfile bot_rsa
+if [ -f bot_rsa ]; then
+    tar czf bot.tar.gz bot.native Procfile bot_rsa
+else
+    tar czf bot.tar.gz bot.native Procfile
+fi
 heroku builds:create --source-tar bot.tar.gz "$@"

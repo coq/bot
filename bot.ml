@@ -2,7 +2,7 @@ open Cohttp
 open Cohttp_lwt_unix
 open Lwt
 
-let repo_to_push_to = "git@gitlab.com:coq/coq"
+let repo_to_push_to = "gitlab.com/coq/coq.git"
 
 let report_status command report code =
   print_string "Command \"";
@@ -23,17 +23,40 @@ let execute_cmd command =
   | Unix.WSTOPPED signal ->
      report_status command "was stopped by signal number" signal
 
-let git =
-  "cd ~/repo && GIT_SSH_COMMAND='ssh -i ~/bot_rsa -o \"StrictHostKeyChecking=no\"' git "
+let get_port () =
+  try
+    "PORT" |> Sys.getenv |> int_of_string
+  with
+  | Not_found -> 8000
+
+(* Get the credentials using environment variables *)
+let get_credentials () =
+  try
+    let username = Sys.getenv "USERNAME" in
+    let password = Sys.getenv "PASSWORD" in
+    Some (`Basic(username, password))
+  with
+  | Not_found -> None
+
+let cd_repo =
+  "cd repo"
 
 let git_fetch repo remote_ref =
-  git ^ "fetch " ^ repo ^ " " ^ remote_ref
+  "git fetch " ^ repo ^ " " ^ remote_ref
+
+let git_push repo =
+  match get_credentials () with
+  | Some (`Basic(username, password)) ->
+     "git push https://" ^ username ^ ":" ^ password ^ "@" ^ repo
+  | None ->
+     "GIT_SSH_COMMAND='ssh -i ~/bot_rsa -o \"StrictHostKeyChecking=no\"' git push"
+     ^ repo
 
 let git_force_push repo local_ref remote_branch_name =
-  git ^ "push " ^ repo ^ " +" ^ local_ref ^ ":refs/heads/" ^ remote_branch_name
+  git_push repo ^ " +" ^ local_ref ^ ":refs/heads/" ^ remote_branch_name
 
 let git_delete repo remote_branch_name =
-  git ^ "push " ^ repo ^ " :refs/heads/" ^ remote_branch_name
+  git_push repo ^ " :refs/heads/" ^ remote_branch_name
 
 let remote_branch_name number = "pr-" ^ string_of_int number
 
@@ -56,21 +79,6 @@ let print_response (resp, body) =
   body |> Cohttp_lwt.Body.to_string >|= fun body ->
   print_endline "Body:";
   print_endline body
-
-let get_port () =
-  try
-    "PORT" |> Sys.getenv |> int_of_string
-  with
-  | Not_found -> 8000
-
-(* Get the credentials using environment variables *)
-let get_credentials () =
-  try
-    let username = Sys.getenv "USERNAME" in
-    let password = Sys.getenv "PASSWORD" in
-    Some (`Basic(username, password))
-  with
-  | Not_found -> None
 
 let send_request ~body ~uri header_list =
   match get_credentials () with
@@ -111,14 +119,16 @@ let pull_request body =
          pull_request_head |> member "repo" |> member "html_url" |> to_string
        in
        (fun () ->
-         git_fetch repo branch
+         cd_repo
+         |&& git_fetch repo branch
          |&& git_force_push repo_to_push_to commit (remote_branch_name number)
          |> execute_cmd)
        |> Lwt.async
     | "closed" ->
        print_endline "Branch will be deleted following PR closing.";
        (fun () ->
-         git_delete repo_to_push_to (remote_branch_name number)
+         cd_repo
+         |&& git_delete repo_to_push_to (remote_branch_name number)
          |> execute_cmd)
        |> Lwt.async;
        let merged = json_pr |> member "merged" |> to_bool in
