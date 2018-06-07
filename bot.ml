@@ -127,10 +127,7 @@ let analyze_milestone milestone =
   else
     None
 
-let pull_request body =
-  try
-    let json = Yojson.Basic.from_string body in
-    print_endline "JSON decoded.";
+let pull_request_action json =
     let open Yojson.Basic.Util in
     let action = json |> member "action" |> to_string in
     print_string "Action: ";
@@ -206,23 +203,32 @@ let pull_request body =
          end
        )
     | _ -> ()
-  with
-  | Yojson.Json_error err ->
-     print_string "Json error: ";
-     print_endline err
-  | Yojson.Basic.Util.Type_error (err, _) ->
-     print_string "Json type error: ";
-     print_endline err
+
+let push_action json = ()
 
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   print_endline "Request received.";
+  let handle_request action =
+    (fun () -> body >|= (fun body ->
+       try
+         let json = Yojson.Basic.from_string body in
+         print_endline "JSON decoded.";
+         action json
+       with
+       | Yojson.Json_error err ->
+          prerr_string "Json error: ";
+          prerr_endline err
+       | Yojson.Basic.Util.Type_error (err, _) ->
+          prerr_string "Json type error: ";
+          prerr_endline err
+    )) |> Lwt.async;
+    Server.respond_string ~status:`OK ~body:"" ()
+  in
   match Uri.path (Request.uri req) with
-  | "/pull_request" ->
-     Lwt.async (fun () -> body >|= pull_request);
-     Server.respond_string ~status:`OK ~body:"" ()
-  | _ ->
-     Server.respond_not_found ()
+  | "/pull_request" -> handle_request pull_request_action
+  | "/push" -> handle_request push_action
+  | _ -> Server.respond_not_found ()
 
 let server =
   print_endline "Initializing repository";
