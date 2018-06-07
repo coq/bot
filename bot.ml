@@ -96,6 +96,37 @@ let send_request ~body ~uri header_list =
   | None ->
      print_endline "No credentials found. Skipping"
 
+let analyze_milestone milestone =
+  let open Yojson.Basic.Util in
+  let milestone_title = milestone |> member "title" |> to_string in
+  print_string "PR was part of milestone: ";
+  print_endline milestone_title;
+  let milestone_description =
+    milestone |> member "description" |> to_string
+  in
+  let project_column_regexp =
+    "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
+  in
+  let regexp =
+    "coqbot: backport to \\([^ ]*\\) (request inclusion column: "
+    ^ project_column_regexp
+    ^ "; backported colum: "
+    ^ project_column_regexp
+    ^ ")"
+    |> Str.regexp
+  in
+  if string_match regexp milestone_description then
+    let backport_to = Str.matched_group 1 milestone_description in
+    let request_inclusion_column_id =
+      Str.matched_group 2 milestone_description |> int_of_string
+    in
+    let backported_column_id =
+      Str.matched_group 3 milestone_description |> int_of_string
+    in
+    Some (backport_to, request_inclusion_column_id, backported_column_id)
+  else
+    None
+
 let pull_request body =
   try
     let json = Yojson.Basic.from_string body in
@@ -137,21 +168,8 @@ let pull_request body =
        if merged then (
          print_endline "PR was merged.";
          let milestone = json_pr |> member "milestone" in
-         let milestone_title = milestone |> member "title" |> to_string in
-         print_string "PR was part of milestone: ";
-         print_endline milestone_title;
-         let milestone_description =
-           milestone |> member "description" |> to_string
-         in
-         let regexp =
-           "coqbot: backport to \\([^ ]*\\) (request inclusion column: https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\))"
-           |> Str.regexp
-         in
-         if string_match regexp milestone_description then (
-           let backport_to = Str.matched_group 1 milestone_description in
-           let column_id =
-             Str.matched_group 2 milestone_description |> int_of_string
-           in
+         begin match analyze_milestone milestone with
+         | Some (backport_to, request_inclusion_column_id, _) ->
            print_string "Backporting to ";
            print_string backport_to;
            print_endline " was requested.";
@@ -174,7 +192,7 @@ let pull_request body =
              in
              let uri =
                "https://api.github.com/projects/columns/"
-               ^ string_of_int column_id
+               ^ string_of_int request_inclusion_column_id
                ^ "/cards"
                |> (fun url ->
                  print_string "URL: ";
@@ -184,7 +202,8 @@ let pull_request body =
              in
              send_request ~body ~uri
                [ "Accept", "application/vnd.github.inertia-preview+json" ]
-         )
+         | None -> ()
+         end
        )
     | _ -> ()
   with
