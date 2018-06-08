@@ -1,1 +1,1 @@
-PKG lwt cohttp cohttp-lwt-unix yojson
+PKG base lwt cohttp cohttp-lwt-unix yojson

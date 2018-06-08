@@ -1,8 +1,24 @@
+let port =
+  try
+    "PORT" |> Sys.getenv |> int_of_string
+  with
+  | Not_found -> 8000
+
+let username = Sys.getenv "USERNAME"
+let password = Sys.getenv "PASSWORD"
+let credentials = `Basic(username, password)
+
+let repo_to_push_to = "coq/coq.git"
+
+let project_api_preview_header =
+  [ "Accept", "application/vnd.github.inertia-preview+json" ]
+
+let ssh_push = Sys.file_exists "~/bot_rsa"
+
+open Base
 open Cohttp
 open Cohttp_lwt_unix
 open Lwt
-
-let repo_to_push_to = "gitlab.com/coq/coq.git"
 
 let report_status command report code =
   print_string "Command \"";
@@ -23,21 +39,6 @@ let execute_cmd command =
   | Unix.WSTOPPED signal ->
      report_status command "was stopped by signal number" signal
 
-let get_port () =
-  try
-    "PORT" |> Sys.getenv |> int_of_string
-  with
-  | Not_found -> 8000
-
-(* Get the credentials using environment variables *)
-let get_credentials () =
-  try
-    let username = Sys.getenv "USERNAME" in
-    let password = Sys.getenv "PASSWORD" in
-    Some (`Basic(username, password))
-  with
-  | Not_found -> None
-
 let cd_repo =
   "cd repo"
 
@@ -45,12 +46,12 @@ let git_fetch repo remote_ref =
   "git fetch " ^ repo ^ " " ^ remote_ref
 
 let git_push repo =
-  match get_credentials () with
-  | Some (`Basic(username, password)) ->
-     "git push https://" ^ username ^ ":" ^ password ^ "@" ^ repo
-  | None ->
-     "GIT_SSH_COMMAND='ssh -i ~/bot_rsa -o \"StrictHostKeyChecking=no\"' git push"
-     ^ repo
+  if ssh_push then
+    "GIT_SSH_COMMAND='ssh -i ~/bot_rsa -o \"StrictHostKeyChecking=no\"'"
+    ^ "git push git@gitlab.com:"
+    ^ repo
+  else
+    "git push https://" ^ username ^ ":" ^ password ^ "@gitlab.com/" ^ repo
 
 let git_force_push repo local_ref remote_branch_name =
   git_push repo ^ " +" ^ local_ref ^ ":refs/heads/" ^ remote_branch_name
@@ -58,7 +59,7 @@ let git_force_push repo local_ref remote_branch_name =
 let git_delete repo remote_branch_name =
   git_push repo ^ " :refs/heads/" ^ remote_branch_name
 
-let remote_branch_name number = "pr-" ^ string_of_int number
+let remote_branch_name number = "pr-" ^ Int.to_string number
 
 let (|&&) command1 command2 = command1 ^ " && " ^ command2
 
@@ -80,21 +81,16 @@ let print_response (resp, body) =
   print_endline "Body:";
   print_endline body
 
+let headers header_list =
+  Header.init ()
+  |> (fun headers -> Header.add_list headers header_list)
+  |> (fun headers -> Header.add headers "User-Agent" "coqbot")
+  |> (fun headers -> Header.add_authorization headers credentials)
+
 let send_request ~body ~uri header_list =
-  match get_credentials () with
-  | Some credentials ->
-     let headers =
-       Header.init ()
-       |> (fun headers -> Header.add_list headers header_list)
-       |> (fun headers -> Header.add headers "User-Agent" "coqbot")
-       |> (fun headers -> Header.add_authorization headers credentials)
-     in
-     Lwt.async (fun () ->
-         print_endline "Sending request.";
-         Client.post ~body ~headers uri >|= print_response
-       )
-  | None ->
-     print_endline "No credentials found. Skipping"
+  let headers = headers header_list in
+  print_endline "Sending request.";
+  Client.post ~body ~headers uri >>= print_response
 
 let analyze_milestone milestone =
   let open Yojson.Basic.Util in
@@ -118,10 +114,10 @@ let analyze_milestone milestone =
   if string_match regexp milestone_description then
     let backport_to = Str.matched_group 1 milestone_description in
     let request_inclusion_column_id =
-      Str.matched_group 2 milestone_description |> int_of_string
+      Str.matched_group 2 milestone_description |> Int.of_string
     in
     let backported_column_id =
-      Str.matched_group 3 milestone_description |> int_of_string
+      Str.matched_group 3 milestone_description |> Int.of_string
     in
     Some (backport_to, request_inclusion_column_id, backported_column_id)
   else
@@ -130,7 +126,7 @@ let analyze_milestone milestone =
 let add_pr_to_column pr_id column_id =
   let body =
     "{\"content_id\":"
-    ^ string_of_int pr_id
+    ^ Int.to_string pr_id
     ^ ", \"content_type\": \"PullRequest\"}"
     |> (fun body ->
       print_endline "Body:";
@@ -140,7 +136,7 @@ let add_pr_to_column pr_id column_id =
   in
   let uri =
     "https://api.github.com/projects/columns/"
-    ^ string_of_int column_id
+    ^ Int.to_string column_id
     ^ "/cards"
     |> (fun url ->
       print_string "URL: ";
@@ -148,8 +144,30 @@ let add_pr_to_column pr_id column_id =
       url)
     |> Uri.of_string
   in
-  send_request ~body ~uri
-    [ "Accept", "application/vnd.github.inertia-preview+json" ]
+  send_request ~body ~uri project_api_preview_header
+
+let mv_card_to_column card_id column_id =
+  let body =
+    "{\"position\":\"top\",\"column_id\":"
+    ^ Int.to_string column_id
+    ^ "}"
+    |> (fun body ->
+      print_endline "Body:";
+      print_endline body;
+      body)
+    |> Cohttp_lwt.Body.of_string
+  in
+  let uri =
+    "https://api.github.com/projects/columns/cards/"
+    ^ Int.to_string card_id
+    ^ "/moves"
+    |> (fun url ->
+      print_string "URL: ";
+      print_endline url;
+      url)
+    |> Uri.of_string
+  in
+  send_request ~body ~uri project_api_preview_header
 
 let pull_request_action json =
     let open Yojson.Basic.Util in
@@ -203,36 +221,59 @@ let handle_json action default body =
      prerr_endline err;
      default
 
+let generic_get relative_uri ?(header_list=[]) ~default json_handler =
+  let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
+  let headers = headers header_list in
+  Client.get ~headers uri
+  >>= (fun (response, body) -> Cohttp_lwt.Body.to_string body)
+  >|= (handle_json json_handler default)
+
 let get_pull_request_info pr_number =
-  let uri =
-    "https://api.github.com/repos/coq/coq/pulls/"
-    ^ pr_number
-    |> Uri.of_string
-  in
-  let headers =
-    match get_credentials () with
-    | Some credentials ->
-       Header.init ()
-       |> (fun headers -> Header.add_authorization headers credentials)
-       |> (fun headers -> Header.add headers "User-Agent" "coqbot")
-    | None ->
-       Header.init ()
-       |> (fun headers -> Header.add headers "User-Agent" "coqbot")
-  in
-  Client.get ~headers uri >>= (fun (response, body) ->
-    Cohttp_lwt.Body.to_string body
-  ) >|= (handle_json (fun json ->
-            let open Yojson.Basic.Util in
-            let pr_id = json |> member "id" |> to_int in
-            let milestone = json |> member "milestone" in
-            match analyze_milestone milestone with
-            | Some (backport_to, request_inclusion_column, backported_colum) ->
-               Some (pr_id, backport_to, request_inclusion_column, backported_colum)
-            | None ->
+  generic_get
+    ("repos/coq/coq/pulls/" ^ pr_number)
+    ~default:None
+    (fun json ->
+      let open Yojson.Basic.Util in
+      let pr_id = json |> member "id" |> to_int in
+      let milestone = json |> member "milestone" in
+      match analyze_milestone milestone with
+      | Some (backport_to, request_inclusion_column, backported_colum) ->
+         Some (pr_id, backport_to, request_inclusion_column, backported_colum)
+      | None ->
+         None
+    )
+
+let get_cards_in_column column_id =
+  generic_get
+    ("projects/columns/" ^ Int.to_string column_id ^ "/cards")
+    ~header_list:project_api_preview_header
+    ~default:[]
+    (fun json ->
+      let open Yojson.Basic.Util in
+      json
+      |> to_list
+      |> List.filter_map ~f:(fun json ->
+             let card_id = json |> member "id" |> to_int in
+             let content_url =
+               json
+               |> member "content_url"
+               |> to_string_option
+               |> Option.value ~default:""
+             in
+             let regexp =
+               "https://api.github.com/repos/.*/\\([0-9]*\\)"
+               |> Str.regexp
+             in
+             if string_match regexp content_url then
+               let pr_number = Str.matched_group 1 content_url in
+               Some (pr_number, card_id)
+             else
                None
-           ) None)
+           )
+    )
 
 let push_action json =
+  let cache_list_cards = ref ("", []) in
   print_endline "Commit messages:";
   let open Yojson.Basic.Util in
   let base_ref = json |> member "ref" |> to_string in
@@ -246,7 +287,7 @@ let push_action json =
       print_string "PR #";
       print_string pr_number;
       print_endline " was merged.";
-      get_pull_request_info pr_number >|= (fun pr_info ->
+      get_pull_request_info pr_number >>= (fun pr_info ->
         match pr_info with
         | Some (pr_id, backport_to, request_inclusion_column, backported_colum) ->
            if ("refs/heads/" ^ backport_to |> String.equal base_ref) then (
@@ -260,7 +301,8 @@ let push_action json =
              add_pr_to_column pr_id request_inclusion_column
            )
         | None ->
-           prerr_endline "Cannot get pull request info."
+           print_endline "Did not get any backporting info.";
+           return ()
       )
     )
     else if string_match regexp_backport commit_msg then (
@@ -268,12 +310,47 @@ let push_action json =
       print_string "PR #";
       print_string pr_number;
       print_endline " was backported.";
-      return ()
+      get_pull_request_info pr_number
+      >>= (function
+           | Some (pr_id, backport_to, request_inclusion_column, backported_colum) ->
+              (* Now we need to find the card id for this PR in the request inclusion column *)
+              begin
+                if !cache_list_cards |> fst |> String.equal backport_to |> not then
+                  get_cards_in_column request_inclusion_column >|=
+                    (fun cards ->
+                      cache_list_cards := (backport_to, cards);
+                      !cache_list_cards
+                    )
+                else return !cache_list_cards
+              end >>= (fun (_, cards) ->
+               match
+                 List.find_map cards ~f:(fun (pr_number', card_id) ->
+                     if String.equal pr_number pr_number'
+                     then Some card_id
+                     else None
+                   )
+               with
+               | Some card_id ->
+                  print_string "Moving card ";
+                  print_int card_id;
+                  print_endline " to colum ";
+                  print_int backported_colum;
+                  print_newline ();
+                  mv_card_to_column card_id backported_colum
+               | None ->
+                  prerr_endline "Could not find a card for the backported PR.";
+                  return ()
+
+             )
+           | None ->
+              prerr_endline "Could not find backporting info for backported PR.";
+              return ()
+          )
     )
     else return ()
   in
   (fun () ->
-    json |> member "commits" |> to_list |> Lwt_list.iter_p commit_action
+    json |> member "commits" |> to_list |> Lwt_list.iter_s commit_action
   ) |> Lwt.async
 
 let callback _conn req body =
@@ -291,7 +368,7 @@ let callback _conn req body =
 let server =
   print_endline "Initializing repository";
   "mkdir -p repo && cd repo && git init" |> execute_cmd |> Lwt.ignore_result;
-  let mode = `TCP (`Port (get_port ())) in
+  let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
 
 let () = Lwt_main.run server

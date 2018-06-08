@@ -13,6 +13,7 @@ stdenv.mkDerivation rec {
     [ ocaml
       findlib
       merlin
+      base
       cohttp
       cohttp-lwt-unix
       yojson

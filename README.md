@@ -20,7 +20,7 @@ Use `nix-shell` to get into an appropriate development environment or use
 Use the following command to build:
 
 ```
-ocamlfind ocamlopt -package cohttp.lwt -package str -package yojson -linkpkg bot.ml -o bot.native
+ocamlfind ocamlopt -package base -package cohttp.lwt -package str -package yojson -linkpkg bot.ml -o bot.native
 ```
 
 To run locally, use [ngrok](https://ngrok.io) to redirect a public address
