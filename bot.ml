@@ -127,6 +127,30 @@ let analyze_milestone milestone =
   else
     None
 
+let add_pr_to_column pr_id column_id =
+  let body =
+    "{\"content_id\":"
+    ^ string_of_int pr_id
+    ^ ", \"content_type\": \"PullRequest\"}"
+    |> (fun body ->
+      print_endline "Body:";
+      print_endline body;
+      body)
+    |> Cohttp_lwt.Body.of_string
+  in
+  let uri =
+    "https://api.github.com/projects/columns/"
+    ^ string_of_int column_id
+    ^ "/cards"
+    |> (fun url ->
+      print_string "URL: ";
+      print_endline url;
+      url)
+    |> Uri.of_string
+  in
+  send_request ~body ~uri
+    [ "Accept", "application/vnd.github.inertia-preview+json" ]
+
 let pull_request_action json =
     let open Yojson.Basic.Util in
     let action = json |> member "action" |> to_string in
@@ -159,70 +183,104 @@ let pull_request_action json =
          |&& git_delete repo_to_push_to (remote_branch_name number)
          |> execute_cmd)
        |> Lwt.async;
-       let merged = json_pr |> member "merged" |> to_bool in
+       (* let merged = json_pr |> member "merged" |> to_bool in *)
        (* TODO: if PR was closed without getting merged, remove the milestone *)
        (* TODO: if PR was merged in master without a milestone, post an alert *)
-       if merged then (
-         print_endline "PR was merged.";
-         let milestone = json_pr |> member "milestone" in
-         begin match analyze_milestone milestone with
-         | Some (backport_to, request_inclusion_column_id, _) ->
-           print_string "Backporting to ";
-           print_string backport_to;
-           print_endline " was requested.";
-           let base = json_pr |> member "base" |> member "ref" |> to_string in
-           if String.equal base backport_to then (
-             print_string "But the PR was already merged into ";
-             print_endline backport_to
-           )
-           else
-             let global_id = json_pr |> member "id" |> to_int in
-             let body =
-               "{\"content_id\":"
-               ^ string_of_int global_id
-               ^ ", \"content_type\": \"PullRequest\"}"
-               |> (fun body ->
-                 print_endline "Body:";
-                 print_endline body;
-                 body)
-               |> Cohttp_lwt.Body.of_string
-             in
-             let uri =
-               "https://api.github.com/projects/columns/"
-               ^ string_of_int request_inclusion_column_id
-               ^ "/cards"
-               |> (fun url ->
-                 print_string "URL: ";
-                 print_endline url;
-                 url)
-               |> Uri.of_string
-             in
-             send_request ~body ~uri
-               [ "Accept", "application/vnd.github.inertia-preview+json" ]
-         | None -> ()
-         end
-       )
     | _ -> ()
 
-let push_action json = ()
+let handle_json action default body =
+  try
+    let json = Yojson.Basic.from_string body in
+    print_endline "JSON decoded.";
+    action json
+  with
+  | Yojson.Json_error err ->
+     prerr_string "Json error: ";
+     prerr_endline err;
+     default
+  | Yojson.Basic.Util.Type_error (err, _) ->
+     prerr_string "Json type error: ";
+     prerr_endline err;
+     default
+
+let get_pull_request_info pr_number =
+  let uri =
+    "https://api.github.com/repos/coq/coq/pulls/"
+    ^ pr_number
+    |> Uri.of_string
+  in
+  let headers =
+    match get_credentials () with
+    | Some credentials ->
+       Header.init ()
+       |> (fun headers -> Header.add_authorization headers credentials)
+       |> (fun headers -> Header.add headers "User-Agent" "coqbot")
+    | None ->
+       Header.init ()
+       |> (fun headers -> Header.add headers "User-Agent" "coqbot")
+  in
+  Client.get ~headers uri >>= (fun (response, body) ->
+    Cohttp_lwt.Body.to_string body
+  ) >|= (handle_json (fun json ->
+            let open Yojson.Basic.Util in
+            let pr_id = json |> member "id" |> to_int in
+            let milestone = json |> member "milestone" in
+            match analyze_milestone milestone with
+            | Some (backport_to, request_inclusion_column, backported_colum) ->
+               Some (pr_id, backport_to, request_inclusion_column, backported_colum)
+            | None ->
+               None
+           ) None)
+
+let push_action json =
+  print_endline "Commit messages:";
+  let open Yojson.Basic.Util in
+  let base_ref = json |> member "ref" |> to_string in
+  let commit_action commit =
+    let commit_msg = commit |> member "message" |> to_string in
+    print_endline commit_msg;
+    let regexp_merge = Str.regexp "Merge PR #\\([0-9]*\\):" in
+    let regexp_backport = Str.regexp "Backport PR #\\([0-9]*\\):" in
+    if string_match regexp_merge commit_msg then (
+      let pr_number = Str.matched_group 1 commit_msg in
+      print_string "PR #";
+      print_string pr_number;
+      print_endline " was merged.";
+      get_pull_request_info pr_number >|= (fun pr_info ->
+        match pr_info with
+        | Some (pr_id, backport_to, request_inclusion_column, backported_colum) ->
+           if ("refs/heads/" ^ backport_to |> String.equal base_ref) then (
+             print_endline "PR was merged into the backportig branch directly.";
+             add_pr_to_column pr_id backported_colum
+           )
+           else (
+             print_string "Backporting to ";
+             print_string backport_to;
+             print_endline " was requested.";
+             add_pr_to_column pr_id request_inclusion_column
+           )
+        | None ->
+           prerr_endline "Cannot get pull request info."
+      )
+    )
+    else if string_match regexp_backport commit_msg then (
+      let pr_number = Str.matched_group 1 commit_msg in
+      print_string "PR #";
+      print_string pr_number;
+      print_endline " was backported.";
+      return ()
+    )
+    else return ()
+  in
+  (fun () ->
+    json |> member "commits" |> to_list |> Lwt_list.iter_p commit_action
+  ) |> Lwt.async
 
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   print_endline "Request received.";
   let handle_request action =
-    (fun () -> body >|= (fun body ->
-       try
-         let json = Yojson.Basic.from_string body in
-         print_endline "JSON decoded.";
-         action json
-       with
-       | Yojson.Json_error err ->
-          prerr_string "Json error: ";
-          prerr_endline err
-       | Yojson.Basic.Util.Type_error (err, _) ->
-          prerr_string "Json type error: ";
-          prerr_endline err
-    )) |> Lwt.async;
+    (fun () -> body >|= handle_json action ()) |> Lwt.async;
     Server.respond_string ~status:`OK ~body:"" ()
   in
   match Uri.path (Request.uri req) with
