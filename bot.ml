@@ -8,6 +8,9 @@ let username = Sys.getenv "USERNAME"
 let password = Sys.getenv "PASSWORD"
 let credentials = `Basic(username, password)
 
+let gitlab_access_token = Sys.getenv "GITLAB_ACCESS_TOKEN"
+let gitlab_header = [ "PRIVATE-TOKEN", gitlab_access_token ]
+
 let repo_to_push_to = "coq/coq.git"
 
 let project_api_preview_header =
@@ -353,6 +356,38 @@ let push_action json =
     json |> member "commits" |> to_list |> Lwt_list.iter_s commit_action
   ) |> Lwt.async
 
+let get_build_trace project_id build_id =
+  let uri =
+    "https://gitlab.com/api/v4/projects/" ^ Int.to_string project_id
+    ^ "/jobs/" ^ Int.to_string build_id ^ "/trace"
+    |> Uri.of_string
+  in
+  let headers = headers gitlab_header in
+  Client.get ~headers uri
+  >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
+
+let job_action json =
+  let open Yojson.Basic.Util in
+  let build_status = json |> member "build_status" |> to_string in
+  if String.equal build_status "failed" then
+    let project_id = json |> member "project_id" |> to_int in
+    let build_id = json |> member "build_id" |> to_int in
+    print_string "Failed job ";
+    print_int build_id;
+    print_string " of project ";
+    print_int project_id;
+    print_endline ".";
+    (fun () ->
+      get_build_trace project_id build_id
+      >|= (fun trace -> print_endline trace))
+    |> Lwt.async
+    (* TODO: retry job at:
+       https://gitlab.com/api/v4/projects/{project_id}/jobs/{build_id}/retry
+     *)
+(* TODO: if build is a success and this was a documentation job and
+   the PR was labelled documentation, post the link to the artifact
+ *)
+
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   print_endline "Request received.";
@@ -363,6 +398,7 @@ let callback _conn req body =
   match Uri.path (Request.uri req) with
   | "/pull_request" -> handle_request pull_request_action
   | "/push" -> handle_request push_action
+  | "/job" -> handle_request job_action
   | _ -> Server.respond_not_found ()
 
 let server =
