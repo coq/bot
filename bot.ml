@@ -212,7 +212,7 @@ let pull_request_action json =
 let handle_json action default body =
   try
     let json = Yojson.Basic.from_string body in
-    print_endline "JSON decoded.";
+    (* print_endline "JSON decoded."; *)
     action json
   with
   | Yojson.Json_error err ->
@@ -390,7 +390,7 @@ let job_action json =
 
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
-  print_endline "Request received.";
+  (* print_endline "Request received."; *)
   let handle_request action =
     (fun () -> body >|= handle_json action ()) |> Lwt.async;
     Server.respond_string ~status:`OK ~body:"" ()
