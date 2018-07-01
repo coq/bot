@@ -109,7 +109,7 @@ let analyze_milestone milestone =
   let regexp =
     "coqbot: backport to \\([^ ]*\\) (request inclusion column: "
     ^ project_column_regexp
-    ^ "; backported colum: "
+    ^ "; backported column: "
     ^ project_column_regexp
     ^ ")"
     |> Str.regexp
