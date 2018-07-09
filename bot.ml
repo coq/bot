@@ -126,6 +126,20 @@ let analyze_milestone milestone =
   else
     None
 
+let add_rebase_label issue_nb =
+  let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
+  let uri =
+    "https://api.github.com/repos/coq/coq/issues/"
+    ^ Int.to_string issue_nb
+    ^ "/labels"
+    |> (fun url ->
+      print_string "URL: ";
+      print_endline url;
+      url)
+    |> Uri.of_string
+  in
+  send_request ~body ~uri []
+
 let add_pr_to_column pr_id column_id =
   let body =
     "{\"content_id\":"
@@ -148,6 +162,32 @@ let add_pr_to_column pr_id column_id =
     |> Uri.of_string
   in
   send_request ~body ~uri project_api_preview_header
+
+let send_failed_status_check ~commit ~url ~context ~description =
+  let body =
+    "{\"state\": \"failure\",\"target_url\":\""
+    ^ url
+    ^ "\", \"description\": \""
+    ^ description
+    ^ "\", \"context\": \""
+    ^ context
+    ^ "\"}"
+    |> (fun body ->
+      print_endline "Body:";
+      print_endline body;
+      body)
+    |> Cohttp_lwt.Body.of_string
+  in
+  let uri =
+    "https://api.github.com/repos/coq/coq/statuses/"
+    ^ commit
+    |> (fun url ->
+      print_string "URL: ";
+      print_endline url;
+      url)
+    |> Uri.of_string
+  in
+  send_request ~body ~uri []
 
 let mv_card_to_column card_id column_id =
   let body =
@@ -172,43 +212,6 @@ let mv_card_to_column card_id column_id =
   in
   send_request ~body ~uri project_api_preview_header
 
-let pull_request_action json =
-    let open Yojson.Basic.Util in
-    let action = json |> member "action" |> to_string in
-    print_string "Action: ";
-    print_endline action;
-    let json_pr = json |> member "pull_request" in
-    let number = json_pr |> member "number" |> to_int in
-    print_string "Number: #";
-    print_int number;
-    print_newline ();
-    match action with
-    | "opened" | "reopened" | "synchronize" ->
-       print_endline "Action warrants fetch / push.";
-       let pull_request_head = json_pr |> member "head" in
-       let branch = pull_request_head |> member "ref" |> to_string in
-       let commit = pull_request_head |> member "sha" |> to_string in
-       let repo =
-         pull_request_head |> member "repo" |> member "html_url" |> to_string
-       in
-       (fun () ->
-         cd_repo
-         |&& git_fetch repo branch
-         |&& git_force_push repo_to_push_to commit (remote_branch_name number)
-         |> execute_cmd)
-       |> Lwt.async
-    | "closed" ->
-       print_endline "Branch will be deleted following PR closing.";
-       (fun () ->
-         cd_repo
-         |&& git_delete repo_to_push_to (remote_branch_name number)
-         |> execute_cmd)
-       |> Lwt.async;
-       (* let merged = json_pr |> member "merged" |> to_bool in *)
-       (* TODO: if PR was closed without getting merged, remove the milestone *)
-       (* TODO: if PR was merged in master without a milestone, post an alert *)
-    | _ -> ()
-
 let handle_json action default body =
   try
     let json = Yojson.Basic.from_string body in
@@ -230,6 +233,23 @@ let generic_get relative_uri ?(header_list=[]) ~default json_handler =
   Client.get ~headers uri
   >>= (fun (response, body) -> Cohttp_lwt.Body.to_string body)
   >|= (handle_json json_handler default)
+
+let check_up_to_date ~base_branch ~base_commit =
+  generic_get
+    ("repos/coq/coq/branches/" ^ base_branch)
+    ~default:true
+    (fun json ->
+      let open Yojson.Basic.Util in
+      let branch_commit = json |> member "commit" |> member "sha" |> to_string in
+      if String.equal base_commit branch_commit then (
+        print_endline "Up to date with base branch";
+        true
+      )
+      else (
+        print_endline "Not up to date with base branch";
+        false
+      )
+    )
 
 let get_pull_request_info pr_number =
   generic_get
@@ -274,6 +294,53 @@ let get_cards_in_column column_id =
                None
            )
     )
+
+let pull_request_action json =
+    let open Yojson.Basic.Util in
+    let action = json |> member "action" |> to_string in
+    print_string "Action: ";
+    print_endline action;
+    let json_pr = json |> member "pull_request" in
+    let number = json_pr |> member "number" |> to_int in
+    print_string "Number: #";
+    print_int number;
+    print_newline ();
+    match action with
+    | "opened" | "reopened" | "synchronize" ->
+       print_endline "Check that the PR is up-to-date with the base branch";
+       let pull_request_base = json_pr |> member "base" in
+       let base_commit = pull_request_base |> member "sha" |> to_string in
+       let base_branch = pull_request_base |> member "ref" |> to_string in
+       (fun () -> check_up_to_date ~base_branch ~base_commit >>= (fun ok ->
+         if ok then (
+           print_endline "Action warrants fetch / push.";
+           let pull_request_head = json_pr |> member "head" in
+           let branch = pull_request_head |> member "ref" |> to_string in
+           let commit = pull_request_head |> member "sha" |> to_string in
+           let repo =
+             pull_request_head |> member "repo" |> member "html_url" |> to_string
+           in
+           cd_repo
+           |&& git_fetch repo branch
+           |&& git_force_push repo_to_push_to commit (remote_branch_name number)
+           |> execute_cmd )
+         else (
+           print_endline "Adding the rebase label.";
+           add_rebase_label number
+         )
+        )
+       ) |> Lwt.async
+    | "closed" ->
+       print_endline "Branch will be deleted following PR closing.";
+       (fun () ->
+         cd_repo
+         |&& git_delete repo_to_push_to (remote_branch_name number)
+         |> execute_cmd)
+       |> Lwt.async;
+       (* let merged = json_pr |> member "merged" |> to_bool in *)
+       (* TODO: if PR was closed without getting merged, remove the milestone *)
+       (* TODO: if PR was merged in master without a milestone, post an alert *)
+    | _ -> ()
 
 let push_action json =
   let cache_list_cards = ref ("", []) in
