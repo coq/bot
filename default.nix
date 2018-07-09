@@ -2,10 +2,6 @@
 
 with pkgs;
 
-let
-  ocamlVersion = (builtins.parseDrvName ocamlPackages.ocaml.name).version;
-  findlibSiteLib = "${ocamlPackages.findlib}/lib/ocaml/${ocamlVersion}/site-lib";
-in
 stdenv.mkDerivation rec {
   name = "coqbot";
   src = null;
