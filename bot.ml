@@ -366,6 +366,15 @@ let get_build_trace project_id build_id =
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
 
+let trace_action trace =
+  let regex =
+    Str.regexp "The build completed normally (not a runner failure)."
+  in
+  if string_match regex trace then
+    print_endline "Actual failure, we'll push a status check to GitHub."
+  else
+    print_endline "Runner failure, we'll retry the job."
+
 let job_action json =
   let open Yojson.Basic.Util in
   let build_status = json |> member "build_status" |> to_string in
@@ -379,7 +388,7 @@ let job_action json =
     print_endline ".";
     (fun () ->
       get_build_trace project_id build_id
-      >|= (fun trace -> print_endline trace))
+      >|= trace_action)
     |> Lwt.async
     (* TODO: retry job at:
        https://gitlab.com/api/v4/projects/{project_id}/jobs/{build_id}/retry
