@@ -227,6 +227,21 @@ let mv_card_to_column card_id column_id =
   in
   send_request ~body ~uri project_api_preview_header
 
+let retry_job ~project_id ~build_id =
+  let uri =
+    "https://gitlab.com/api/v4/projects/"
+    ^ Int.to_string project_id
+    ^ "/jobs/"
+    ^ Int.to_string build_id
+    ^ "/retry"
+    |> (fun url ->
+      print_string "URL: ";
+      print_endline url;
+      url)
+    |> Uri.of_string
+  in
+  send_request ~body:Cohttp_lwt.Body.empty ~uri gitlab_header
+
 let handle_json action default body =
   try
     let json = Yojson.Basic.from_string body in
@@ -442,7 +457,7 @@ let push_action json =
     json |> member "commits" |> to_list |> Lwt_list.iter_s commit_action
   ) |> Lwt.async
 
-let get_build_trace project_id build_id =
+let get_build_trace ~project_id ~build_id =
   let uri =
     "https://gitlab.com/api/v4/projects/" ^ Int.to_string project_id
     ^ "/jobs/" ^ Int.to_string build_id ^ "/trace"
@@ -452,14 +467,23 @@ let get_build_trace project_id build_id =
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
 
-let trace_action trace =
+let trace_action ~commit ~project_id ~build_name ~build_id trace =
+  print_endline "Trace:";
+  print_endline trace;
   let regex =
     Str.regexp "The build completed normally (not a runner failure)."
   in
-  if string_match regex trace then
-    print_endline "Actual failure, we'll push a status check to GitHub."
-  else
-    print_endline "Runner failure, we'll retry the job."
+  if string_match regex trace then (
+    print_endline "Actual failure, we'll push a status check to GitHub.";
+    send_failed_status_check ~commit
+      ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+      ~context:build_name
+      ~description:"Test failed on GitLab CI"
+  )
+  else (
+    print_endline "Runner failure, we'll retry the job.";
+    retry_job ~project_id ~build_id
+  )
 
 let job_action json =
   let open Yojson.Basic.Util in
@@ -467,18 +491,17 @@ let job_action json =
   if String.equal build_status "failed" then
     let project_id = json |> member "project_id" |> to_int in
     let build_id = json |> member "build_id" |> to_int in
+    let build_name = json |> member "build_name" |> to_string in
+    let commit = json |> member "sha" |> to_string in
     print_string "Failed job ";
     print_int build_id;
     print_string " of project ";
     print_int project_id;
     print_endline ".";
     (fun () ->
-      get_build_trace project_id build_id
-      >|= trace_action)
+      get_build_trace ~project_id ~build_id
+      >>= trace_action ~commit ~project_id ~build_name ~build_id)
     |> Lwt.async
-    (* TODO: retry job at:
-       https://gitlab.com/api/v4/projects/{project_id}/jobs/{build_id}/retry
-     *)
 (* TODO: if build is a success and this was a documentation job and
    the PR was labelled documentation, post the link to the artifact
  *)
