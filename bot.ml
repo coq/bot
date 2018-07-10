@@ -140,6 +140,21 @@ let add_rebase_label issue_nb =
   in
   send_request ~body ~uri []
 
+let remove_rebase_label issue_nb =
+  let headers = headers [] in
+  let uri =
+    "https://api.github.com/repos/coq/coq/issues/"
+    ^ Int.to_string issue_nb
+    ^ "/labels/needs%3A rebase"
+    |> (fun url ->
+      print_string "URL: ";
+      print_endline url;
+      url)
+    |> Uri.of_string
+  in
+  print_endline "Sending delete request.";
+  Client.delete ~headers uri >>= print_response
+
 let add_pr_to_column pr_id column_id =
   let body =
     "{\"content_id\":"
@@ -313,6 +328,10 @@ let pull_request_action json =
        let base_branch = pull_request_base |> member "ref" |> to_string in
        (fun () -> check_up_to_date ~base_branch ~base_commit >>= (fun ok ->
          if ok then (
+           Lwt.async (fun () ->
+               print_endline "Removing the rebase label.";
+               remove_rebase_label number
+             );
            print_endline "Action warrants fetch / push.";
            let pull_request_head = json_pr |> member "head" in
            let branch = pull_request_head |> member "ref" |> to_string in
