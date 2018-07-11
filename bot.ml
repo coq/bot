@@ -470,10 +470,10 @@ let get_build_trace ~project_id ~build_id =
 let trace_action ~commit ~project_id ~build_name ~build_id trace =
   print_endline "Trace:";
   print_endline trace;
-  let regex =
+  let regex_completed =
     Str.regexp "The build completed normally (not a runner failure)."
   in
-  if string_match regex trace then (
+  if string_match regex_completed trace then (
     (* It could still be a failure that occurred at the very end. *)
     let regex_artifact_fail =
       Str.regexp "Uploading artifacts to coordinator... failed"
@@ -503,8 +503,23 @@ let trace_action ~commit ~project_id ~build_name ~build_id trace =
     )
   )
   else (
-    print_endline "Runner failure, we'll retry the job.";
-    retry_job ~project_id ~build_id
+    (* It could still be a normal failure *)
+    let regex_not_a_tree = Str.regexp "fatal: reference is not a tree" in
+    let regex_docker_not_found =
+      Str.regexp "Error response from daemon: manifest for .* not found"
+    in
+    if string_match regex_not_a_tree trace then (
+      print_endline "Normal failure: reference is not a tree.";
+      return ()
+    )
+    else if string_match regex_docker_not_found trace then (
+      print_endline "Normal failure: docker image not found.";
+      return ()
+    )
+    else (
+      print_endline "Runner failure, we'll retry the job.";
+      retry_job ~project_id ~build_id
+    )
   )
 
 let job_action json =
