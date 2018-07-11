@@ -474,14 +474,23 @@ let trace_action ~commit ~project_id ~build_name ~build_id trace =
     Str.regexp "The build completed normally (not a runner failure)."
   in
   if string_match regex trace then (
-    (* It could still be an error when uploading artifacts. *)
-    let regex_fail =
+    (* It could still be a failure that occurred at the very end. *)
+    let regex_artifact_fail =
       Str.regexp "Uploading artifacts to coordinator... failed"
     in
-    let regex_success =
+    let regex_artifact_success =
       Str.regexp "Uploading artifacts to coordinator... ok"
     in
-    if string_match regex_fail trace && not (string_match regex_success trace) then (
+    let regex_system_failure =
+      Str.regexp "Job failed (system failure)"
+    in
+    if string_match regex_system_failure trace then (
+      print_endline "System failure, we'll retry the job.";
+      retry_job ~project_id ~build_id
+    )
+    else if string_match regex_artifact_fail trace
+            && not (string_match regex_artifact_success trace)
+    then (
       print_endline "Artifact uploading failure, we'll retry the job.";
       retry_job ~project_id ~build_id
     )
