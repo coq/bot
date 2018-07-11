@@ -474,11 +474,24 @@ let trace_action ~commit ~project_id ~build_name ~build_id trace =
     Str.regexp "The build completed normally (not a runner failure)."
   in
   if string_match regex trace then (
-    print_endline "Actual failure, we'll push a status check to GitHub.";
-    send_failed_status_check ~commit
-      ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
-      ~context:build_name
-      ~description:"Test failed on GitLab CI"
+    (* It could still be an error when uploading artifacts. *)
+    let regex_fail =
+      Str.regexp "Uploading artifacts to coordinator... failed"
+    in
+    let regex_success =
+      Str.regexp "Uploading artifacts to coordinator... ok"
+    in
+    if string_match regex_fail trace && not (string_match regex_success trace) then (
+      print_endline "Artifact uploading failure, we'll retry the job.";
+      retry_job ~project_id ~build_id
+    )
+    else (
+      print_endline "Actual failure, we'll push a status check to GitHub.";
+      send_failed_status_check ~commit
+        ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+        ~context:build_name
+        ~description:"Test failed on GitLab CI"
+    )
   )
   else (
     print_endline "Runner failure, we'll retry the job.";
