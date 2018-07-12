@@ -155,6 +155,21 @@ let remove_rebase_label issue_nb =
   print_endline "Sending delete request.";
   Client.delete ~headers uri >>= print_response
 
+let remove_milestone issue_nb =
+  let headers = headers [] in
+  let uri =
+    "https://api.github.com/repos/coq/coq/issues/"
+    ^ Int.to_string issue_nb
+    |> (fun url ->
+      print_string "URL: ";
+      print_endline url;
+      url)
+    |> Uri.of_string
+  in
+  let body = "{\"milestone\": null}" |> Cohttp_lwt.Body.of_string in
+  print_endline "Sending patch request.";
+  Client.patch ~headers ~body uri >>= print_response
+
 let add_pr_to_column pr_id column_id =
   let body =
     "{\"content_id\":"
@@ -386,8 +401,10 @@ let pull_request_action json =
          |&& git_delete repo_to_push_to (remote_branch_name number)
          |> execute_cmd)
        |> Lwt.async;
-       (* let merged = json_pr |> member "merged" |> to_bool in *)
-       (* TODO: if PR was closed without getting merged, remove the milestone *)
+       if json_pr |> member "merged" |> to_bool |> not then (
+         print_endline "PR was closed without getting merged: remove the milestone.";
+         (fun () -> remove_milestone number) |> Lwt.async
+       )
        (* TODO: if PR was merged in master without a milestone, post an alert *)
     | _ -> ()
 
