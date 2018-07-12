@@ -178,9 +178,11 @@ let add_pr_to_column pr_id column_id =
   in
   send_request ~body ~uri project_api_preview_header
 
-let send_failed_status_check ~commit ~url ~context ~description =
+let send_status_check ~commit ~state ~url ~context ~description =
   let body =
-    "{\"state\": \"failure\",\"target_url\":\""
+    "{\"state\": \""
+    ^ state
+    ^ "\",\"target_url\":\""
     ^ url
     ^ "\", \"description\": \""
     ^ description
@@ -294,6 +296,19 @@ let get_pull_request_info pr_number =
          Some (pr_id, backport_to, request_inclusion_column, backported_colum)
       | None ->
          None
+    )
+
+let get_status_check ~commit ~build_name =
+  generic_get
+    ("repos/coq/coq/commits/" ^ commit ^ "/statuses")
+    ~default:false
+    (fun json ->
+      let open Yojson.Basic.Util in
+      json
+      |> to_list
+      |> List.exists ~f:(fun json ->
+             json |> member "context" |> to_string |> String.equal build_name
+           )
     )
 
 let get_cards_in_column column_id =
@@ -496,7 +511,7 @@ let trace_action ~commit ~project_id ~build_name ~build_id trace =
     )
     else (
       print_endline "Actual failure, we'll push a status check to GitHub.";
-      send_failed_status_check ~commit
+      send_status_check ~commit ~state:"failure"
         ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
         ~context:build_name
         ~description:"Test failed on GitLab CI"
@@ -525,11 +540,11 @@ let trace_action ~commit ~project_id ~build_name ~build_id trace =
 let job_action json =
   let open Yojson.Basic.Util in
   let build_status = json |> member "build_status" |> to_string in
-  if String.equal build_status "failed" then
+  let build_id = json |> member "build_id" |> to_int in
+  let build_name = json |> member "build_name" |> to_string in
+  let commit = json |> member "sha" |> to_string in
+  if String.equal build_status "failed" then (
     let project_id = json |> member "project_id" |> to_int in
-    let build_id = json |> member "build_id" |> to_int in
-    let build_name = json |> member "build_name" |> to_string in
-    let commit = json |> member "sha" |> to_string in
     print_string "Failed job ";
     print_int build_id;
     print_string " of project ";
@@ -539,9 +554,24 @@ let job_action json =
       get_build_trace ~project_id ~build_id
       >>= trace_action ~commit ~project_id ~build_name ~build_id)
     |> Lwt.async
-(* TODO: if build is a success and this was a documentation job and
-   the PR was labelled documentation, post the link to the artifact
- *)
+  )
+  else if String.equal build_status "success" then (
+    (fun () -> get_status_check ~commit ~build_name >>= (fun b ->
+       if b then (
+         print_endline "There existed a previous status check for this build, we'll override it.";
+         send_status_check ~commit ~state:"success"
+           ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+           ~context:build_name
+           ~description:"Test succeeded on GitLab CI after being retried"
+       )
+       else return ()
+     )
+    ) |> Lwt.async
+  (* TODO: if this was a documentation job and
+     the PR was labelled documentation,
+     post the link to the artifact
+   *)
+  )
 
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
