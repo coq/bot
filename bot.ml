@@ -408,6 +408,12 @@ let pull_request_action json =
        (* TODO: if PR was merged in master without a milestone, post an alert *)
     | _ -> ()
 
+let backport_pr number backport_to =
+  "./backport-pr.sh " ^ number ^ " " ^ backport_to
+  |&& cd_repo
+  |&& git_force_push repo_to_push_to "HEAD" ("staging-" ^ backport_to)
+  |> execute_cmd
+
 let push_action json =
   let cache_list_cards = ref ("", []) in
   print_endline "Commit messages:";
@@ -434,6 +440,7 @@ let push_action json =
              print_string "Backporting to ";
              print_string backport_to;
              print_endline " was requested.";
+             Lwt.async (fun () -> backport_pr pr_number backport_to);
              add_pr_to_column pr_id request_inclusion_column
            )
         | None ->
@@ -605,7 +612,13 @@ let callback _conn req body =
 
 let server =
   print_endline "Initializing repository";
-  "mkdir -p repo && cd repo && git init" |> execute_cmd |> Lwt.ignore_result;
+  "git config --global user.email \"coqbot@users.noreply.github.com\""
+  |&& "git config --global user.name \"coqbot\""
+  |&& "mkdir -p repo"
+  |&& cd_repo
+  |&& "git init"
+  |> execute_cmd
+  |> Lwt.ignore_result;
   let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
 

@@ -26,9 +26,9 @@ if [ -f bot.exe ]; then
 fi
 cp _build/default/bot.exe .
 if [ -f bot_rsa ]; then
-    tar czf bot.tar.gz bot.exe Procfile bot_rsa
+    tar czf bot.tar.gz bot.exe backport-pr.sh Procfile bot_rsa
 else
-    tar czf bot.tar.gz bot.exe Procfile
+    tar czf bot.tar.gz bot.exe backport-pr.sh Procfile
 fi
 rm bot.exe
 heroku builds:create --source-tar bot.tar.gz "$@"
