@@ -20,7 +20,7 @@ Use `nix-shell` to get into an appropriate development environment or use
 Use the following command to build:
 
 ```
-ocamlfind ocamlopt -package base -package cohttp.lwt -package str -package yojson -linkpkg bot.ml -o bot.native
+dune build
 ```
 
 To run locally, use [ngrok](https://ngrok.io) to redirect a public address
@@ -36,7 +36,7 @@ If on NixOS, a first step is to patch the binary to make it work on non-NixOS
 platforms:
 
 ```
-patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 bot.native
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 bot
 ```
 
 Futhermore, to get a working `heroku` command, I use the current workaround

@@ -1,0 +1,7 @@
+(executable
+ (name bot)
+ (public_name bot)
+ (libraries str base cohttp-lwt-unix yojson))
+
+(env
+ (dev (flags :standard -w -3-27)))
