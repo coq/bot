@@ -1,1 +1,1 @@
-web: ./bot.native
+web: ./bot.exe

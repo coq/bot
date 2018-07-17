@@ -36,7 +36,7 @@ If on NixOS, a first step is to patch the binary to make it work on non-NixOS
 platforms:
 
 ```
-patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 bot
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 _build/default/bot.exe
 ```
 
 Futhermore, to get a working `heroku` command, I use the current workaround

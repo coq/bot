@@ -20,9 +20,15 @@ heroku(){
 
 fi
 
-if [ -f bot_rsa ]; then
-    tar czf bot.tar.gz bot.native Procfile bot_rsa
-else
-    tar czf bot.tar.gz bot.native Procfile
+if [ -f bot.exe ]; then
+    echo "Cannot overwrite bot.exe"
+    exit 1
 fi
+cp _build/default/bot.exe .
+if [ -f bot_rsa ]; then
+    tar czf bot.tar.gz bot.exe Procfile bot_rsa
+else
+    tar czf bot.tar.gz bot.exe Procfile
+fi
+rm bot.exe
 heroku builds:create --source-tar bot.tar.gz "$@"
