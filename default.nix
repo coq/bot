@@ -7,7 +7,7 @@ stdenv.mkDerivation rec {
   src = null;
   buildInputs = with ocamlPackages;
     [ ocaml
-      jbuilder
+      dune
       findlib
       merlin
       base
