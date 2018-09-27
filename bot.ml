@@ -566,9 +566,9 @@ let get_build_trace ~project_id ~build_id =
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
 
-let trace_action ~commit ~project_id ~build_name ~build_id trace =
-  print_endline "Trace:";
-  print_endline trace;
+type build_failure = Warn | Retry | Ignore
+
+let trace_action trace =
   let regex_completed =
     Str.regexp "The build completed normally (not a runner failure)."
   in
@@ -584,21 +584,17 @@ let trace_action ~commit ~project_id ~build_name ~build_id trace =
       Str.regexp "Job failed (system failure)"
     in
     if string_match regex_system_failure trace then (
-      print_endline "System failure, we'll retry the job.";
-      retry_job ~project_id ~build_id
+      print_endline "System failure. Retrying...";
+      Retry
     )
     else if string_match regex_artifact_fail trace
             && not (string_match regex_artifact_success trace)
     then (
-      print_endline "Artifact uploading failure, we'll retry the job.";
-      retry_job ~project_id ~build_id
+      print_endline "Artifact uploading failure. Retrying...";
+      Retry
     )
     else (
-      print_endline "Actual failure, we'll push a status check to GitHub.";
-      send_status_check ~commit ~state:"failure"
-        ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
-        ~context:build_name
-        ~description:"Test failed on GitLab CI"
+      Warn
     )
   )
   else (
@@ -609,15 +605,17 @@ let trace_action ~commit ~project_id ~build_name ~build_id trace =
     in
     if string_match regex_not_a_tree trace then (
       print_endline "Normal failure: reference is not a tree.";
-      return ()
+      Ignore
     )
     else if string_match regex_docker_not_found trace then (
       print_endline "Normal failure: docker image not found.";
-      return ()
+      Ignore
     )
     else (
-      print_endline "Runner failure, we'll retry the job.";
-      retry_job ~project_id ~build_id
+      print_endline "Trace:";
+      print_endline trace;
+      print_endline "Runner failure. Retrying...";
+      Retry
     )
   )
 
@@ -629,14 +627,62 @@ let job_action json =
   let commit = json |> member "sha" |> to_string in
   if String.equal build_status "failed" then (
     let project_id = json |> member "project_id" |> to_int in
+    let failure_reason = json |> member "build_failure_reason" |> to_string in
+    let allow_fail = json |> member "build_allow_failure" |> to_bool in
+    let send_status_check () =
+      if allow_fail then (
+        print_endline "Job is allowed to fail.";
+        return ()
+      )
+      else (
+        print_endline "Pushing a status check...";
+        send_status_check ~commit ~state:"failure"
+          ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+          ~context:build_name
+          ~description:(failure_reason ^ " on GitLab CI")
+      )
+    in
+    let duration = json |> member "build_duration" |> to_float in
     print_string "Failed job ";
     print_int build_id;
     print_string " of project ";
     print_int project_id;
     print_endline ".";
+    print_string "Failure reason: ";
+    print_endline failure_reason;
     (fun () ->
-      get_build_trace ~project_id ~build_id
-      >>= trace_action ~commit ~project_id ~build_name ~build_id)
+      if String.equal failure_reason "runner_system_failure" then (
+        print_endline "Runner failure reported by GitLab CI. Retrying...";
+        retry_job ~project_id ~build_id
+      )
+      else if String.equal failure_reason "stuck_or_timeout_failure" then (
+        print_endline "Timeout reported by GitLab CI.";
+        send_status_check ()
+      )
+      else if let open Float in duration > 7000. then (
+        print_endline "Build took more than 7000s so we are going to assume it could be a timneout";
+        send_status_check ()
+      )
+      else if String.equal failure_reason "script_failure" then (
+        print_endline "GitLab CI reports a script failure but it could be something else. Checking the trace...";
+        get_build_trace ~project_id ~build_id >|= trace_action >>=
+          (function
+           | Warn ->
+              print_endline "Actual failure.";
+              send_status_check ()
+
+           | Retry ->
+              retry_job ~project_id ~build_id
+
+           | Ignore ->
+              return ()
+          )
+      )
+      else (
+        print_endline "Unusual error.";
+        send_status_check ()
+      )
+    )
     |> Lwt.async
   )
   else if String.equal build_status "success" then (
