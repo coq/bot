@@ -95,6 +95,13 @@ let send_request ~body ~uri header_list =
   print_endline "Sending request.";
   Client.post ~body ~headers uri >>= print_response
 
+type backport_info =
+  { backport_to : string
+  ; request_inclusion_column_id : int
+  ; backported_column_id : int
+  ; rejected_milestone : string
+  }    
+
 let analyze_milestone milestone =
   let open Yojson.Basic.Util in
   let milestone_title = milestone |> member "title" |> to_string in
@@ -111,6 +118,8 @@ let analyze_milestone milestone =
     ^ project_column_regexp
     ^ "; backported column: "
     ^ project_column_regexp
+    ^ "; move rejected PRs to: "
+    ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)"
     ^ ")"
     |> Str.regexp
   in
@@ -122,7 +131,14 @@ let analyze_milestone milestone =
     let backported_column_id =
       Str.matched_group 3 milestone_description |> Int.of_string
     in
-    Some (backport_to, request_inclusion_column_id, backported_column_id)
+    let rejected_milestone = Str.matched_group 4 milestone_description
+    in
+    Some {
+      backport_to;
+      request_inclusion_column_id;
+      backported_column_id;
+      rejected_milestone
+      }
   else
     None
 
@@ -155,20 +171,23 @@ let remove_rebase_label issue_nb =
   print_endline "Sending delete request.";
   Client.delete ~headers uri >>= print_response
 
-let remove_milestone issue_nb =
+let update_milestone issue_nb new_milestone =
   let headers = headers [] in
   let uri =
-    "https://api.github.com/repos/coq/coq/issues/"
-    ^ Int.to_string issue_nb
+    "https://api.github.com/repos/coq/coq/issues/" ^ issue_nb
     |> (fun url ->
       print_string "URL: ";
       print_endline url;
       url)
     |> Uri.of_string
   in
-  let body = "{\"milestone\": null}" |> Cohttp_lwt.Body.of_string in
+  let body =
+    "{\"milestone\": " ^ new_milestone ^ "}" |> Cohttp_lwt.Body.of_string
+  in
   print_endline "Sending patch request.";
   Client.patch ~headers ~body uri >>= print_response
+
+let remove_milestone issue_nb = update_milestone (Int.to_string issue_nb) "null"
 
 let add_pr_to_column pr_id column_id =
   let body =
@@ -307,8 +326,8 @@ let get_pull_request_info pr_number =
       let pr_id = json |> member "id" |> to_int in
       let milestone = json |> member "milestone" in
       match analyze_milestone milestone with
-      | Some (backport_to, request_inclusion_column, backported_colum) ->
-         Some (pr_id, backport_to, request_inclusion_column, backported_colum)
+      | Some backport_info ->
+         Some (pr_id, backport_info)
       | None ->
          None
     )
@@ -414,6 +433,47 @@ let backport_pr number backport_to =
   |&& git_force_push repo_to_push_to "HEAD" ("staging-" ^ backport_to)
   |> execute_cmd
 
+let project_action json =
+  let open Yojson.Basic.Util in
+  let project_action = json |> member "action" |> to_string in
+  let card = json |> member "project_card" in
+  let content_url = card |> member "content_url" |> to_string in
+  let regexp_issue =
+    Str.regexp "https://api.github.com/repos/[^/]*/[^/]*/issues/\\([0-9]*\\)"
+  in
+  if
+    String.equal project_action "deleted"
+    && string_match regexp_issue content_url
+  then (
+    let issue_number = Str.matched_group 1 content_url in
+    print_string "Issue or PR #";
+    print_string issue_number;
+    print_endline " was removed from project column:";
+    let project_col = card |> member "column_url" |> to_string in
+    print_endline project_col;
+    (fun () ->
+      get_pull_request_info issue_number >>=
+        (function
+         | None ->
+            print_endline "Could not find backporting info for PR.";
+            return ()
+         | Some (_, {request_inclusion_column_id; rejected_milestone; _})
+           when 
+             "https://api.github.com/projects/columns/"
+             ^ Int.to_string request_inclusion_column_id
+             |> String.equal project_col
+           ->
+            print_endline "This was a request inclusion column: PR was rejected.";
+            print_endline "Change of milestone requested to:";
+            print_endline rejected_milestone;
+            update_milestone issue_number rejected_milestone
+         | _ ->
+            print_endline "This was not a request inclusion column: ignoring.";
+            return ()
+        )
+    ) |> Lwt.async
+  )
+
 let push_action json =
   let cache_list_cards = ref ("", []) in
   print_endline "Commit messages:";
@@ -431,17 +491,17 @@ let push_action json =
       print_endline " was merged.";
       get_pull_request_info pr_number >>= (fun pr_info ->
         match pr_info with
-        | Some (pr_id, backport_to, request_inclusion_column, backported_colum) ->
+        | Some (pr_id, {backport_to; request_inclusion_column_id; backported_column_id; _}) ->
            if ("refs/heads/" ^ backport_to |> String.equal base_ref) then (
              print_endline "PR was merged into the backportig branch directly.";
-             add_pr_to_column pr_id backported_colum
+             add_pr_to_column pr_id backported_column_id
            )
            else (
              print_string "Backporting to ";
              print_string backport_to;
              print_endline " was requested.";
              Lwt.async (fun () -> backport_pr pr_number backport_to);
-             add_pr_to_column pr_id request_inclusion_column
+             add_pr_to_column pr_id request_inclusion_column_id
            )
         | None ->
            print_endline "Did not get any backporting info.";
@@ -455,11 +515,11 @@ let push_action json =
       print_endline " was backported.";
       get_pull_request_info pr_number
       >>= (function
-           | Some (pr_id, backport_to, request_inclusion_column, backported_colum) ->
+           | Some (_, {backport_to; request_inclusion_column_id; backported_column_id; _}) ->
               (* Now we need to find the card id for this PR in the request inclusion column *)
               begin
                 if !cache_list_cards |> fst |> String.equal backport_to |> not then
-                  get_cards_in_column request_inclusion_column >|=
+                  get_cards_in_column request_inclusion_column_id >|=
                     (fun cards ->
                       cache_list_cards := (backport_to, cards);
                       !cache_list_cards
@@ -477,9 +537,9 @@ let push_action json =
                   print_string "Moving card ";
                   print_int card_id;
                   print_endline " to colum ";
-                  print_int backported_colum;
+                  print_int backported_column_id;
                   print_newline ();
-                  mv_card_to_column card_id backported_colum
+                  mv_card_to_column card_id backported_column_id
                | None ->
                   prerr_endline "Could not find a card for the backported PR.";
                   return ()
@@ -605,6 +665,7 @@ let callback _conn req body =
     Server.respond_string ~status:`OK ~body:"" ()
   in
   match Uri.path (Request.uri req) with
+  | "/project" -> handle_request project_action
   | "/pull_request" -> handle_request pull_request_action
   | "/push" -> handle_request push_action
   | "/job" -> handle_request job_action
