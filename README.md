@@ -1,16 +1,6 @@
 # A (Coq Development Team) bot written in OCaml #
 
-This bot is triggered by a GitHub webhook.
-
-For now, it is set to receive pull request events and react to "opened",
-"reopened" and "synchronize" events by force-pushing the PR content to
-a branch `pr-XXXX` on GitLab, to benefit of GitLab CI for pull requests.
-It also reacts to "closed" events by deleting the corresponding branch
-on GitLab.
-
-The bot will need access to an SSH key without passphrase `bot_rsa`
-to be able to push to GitLab, unless the environment variables
-`USERNAME` and `PASSWORD` are defined.
+This bot is triggered by a few GitHub webhooks.
 
 ## Build locally ##
 
@@ -28,56 +18,40 @@ to your local machine and set up the GitHub webhook accordingly.
 
 ## Deploy on Heroku ##
 
-Heroku doesn't support OCaml and there is no up-to-date community-provided
-support so we deploy binaries directly as explained here:
+There's currently no up-to-date OCaml buildpack for Heroku so we deploy
+binaries directly as explained here:
 https://medium.com/cryptosense-tech/how-to-deploy-ocaml-on-heroku-9903548aafa5
 
-If on NixOS, a first step is to patch the binary to make it work on non-NixOS
-platforms:
-
-```
-patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 _build/default/bot.exe
-```
-
-Futhermore, to get a working `heroku` command, I use the current workaround
-(found in [NixOS/nixpkgs#25983](https://github.com/NixOS/nixpkgs/pull/25983)):
-
-```
-heroku(){
-  docker run -it --rm -u $(id -u):$(id -g) -w "$HOME" \
-    -v /etc/passwd:/etc/passwd:ro \
-    -v /etc/group:/etc/group:ro \
-    -v /etc/localtime:/etc/localtime:ro \
-    -v /home:/home \
-    -v /tmp:/tmp \
-    -v /run/user/$(id -u):/run/user/$(id -u) \
-    -v $(pwd):/workdir \
-    -w /workdir \
-    --name heroku \
-    johnnagro/heroku-toolbelt "$@"
-}
-```
-
-which requires docker to be enabled.
-My `configuration.nix` contains the following:
-
-```
-virtualisation.docker.enable = true;
-users.extraUsers."${my_user_name}".extraGroups = [ "docker" ];
-```
-
-Then (back to every Linux system):
+The first time you upload your app to Heroku run:
 
 ```
 heroku plugins:install heroku-builds
 heroku apps:create --app my-coqbot
 heroku buildpacks:set http://github.com/ryandotsmith/null-buildpack.git --app my-coqbot
+```
+
+If you've built inside `nix-shell`, a first step before deploying is to patch
+the binary to make it work on standard Linux platforms:
+
+```
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 _build/default/bot.exe
+```
+
+Then:
+
+```
 ./deploy.sh --app my-coqbot
 ```
 
+The bot will need access to an SSH key without passphrase `bot_rsa`
+to be able to push to GitLab, unless the environment variables
+`USERNAME` and `PASSWORD` are defined.
+
 ## To-do ##
 
-- [ ] More flexibility: make the repo addresses configurable.
+- [ ] More flexibility: make the repo addresses configurable
+      or turn this into an OCaml GitHub bot library.
 - [ ] Automatic deployment to Heroku when new code is committed.
 - [ ] A test-suite for the bot.
+- [ ] Document existing features.
 - [ ] More features.

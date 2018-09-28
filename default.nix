@@ -14,5 +14,6 @@ stdenv.mkDerivation rec {
       cohttp
       cohttp-lwt-unix
       yojson
+      heroku
     ];
 }
