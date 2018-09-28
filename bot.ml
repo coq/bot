@@ -380,7 +380,6 @@ let pull_request_action json =
     print_newline ();
     match action with
     | "opened" | "reopened" | "synchronize" ->
-       print_endline "Check that the PR is up-to-date with the base branch";
        let pr_head = json_pr |> member "head"
        and pr_base = json_pr |> member "base"
        in
