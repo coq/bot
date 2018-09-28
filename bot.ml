@@ -619,10 +619,18 @@ let trace_action trace =
       Ignore
     )
     else (
-      print_endline "Trace:";
-      print_endline trace;
-      print_endline "Runner failure. Retrying...";
-      Retry
+      let trace_size = String.length trace in
+      print_string "Trace size:";
+      print_int trace_size;
+      print_newline ();
+      if trace_size > 1000000 then (
+        print_endline "Trace size is too high. Not retrying.";
+        Ignore
+      )
+      else (
+        print_endline "Runner failure. Retrying...";
+        Retry
+      )
     )
   )
 
