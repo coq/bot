@@ -78,11 +78,14 @@ let print_response (resp, body) =
   print_string "Response code: ";
   print_int code;
   print_newline ();
-  print_string "Headers: ";
-  resp |> Response.headers |> Header.to_string |> print_endline;
-  body |> Cohttp_lwt.Body.to_string >|= fun body ->
-  print_endline "Body:";
-  print_endline body
+  if (code < 200 && code > 299) then (
+    print_string "Headers: ";
+    resp |> Response.headers |> Header.to_string |> print_endline;
+    body |> Cohttp_lwt.Body.to_string >|= fun body ->
+    print_endline "Body:";
+    print_endline body
+  )
+  else return ()
 
 let headers header_list =
   Header.init ()
