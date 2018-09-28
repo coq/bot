@@ -600,6 +600,13 @@ let trace_action trace =
     print_endline "Artifact uploading failure. Retrying...";
     Retry
   )
+  else if (test "transfer closed with outstanding read data remaining"
+           || test "HTTP request sent, awaiting response... 500 Internal Server Error"
+           || test "The remote end hung up unexpectedly")
+  then (
+    print_endline "Connectivity issue. Retrying...";
+    Retry
+  )
   else if test "fatal: reference is not a tree" then (
     print_endline "Normal failure: reference is not a tree.";
     Ignore
