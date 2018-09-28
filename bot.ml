@@ -604,20 +604,7 @@ let trace_action trace =
     print_endline "Normal failure: reference is not a tree.";
     Ignore
   )
-  else if test "Error response from daemon: manifest for .* not found" then (
-    print_endline "Normal failure: docker image not found.";
-    Warn
-  )
-  else if test "The build completed normally (not a runner failure)." then
-    Warn
-  else if trace_size > 1000000 then (
-    print_endline "Trace is too long. Not retrying.";
-    Ignore
-  )
-  else (
-    print_endline "Probably a runner failure. Retrying...";
-    Retry
-  )
+  else Warn
 
 let job_action json =
   let open Yojson.Basic.Util in
@@ -642,7 +629,6 @@ let job_action json =
           ~description:(failure_reason ^ " on GitLab CI")
       )
     in
-    let duration = json |> member "build_duration" |> to_float in
     print_string "Failed job ";
     print_int build_id;
     print_string " of project ";
@@ -657,10 +643,6 @@ let job_action json =
       )
       else if String.equal failure_reason "stuck_or_timeout_failure" then (
         print_endline "Timeout reported by GitLab CI.";
-        send_status_check ()
-      )
-      else if let open Float in duration > 7000. then (
-        print_endline "Build took more than 7000s so we are going to assume it could be a timneout";
         send_status_check ()
       )
       else if String.equal failure_reason "script_failure" then (
