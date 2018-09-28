@@ -36,17 +36,23 @@ let execute_cmd command =
   Lwt_unix.system command >|= fun status ->
   match status with
   | Unix.WEXITED code ->
-     report_status command "exited with status" code
+     report_status command "exited with status" code;
+     if Int.equal code 0 then true else false
   | Unix.WSIGNALED signal ->
-     report_status command "was killed by signal number" signal
+     report_status command "was killed by signal number" signal;
+     false
   | Unix.WSTOPPED signal ->
-     report_status command "was stopped by signal number" signal
+     report_status command "was stopped by signal number" signal;
+     false
 
 let cd_repo =
   "cd repo"
 
 let git_fetch repo remote_ref =
-  "git fetch " ^ repo ^ " " ^ remote_ref
+  "git fetch " ^ repo ^ " " ^ remote_ref ^ " && git checkout FETCH_HEAD"
+
+let git_pull_ff repo remote_ref =
+  "git pull --ff-only " ^ repo ^ " " ^ remote_ref
 
 let git_push repo =
   if ssh_push then
@@ -61,6 +67,8 @@ let git_force_push repo local_ref remote_branch_name =
 
 let git_delete repo remote_branch_name =
   git_push repo ^ " :refs/heads/" ^ remote_branch_name
+
+let or_true cmd = "( " ^ cmd ^ " || true )"
 
 let remote_branch_name number = "pr-" ^ Int.to_string number
 
@@ -303,23 +311,6 @@ let generic_get relative_uri ?(header_list=[]) ~default json_handler =
   >>= (fun (response, body) -> Cohttp_lwt.Body.to_string body)
   >|= (handle_json json_handler default)
 
-let check_up_to_date ~base_branch ~base_commit =
-  generic_get
-    ("repos/coq/coq/branches/" ^ base_branch)
-    ~default:true
-    (fun json ->
-      let open Yojson.Basic.Util in
-      let branch_commit = json |> member "commit" |> member "sha" |> to_string in
-      if String.equal base_commit branch_commit then (
-        print_endline "Up to date with base branch";
-        true
-      )
-      else (
-        print_endline "Not up to date with base branch";
-        false
-      )
-    )
-
 let get_pull_request_info pr_number =
   generic_get
     ("repos/coq/coq/pulls/" ^ pr_number)
@@ -390,34 +381,34 @@ let pull_request_action json =
     match action with
     | "opened" | "reopened" | "synchronize" ->
        print_endline "Check that the PR is up-to-date with the base branch";
-       let pull_request_base = json_pr |> member "base" in
-       let base_commit = pull_request_base |> member "sha" |> to_string in
-       let base_branch = pull_request_base |> member "ref" |> to_string in
-       let pull_request_head = json_pr |> member "head" in
-       let head_commit = pull_request_head |> member "sha" |> to_string in
-       (fun () -> check_up_to_date ~base_branch ~base_commit >>= (fun ok ->
-         if ok then (
-           Lwt.async (fun () ->
-               print_endline "Removing the rebase label.";
-               remove_rebase_label number
-             );
-           print_endline "Action warrants fetch / push.";
-           let branch = pull_request_head |> member "ref" |> to_string in
-           let repo =
-             pull_request_head |> member "repo" |> member "html_url" |> to_string
-           in
-           cd_repo
-           |&& git_fetch repo branch
-           |&& git_force_push repo_to_push_to head_commit (remote_branch_name number)
-           |> execute_cmd )
-         else (
-           print_endline "Adding the rebase label and a failed status check.";
-           (fun () -> add_rebase_label number) |> Lwt.async;
-           send_status_check ~commit:head_commit ~state:"failure"
-             ~url:""
-             ~context:("ci/gitlab/pr-" ^ Int.to_string number)
-             ~description:"Pipeline did not run on GitLab CI because branch is not up-to-date."
-         )
+       let pr_head = json_pr |> member "head"
+       and pr_base = json_pr |> member "base"
+       in
+       let pr_base_branch = pr_base |> member "ref" |> to_string
+       and pr_base_repo = pr_base |> member "repo" |> member "html_url" |> to_string
+       and pr_head_commit = pr_head |> member "sha" |> to_string
+       and pr_branch = pr_head |> member "ref" |> to_string
+       and pr_repo = pr_head |> member "repo" |> member "html_url" |> to_string
+       in
+       (fun () ->
+         print_endline "Action warrants fetch / push.";
+         cd_repo
+         |&& git_fetch pr_base_repo pr_base_branch
+         |&& git_pull_ff pr_repo pr_branch
+         |&& or_true (git_force_push repo_to_push_to pr_head_commit (remote_branch_name number))
+         |> execute_cmd >|= (fun ok ->
+          if ok then (
+            print_endline "Removing the rebase label.";
+            remove_rebase_label number
+          )
+          else (
+            print_endline "Adding the rebase label and a failed status check.";
+            add_rebase_label number
+            <&> send_status_check ~commit:pr_head_commit ~state:"failure"
+                  ~url:""
+                  ~context:("ci/gitlab/pr-" ^ Int.to_string number)
+                  ~description:"Pipeline did not run on GitLab CI because branch is not up-to-date."
+          )
         )
        ) |> Lwt.async
     | "closed" ->
