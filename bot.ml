@@ -576,62 +576,47 @@ let get_build_trace ~project_id ~build_id =
 type build_failure = Warn | Retry | Ignore
 
 let trace_action trace =
-  let regex_completed =
-    Str.regexp "The build completed normally (not a runner failure)."
-  in
-  if string_match regex_completed trace then (
-    (* It could still be a failure that occurred at the very end. *)
-    let regex_artifact_fail =
-      Str.regexp "Uploading artifacts to coordinator... failed"
-    in
-    let regex_artifact_success =
-      Str.regexp "Uploading artifacts to coordinator... ok"
-    in
-    let regex_system_failure =
-      Str.regexp "Job failed (system failure)"
-    in
-    if string_match regex_system_failure trace then (
-      print_endline "System failure. Retrying...";
-      Retry
-    )
-    else if string_match regex_artifact_fail trace
-            && not (string_match regex_artifact_success trace)
-    then (
-      print_endline "Artifact uploading failure. Retrying...";
-      Retry
-    )
-    else (
-      Warn
-    )
+  let trace_size = String.length trace in
+  print_string "Trace size:";
+  print_int trace_size;
+  print_newline ();
+  let test regexp = string_match (Str.regexp regexp) trace in
+  if test "Job failed: exit code 137" then (
+    print_endline "Exit code 137. Retrying...";
+    Retry
+  )
+  else if test "Job failed: exit status 255" then (
+    print_endline "Exit status 255. Retrying...";
+    Retry
+  )
+  else if test "Job failed (system failure)" then (
+    print_endline "System failure. Retrying...";
+    Retry
+  )
+  else if (test "Uploading artifacts to coordinator... failed"
+           || test "Uploading artifacts to coordinator... error")
+          && not (test "Uploading artifacts to coordinator... ok")
+  then (
+    print_endline "Artifact uploading failure. Retrying...";
+    Retry
+  )
+  else if test "fatal: reference is not a tree" then (
+    print_endline "Normal failure: reference is not a tree.";
+    Ignore
+  )
+  else if test "Error response from daemon: manifest for .* not found" then (
+    print_endline "Normal failure: docker image not found.";
+    Warn
+  )
+  else if test "The build completed normally (not a runner failure)." then
+    Warn
+  else if trace_size > 1000000 then (
+    print_endline "Trace is too long. Not retrying.";
+    Ignore
   )
   else (
-    (* It could still be a normal failure *)
-    let regex_not_a_tree = Str.regexp "fatal: reference is not a tree" in
-    let regex_docker_not_found =
-      Str.regexp "Error response from daemon: manifest for .* not found"
-    in
-    if string_match regex_not_a_tree trace then (
-      print_endline "Normal failure: reference is not a tree.";
-      Ignore
-    )
-    else if string_match regex_docker_not_found trace then (
-      print_endline "Normal failure: docker image not found.";
-      Ignore
-    )
-    else (
-      let trace_size = String.length trace in
-      print_string "Trace size:";
-      print_int trace_size;
-      print_newline ();
-      if trace_size > 1000000 then (
-        print_endline "Trace size is too high. Not retrying.";
-        Ignore
-      )
-      else (
-        print_endline "Runner failure. Retrying...";
-        Retry
-      )
-    )
+    print_endline "Probably a runner failure. Retrying...";
+    Retry
   )
 
 let job_action json =
