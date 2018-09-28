@@ -390,6 +390,8 @@ let pull_request_action json =
        let pull_request_base = json_pr |> member "base" in
        let base_commit = pull_request_base |> member "sha" |> to_string in
        let base_branch = pull_request_base |> member "ref" |> to_string in
+       let pull_request_head = json_pr |> member "head" in
+       let head_commit = pull_request_head |> member "sha" |> to_string in
        (fun () -> check_up_to_date ~base_branch ~base_commit >>= (fun ok ->
          if ok then (
            Lwt.async (fun () ->
@@ -397,19 +399,21 @@ let pull_request_action json =
                remove_rebase_label number
              );
            print_endline "Action warrants fetch / push.";
-           let pull_request_head = json_pr |> member "head" in
            let branch = pull_request_head |> member "ref" |> to_string in
-           let commit = pull_request_head |> member "sha" |> to_string in
            let repo =
              pull_request_head |> member "repo" |> member "html_url" |> to_string
            in
            cd_repo
            |&& git_fetch repo branch
-           |&& git_force_push repo_to_push_to commit (remote_branch_name number)
+           |&& git_force_push repo_to_push_to head_commit (remote_branch_name number)
            |> execute_cmd )
          else (
-           print_endline "Adding the rebase label.";
-           add_rebase_label number
+           print_endline "Adding the rebase label and a failed status check.";
+           (fun () -> add_rebase_label number) |> Lwt.async;
+           send_status_check ~commit:head_commit ~state:"failure"
+             ~url:""
+             ~context:("ci/gitlab/pr-" ^ Int.to_string number)
+             ~description:"Pipeline did not run on GitLab CI because branch is not up-to-date."
          )
         )
        ) |> Lwt.async
