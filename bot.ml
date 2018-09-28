@@ -398,8 +398,20 @@ let pull_request_action json =
          |&& or_true (git_force_push repo_to_push_to pr_head_commit (remote_branch_name number))
          |> execute_cmd >|= (fun ok ->
           if ok then (
-            print_endline "Removing the rebase label.";
-            remove_rebase_label number
+            if json_pr
+               |> member "labels"
+               |> to_list
+               |> List.exists ~f:(fun label ->
+                      label
+                      |> member "name"
+                      |> to_string
+                      |> String.equal "needs: rebase"
+                    )
+            then (
+              print_endline "Removing the rebase label.";
+              remove_rebase_label number
+            )
+            else return ()
           )
           else (
             print_endline "Adding the rebase label and a failed status check.";
