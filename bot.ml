@@ -576,6 +576,16 @@ let get_build_trace ~project_id ~build_id =
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
 
+let repeat_request request =
+  let rec aux t =
+    request >>= (fun body ->
+      if String.is_empty body then
+        Lwt_unix.sleep t >>= (fun () -> aux (t *. 2.))
+      else
+        return body)
+  in
+  aux 2.
+
 type build_failure = Warn | Retry | Ignore
 
 let trace_action trace =
@@ -657,7 +667,7 @@ let job_action json =
       )
       else if String.equal failure_reason "script_failure" then (
         print_endline "GitLab CI reports a script failure but it could be something else. Checking the trace...";
-        get_build_trace ~project_id ~build_id >|= trace_action >>=
+        repeat_request (get_build_trace ~project_id ~build_id) >|= trace_action >>=
           (function
            | Warn ->
               print_endline "Actual failure.";
