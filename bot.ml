@@ -623,6 +623,10 @@ let trace_action trace =
     print_endline "Normal failure: reference is not a tree.";
     Ignore
   )
+  else if test "Error response from daemon: manifest for .* not found" then (
+    print_endline "Docker image not found. Do not report anything specific.";
+    Ignore
+  )
   else Warn
 
 let job_action json =
