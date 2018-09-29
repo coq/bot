@@ -690,6 +690,31 @@ let job_action json =
     )
     |> Lwt.async
   )
+  else if String.equal build_status "success"
+          && String.equal build_name "doc:refman"
+  then (
+    print_endline "This is a successful refman build. Pushing a status check with a link...";
+    let url =
+      "https://coq.gitlab.io/-/coq/-/jobs/" ^ Int.to_string build_id
+      ^ "/artifacts/_install_ci/share/doc/coq/sphinx/html/index.html"
+    in
+    (fun () ->
+       url |> Uri.of_string |> Client.get >>= (fun (resp, _) ->
+       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
+         send_status_check ~commit ~state:"success"
+           ~url
+           ~context:build_name
+           ~description:"Link to refman build artifact."
+       else (
+         print_endline "But we didn't get a 200 code when checking the URL.";
+         send_status_check ~commit ~state:"failure"
+           ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+           ~context:build_name
+           ~description:"Link to refman build artifact: not found."
+       )
+     )
+    ) |> Lwt.async
+  )
   else if String.equal build_status "success" then (
     (fun () -> get_status_check ~commit ~build_name >>= (fun b ->
        if b then (
@@ -702,10 +727,6 @@ let job_action json =
        else return ()
      )
     ) |> Lwt.async
-  (* TODO: if this was a documentation job and
-     the PR was labelled documentation,
-     post the link to the artifact
-   *)
   )
 
 let callback _conn req body =
