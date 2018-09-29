@@ -1,0 +1,15 @@
+opam-version: "2.0"
+name: "bot-components"
+version: "0.1"
+synopsis: "One-line description"
+description: """
+Longer description
+"""
+maintainer: "Name <email>"
+authors: "Name <email>"
+license: ""
+homepage: ""
+bug-reports: ""
+dev-repo: ""
+depends: [ "ocaml" "ocamlfind" "cohttp-lwt-unix" "yojson"]
+build: ["dune" "build" "-p" bot-components]

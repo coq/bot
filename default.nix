@@ -6,14 +6,19 @@ stdenv.mkDerivation rec {
   name = "coqbot";
   src = null;
   buildInputs = with ocamlPackages;
-    [ ocaml
-      dune
+    [ # Compiler and dev tools
+      ocaml
       findlib
+      dune
+      utop
+      ncurses
       merlin
+      # Libraries
       base
       cohttp
       cohttp-lwt-unix
       yojson
+      # Publishing
       heroku
     ];
 }

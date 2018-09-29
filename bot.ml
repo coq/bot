@@ -11,6 +11,8 @@ let credentials = `Basic(username, password)
 let gitlab_access_token = Sys.getenv "GITLAB_ACCESS_TOKEN"
 let gitlab_header = [ "PRIVATE-TOKEN", gitlab_access_token ]
 
+let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
+
 let repo_to_push_to = "coq/coq.git"
 
 let project_api_preview_header =
@@ -19,6 +21,7 @@ let project_api_preview_header =
 let ssh_push = Sys.file_exists "~/bot_rsa"
 
 open Base
+open BotComponents.GitHub
 open Cohttp
 open Cohttp_lwt_unix
 open Lwt
@@ -74,13 +77,6 @@ let remote_branch_name number = "pr-" ^ Int.to_string number
 
 let (|&&) command1 command2 = command1 ^ " && " ^ command2
 
-let string_match r s =
-  try
-    let _ = Str.search_forward r s 0 in
-    true
-  with
-    Not_found -> false
-
 let print_response (resp, body) =
   let code = resp |> Response.status |> Code.code_of_status in
   print_string "Response code: ";
@@ -105,53 +101,6 @@ let send_request ~body ~uri header_list =
   let headers = headers header_list in
   print_endline "Sending request.";
   Client.post ~body ~headers uri >>= print_response
-
-type backport_info =
-  { backport_to : string
-  ; request_inclusion_column_id : int
-  ; backported_column_id : int
-  ; rejected_milestone : string
-  }    
-
-let analyze_milestone milestone =
-  let open Yojson.Basic.Util in
-  let milestone_title = milestone |> member "title" |> to_string in
-  print_string "PR was part of milestone: ";
-  print_endline milestone_title;
-  let milestone_description =
-    milestone |> member "description" |> to_string
-  in
-  let project_column_regexp =
-    "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
-  in
-  let regexp =
-    "coqbot: backport to \\([^ ]*\\) (request inclusion column: "
-    ^ project_column_regexp
-    ^ "; backported column: "
-    ^ project_column_regexp
-    ^ "; move rejected PRs to: "
-    ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)"
-    ^ ")"
-    |> Str.regexp
-  in
-  if string_match regexp milestone_description then
-    let backport_to = Str.matched_group 1 milestone_description in
-    let request_inclusion_column_id =
-      Str.matched_group 2 milestone_description |> Int.of_string
-    in
-    let backported_column_id =
-      Str.matched_group 3 milestone_description |> Int.of_string
-    in
-    let rejected_milestone = Str.matched_group 4 milestone_description
-    in
-    Some {
-      backport_to;
-      request_inclusion_column_id;
-      backported_column_id;
-      rejected_milestone
-      }
-  else
-    None
 
 let add_rebase_label issue_nb =
   let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
@@ -185,7 +134,7 @@ let remove_rebase_label issue_nb =
 let update_milestone issue_nb new_milestone =
   let headers = headers [] in
   let uri =
-    "https://api.github.com/repos/coq/coq/issues/" ^ issue_nb
+    "https://api.github.com/repos/coq/coq/issues/" ^ Int.to_string issue_nb
     |> (fun url ->
       print_string "URL: ";
       print_endline url;
@@ -198,7 +147,7 @@ let update_milestone issue_nb new_milestone =
   print_endline "Sending patch request.";
   Client.patch ~headers ~body uri >>= print_response
 
-let remove_milestone issue_nb = update_milestone (Int.to_string issue_nb) "null"
+let remove_milestone issue_nb = update_milestone issue_nb "null"
 
 let add_pr_to_column pr_id column_id =
   let body =
@@ -251,29 +200,6 @@ let send_status_check ~commit ~state ~url ~context ~description =
   in
   send_request ~body ~uri []
 
-let mv_card_to_column card_id column_id =
-  let body =
-    "{\"position\":\"top\",\"column_id\":"
-    ^ Int.to_string column_id
-    ^ "}"
-    |> (fun body ->
-      print_endline "Body:";
-      print_endline body;
-      body)
-    |> Cohttp_lwt.Body.of_string
-  in
-  let uri =
-    "https://api.github.com/projects/columns/cards/"
-    ^ Int.to_string card_id
-    ^ "/moves"
-    |> (fun url ->
-      print_string "URL: ";
-      print_endline url;
-      url)
-    |> Uri.of_string
-  in
-  send_request ~body ~uri project_api_preview_header
-
 let retry_job ~project_id ~build_id =
   let uri =
     "https://gitlab.com/api/v4/projects/"
@@ -303,6 +229,10 @@ let handle_json action default body =
      prerr_string "Json type error: ";
      prerr_endline err;
      default
+  | GraphQL_Failure errors ->
+     prerr_endline "GraphQL failure:";
+     errors |> String.concat |> prerr_endline;
+     default
 
 let generic_get relative_uri ?(header_list=[]) ~default json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
@@ -312,19 +242,12 @@ let generic_get relative_uri ?(header_list=[]) ~default json_handler =
   >|= (handle_json json_handler default)
 
 let get_pull_request_info pr_number =
-  generic_get
-    ("repos/coq/coq/pulls/" ^ pr_number)
-    ~default:None
-    (fun json ->
-      let open Yojson.Basic.Util in
-      let pr_id = json |> member "id" |> to_int in
-      let milestone = json |> member "milestone" in
-      match analyze_milestone milestone with
-      | Some backport_info ->
-         Some (pr_id, backport_info)
-      | None ->
-         None
-    )
+  pull_request_db_id_and_milestone ~access_token:github_access_token "coq" "coq" pr_number
+  >|= (fun (pr_id, milestone) ->
+    match Milestone.get_backport_info "coqbot" milestone with
+    | None -> None
+    | Some bp_info -> Some (pr_id, bp_info)
+  )
 
 let get_status_check ~commit ~build_name =
   generic_get
@@ -356,11 +279,8 @@ let get_cards_in_column column_id =
                |> to_string_option
                |> Option.value ~default:""
              in
-             let regexp =
-               "https://api.github.com/repos/.*/\\([0-9]*\\)"
-               |> Str.regexp
-             in
-             if string_match regexp content_url then
+             let regexp = "https://api.github.com/repos/.*/\\([0-9]*\\)" in
+             if string_match ~regexp content_url then
                let pr_number = Str.matched_group 1 content_url in
                Some (pr_number, card_id)
              else
@@ -437,7 +357,7 @@ let pull_request_action json =
     | _ -> ()
 
 let backport_pr number backport_to =
-  "./backport-pr.sh " ^ number ^ " " ^ backport_to
+  "./backport-pr.sh " ^ Int.to_string number ^ " " ^ backport_to
   |&& cd_repo
   |&& git_force_push repo_to_push_to "HEAD" ("staging-" ^ backport_to)
   |> execute_cmd
@@ -447,16 +367,16 @@ let project_action json =
   let project_action = json |> member "action" |> to_string in
   let card = json |> member "project_card" in
   let content_url = card |> member "content_url" |> to_string in
-  let regexp_issue =
-    Str.regexp "https://api.github.com/repos/[^/]*/[^/]*/issues/\\([0-9]*\\)"
+  let regexp =
+    "https://api.github.com/repos/[^/]*/[^/]*/issues/\\([0-9]*\\)"
   in
   if
     String.equal project_action "deleted"
-    && string_match regexp_issue content_url
+    && string_match ~regexp content_url
   then (
-    let issue_number = Str.matched_group 1 content_url in
+    let issue_number = Str.matched_group 1 content_url |> Int.of_string in
     print_string "Issue or PR #";
-    print_string issue_number;
+    print_int issue_number;
     print_endline " was removed from project column:";
     let project_col = card |> member "column_url" |> to_string in
     print_endline project_col;
@@ -466,10 +386,10 @@ let project_action json =
          | None ->
             print_endline "Could not find backporting info for PR.";
             return ()
-         | Some (_, {request_inclusion_column_id; rejected_milestone; _})
+         | Some (_, {request_inclusion_column; rejected_milestone})
            when 
              "https://api.github.com/projects/columns/"
-             ^ Int.to_string request_inclusion_column_id
+             ^ Int.to_string request_inclusion_column
              |> String.equal project_col
            ->
             print_endline "This was a request inclusion column: PR was rejected.";
@@ -484,76 +404,53 @@ let project_action json =
   )
 
 let push_action json =
-  let cache_list_cards = ref ("", []) in
-  print_endline "Commit messages:";
+  print_endline "Merge and backport commit messages:";
   let open Yojson.Basic.Util in
   let base_ref = json |> member "ref" |> to_string in
   let commit_action commit =
     let commit_msg = commit |> member "message" |> to_string in
-    print_endline commit_msg;
-    let regexp_merge = Str.regexp "Merge PR #\\([0-9]*\\):" in
-    let regexp_backport = Str.regexp "Backport PR #\\([0-9]*\\):" in
-    if string_match regexp_merge commit_msg then (
-      let pr_number = Str.matched_group 1 commit_msg in
+    if string_match ~regexp:"Merge PR #\\([0-9]*\\):" commit_msg then (
+      print_endline commit_msg;
+      let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       print_string "PR #";
-      print_string pr_number;
+      print_int pr_number;
       print_endline " was merged.";
       get_pull_request_info pr_number >>= (fun pr_info ->
         match pr_info with
-        | Some (pr_id, {backport_to; request_inclusion_column_id; backported_column_id; _}) ->
+        | Some (pr_id, {backport_to; request_inclusion_column; backported_column}) ->
            if ("refs/heads/" ^ backport_to |> String.equal base_ref) then (
              print_endline "PR was merged into the backportig branch directly.";
-             add_pr_to_column pr_id backported_column_id
+             add_pr_to_column pr_id backported_column
            )
            else (
              print_string "Backporting to ";
              print_string backport_to;
              print_endline " was requested.";
              Lwt.async (fun () -> backport_pr pr_number backport_to);
-             add_pr_to_column pr_id request_inclusion_column_id
+             add_pr_to_column pr_id request_inclusion_column
            )
         | None ->
            print_endline "Did not get any backporting info.";
            return ()
       )
     )
-    else if string_match regexp_backport commit_msg then (
+    else if string_match ~regexp:"Backport PR #\\([0-9]*\\):" commit_msg then (
+      print_endline commit_msg;
       let pr_number = Str.matched_group 1 commit_msg in
       print_string "PR #";
       print_string pr_number;
       print_endline " was backported.";
-      get_pull_request_info pr_number
+      backported_pr_info
+        ~access_token:github_access_token (Int.of_string pr_number) base_ref
       >>= (function
-           | Some (_, {backport_to; request_inclusion_column_id; backported_column_id; _}) ->
-              (* Now we need to find the card id for this PR in the request inclusion column *)
-              begin
-                if !cache_list_cards |> fst |> String.equal backport_to |> not then
-                  get_cards_in_column request_inclusion_column_id >|=
-                    (fun cards ->
-                      cache_list_cards := (backport_to, cards);
-                      !cache_list_cards
-                    )
-                else return !cache_list_cards
-              end >>= (fun (_, cards) ->
-               match
-                 List.find_map cards ~f:(fun (pr_number', card_id) ->
-                     if String.equal pr_number pr_number'
-                     then Some card_id
-                     else None
-                   )
-               with
-               | Some card_id ->
-                  print_string "Moving card ";
-                  print_int card_id;
-                  print_endline " to colum ";
-                  print_int backported_column_id;
-                  print_newline ();
-                  mv_card_to_column card_id backported_column_id
-               | None ->
-                  prerr_endline "Could not find a card for the backported PR.";
-                  return ()
-
-             )
+           | Some ({card_id; column_id} as input) ->
+              print_string "Moving card ";
+              print_string card_id;
+              print_string " to column ";
+              print_string column_id;
+              print_newline ();
+              BotComponents.GitHub.mv_card_to_column
+                ~access_token:github_access_token input
            | None ->
               prerr_endline "Could not find backporting info for backported PR.";
               return ()
@@ -592,7 +489,7 @@ let trace_action trace =
   print_string "Trace size:";
   print_int trace_size;
   print_newline ();
-  let test regexp = string_match (Str.regexp regexp) trace in
+  let test regexp = string_match ~regexp trace in
   if test "Job failed: exit code 137" then (
     print_endline "Exit code 137. Retrying...";
     Retry

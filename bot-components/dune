@@ -1,0 +1,7 @@
+(library
+ (name BotComponents)
+ (public_name bot-components)
+ (libraries base cohttp-lwt-unix str yojson))
+
+(env
+ (dev (flags :standard -w -3-9-27)))
