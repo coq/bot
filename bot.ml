@@ -52,10 +52,10 @@ let cd_repo =
   "cd repo"
 
 let git_fetch repo remote_ref =
-  "git fetch " ^ repo ^ " " ^ remote_ref ^ " && git checkout FETCH_HEAD"
+  "git fetch -q " ^ repo ^ " " ^ remote_ref ^ " && git checkout -q FETCH_HEAD"
 
 let git_pull_ff repo remote_ref =
-  "git pull --ff-only " ^ repo ^ " " ^ remote_ref
+  "git pull -q --ff-only " ^ repo ^ " " ^ remote_ref
 
 let git_push repo =
   if ssh_push then
@@ -486,7 +486,7 @@ type build_failure = Warn | Retry | Ignore
 
 let trace_action trace =
   let trace_size = String.length trace in
-  print_string "Trace size:";
+  print_string "Trace size: ";
   print_int trace_size;
   print_newline ();
   let test regexp = string_match ~regexp trace in
