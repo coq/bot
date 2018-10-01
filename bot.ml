@@ -21,7 +21,7 @@ let project_api_preview_header =
 let ssh_push = Sys.file_exists "~/bot_rsa"
 
 open Base
-open BotComponents.GitHub
+open BotComponents.GitHub_Request
 open Cohttp
 open Cohttp_lwt_unix
 open Lwt
@@ -449,7 +449,7 @@ let push_action json =
               print_string " to column ";
               print_string column_id;
               print_newline ();
-              BotComponents.GitHub.mv_card_to_column
+              mv_card_to_column
                 ~access_token:github_access_token input
            | None ->
               prerr_endline "Could not find backporting info for backported PR.";
