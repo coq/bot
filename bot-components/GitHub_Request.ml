@@ -171,11 +171,12 @@ module ProjectCard =
 
 (* Queries *)
 
-let pull_request_db_id_and_milestone ~access_token owner repo number =
+let pull_request_id_db_id_and_milestone ~access_token owner repo number =
   let query =
     "query prInfo($owner: String!, $repo: String!, $number: Int!) {
        repository(owner: $owner,name: $repo) {
          pullRequest(number: $number) {
+           id
            databaseId
            milestone { ... milestone }
          }
@@ -193,9 +194,10 @@ let pull_request_db_id_and_milestone ~access_token owner repo number =
     let pr_json =
       json |> member "data" |> member "repository" |> member "pullRequest"
     in
+    let id = pr_json |> member "id" |> to_string in
     let db_id = pr_json |> member "databaseId" |> to_int in
     let milestone = pr_json |> member "milestone" |> Milestone.from_json in
-    (db_id, milestone)
+    (id, db_id, milestone)
   )
 
 let pull_request_base_milestone_and_cards ~access_token owner repo number =
@@ -248,6 +250,21 @@ let mv_card_to_column ~access_token { card_id; column_id } =
   let variables =
     [("card_id",`String card_id)
     ;("column_id",`String column_id)
+    ]
+  in
+  graphql_query ~access_token mutation variables >|= ignore
+
+let post_comment ~access_token id message =
+  let mutation =
+    "mutation addComment($id:ID!,$message:String!) {
+       addComment(input:{subjectId:$id,body:$message}) {
+         clientMutationId
+       }
+     }"
+  in
+  let variables =
+    [("id",`String id)
+    ;("message",`String message)
     ]
   in
   graphql_query ~access_token mutation variables >|= ignore

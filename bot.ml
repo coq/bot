@@ -242,11 +242,11 @@ let generic_get relative_uri ?(header_list=[]) ~default json_handler =
   >|= (handle_json json_handler default)
 
 let get_pull_request_info pr_number =
-  pull_request_db_id_and_milestone ~access_token:github_access_token "coq" "coq" pr_number
-  >|= (fun (pr_id, milestone) ->
+  pull_request_id_db_id_and_milestone ~access_token:github_access_token "coq" "coq" pr_number
+  >|= (fun (id, pr_id, milestone) ->
     match Milestone.get_backport_info "coqbot" milestone with
     | None -> None
-    | Some bp_info -> Some (pr_id, bp_info)
+    | Some bp_info -> Some (id, pr_id, bp_info)
   )
 
 let get_status_check ~commit ~build_name =
@@ -386,7 +386,7 @@ let project_action json =
          | None ->
             print_endline "Could not find backporting info for PR.";
             return ()
-         | Some (_, {request_inclusion_column; rejected_milestone})
+         | Some (id, _, {request_inclusion_column; rejected_milestone})
            when 
              "https://api.github.com/projects/columns/"
              ^ Int.to_string request_inclusion_column
@@ -396,6 +396,8 @@ let project_action json =
             print_endline "Change of milestone requested to:";
             print_endline rejected_milestone;
             update_milestone issue_number rejected_milestone
+            <&> post_comment ~access_token:github_access_token id
+                  "This PR was postponed. Please update accordingly the milestone of any issue that this fixes as this cannot be done automatically."
          | _ ->
             print_endline "This was not a request inclusion column: ignoring.";
             return ()
@@ -417,7 +419,7 @@ let push_action json =
       print_endline " was merged.";
       get_pull_request_info pr_number >>= (fun pr_info ->
         match pr_info with
-        | Some (pr_id, {backport_to; request_inclusion_column; backported_column}) ->
+        | Some (_, pr_id, {backport_to; request_inclusion_column; backported_column}) ->
            if ("refs/heads/" ^ backport_to |> String.equal base_ref) then (
              print_endline "PR was merged into the backportig branch directly.";
              add_pr_to_column pr_id backported_column
