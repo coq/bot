@@ -13,18 +13,17 @@ let gitlab_header = [ "PRIVATE-TOKEN", gitlab_access_token ]
 
 let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
 
-let repo_to_push_to = "coq/coq.git"
-
 let project_api_preview_header =
   [ "Accept", "application/vnd.github.inertia-preview+json" ]
-
-let ssh_push = Sys.file_exists "~/bot_rsa"
 
 open Base
 open BotComponents.GitHub_Request
 open Cohttp
 open Cohttp_lwt_unix
 open Lwt
+
+let gitlab_repo =
+  "https://" ^ username ^ ":" ^ password ^ "@gitlab.com/coq/coq.git"
 
 let report_status command report code =
   print_string "Command \"";
@@ -51,29 +50,21 @@ let execute_cmd command =
 let cd_repo =
   "cd repo"
 
-let git_fetch repo remote_ref =
-  "git fetch -q " ^ repo ^ " " ^ remote_ref ^ " && git checkout -q FETCH_HEAD"
+let git_fetch ?(force=true) repo remote_ref local_branch_name =
+  "git fetch " ^ repo
+  ^ (if force then " +" else " ")
+  ^ remote_ref ^ ":refs/heads/" ^ local_branch_name
 
-let git_pull_ff repo remote_ref =
-  "git pull -q --ff-only " ^ repo ^ " " ^ remote_ref
-
-let git_push repo =
-  if ssh_push then
-    "GIT_SSH_COMMAND='ssh -i ~/bot_rsa -o \"StrictHostKeyChecking=no\"'"
-    ^ "git push git@gitlab.com:"
-    ^ repo
-  else
-    "git push https://" ^ username ^ ":" ^ password ^ "@gitlab.com/" ^ repo
-
-let git_force_push repo local_ref remote_branch_name =
-  git_push repo ^ " +" ^ local_ref ^ ":refs/heads/" ^ remote_branch_name
+let git_push ?(force=true) repo local_ref remote_branch_name =
+  "git push " ^ repo
+  ^ (if force then " +" else " ")
+  ^ local_ref ^ ":refs/heads/" ^ remote_branch_name
 
 let git_delete repo remote_branch_name =
-  git_push repo ^ " :refs/heads/" ^ remote_branch_name
+  git_push ~force:false repo "" remote_branch_name
 
-let or_true cmd = "( " ^ cmd ^ " || true )"
-
-let remote_branch_name number = "pr-" ^ Int.to_string number
+let git_is_ancestor ref1 ref2 =
+  "git merge-base --is-ancestor " ^ ref1 ^ " " ^ ref2
 
 let (|&&) command1 command2 = command1 ^ " && " ^ command2
 
@@ -295,6 +286,7 @@ let pull_request_action json =
     print_endline action;
     let json_pr = json |> member "pull_request" in
     let number = json_pr |> member "number" |> to_int in
+    let pr_local_branch = "pr-" ^ Int.to_string number in
     print_string "Number: #";
     print_int number;
     print_newline ();
@@ -309,44 +301,54 @@ let pull_request_action json =
        and pr_branch = pr_head |> member "ref" |> to_string
        and pr_repo = pr_head |> member "repo" |> member "html_url" |> to_string
        in
+       let pr_local_base_branch = "remote-" ^ pr_base_branch in
        (fun () ->
          print_endline "Action warrants fetch / push.";
          cd_repo
-         |&& git_fetch pr_base_repo pr_base_branch
-         |&& git_pull_ff pr_repo pr_branch
-         |&& or_true (git_force_push repo_to_push_to pr_head_commit (remote_branch_name number))
-         |> execute_cmd >|= (fun ok ->
-          if ok then (
-            if json_pr
-               |> member "labels"
-               |> to_list
-               |> List.exists ~f:(fun label ->
-                      label
-                      |> member "name"
-                      |> to_string
-                      |> String.equal "needs: rebase"
-                    )
-            then (
-              print_endline "Removing the rebase label.";
-              remove_rebase_label number
-            )
-            else return ()
-          )
-          else (
-            print_endline "Adding the rebase label and a failed status check.";
-            add_rebase_label number
-            <&> send_status_check ~commit:pr_head_commit ~state:"failure"
-                  ~url:""
-                  ~context:("ci/gitlab/pr-" ^ Int.to_string number)
-                  ~description:"Pipeline did not run on GitLab CI because branch is not up-to-date."
-          )
-        )
+         |&& git_fetch pr_base_repo pr_base_branch pr_local_base_branch
+         |&& git_fetch pr_repo pr_branch pr_local_branch
+         |&& git_is_ancestor pr_local_base_branch pr_local_branch
+         |> execute_cmd
+         >|= (fun ok ->
+           if ok then (
+             (* Remove rebase label *)
+             (if json_pr
+                 |> member "labels"
+                 |> to_list
+                 |> List.exists ~f:(fun label ->
+                        label
+                        |> member "name"
+                        |> to_string
+                        |> String.equal "needs: rebase"
+                      )
+              then (
+                print_endline "Removing the rebase label.";
+                remove_rebase_label number
+              )
+              else return ()
+             ) <&>
+               (* Force push *)
+               (cd_repo
+                |&& git_push gitlab_repo pr_local_branch pr_local_branch
+                |> execute_cmd
+                >|= ignore
+               )
+           )
+           else (
+             print_endline "Adding the rebase label and a failed status check.";
+             add_rebase_label number
+             <&> send_status_check ~commit:pr_head_commit ~state:"failure"
+                   ~url:""
+                   ~context:("ci/gitlab/pr-" ^ Int.to_string number)
+                   ~description:"Pipeline did not run on GitLab CI because branch is not up-to-date."
+           )
+         )
        ) |> Lwt.async
     | "closed" ->
        print_endline "Branch will be deleted following PR closing.";
        (fun () ->
          cd_repo
-         |&& git_delete repo_to_push_to (remote_branch_name number)
+         |&& git_delete gitlab_repo pr_local_branch
          |> execute_cmd)
        |> Lwt.async;
        if json_pr |> member "merged" |> to_bool |> not then (
@@ -359,7 +361,7 @@ let pull_request_action json =
 let backport_pr number backport_to =
   "./backport-pr.sh " ^ Int.to_string number ^ " " ^ backport_to
   |&& cd_repo
-  |&& git_force_push repo_to_push_to "HEAD" ("staging-" ^ backport_to)
+  |&& git_push gitlab_repo "HEAD" ("staging-" ^ backport_to)
   |> execute_cmd
 
 let project_action json =
