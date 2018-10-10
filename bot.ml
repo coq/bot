@@ -515,6 +515,7 @@ let trace_action trace =
   )
   else if (test "transfer closed with outstanding read data remaining"
            || test "HTTP request sent, awaiting response... 500 Internal Server Error"
+           || test "The requested URL returned error: 502"
            || test "The remote end hung up unexpectedly")
   then (
     print_endline "Connectivity issue. Retrying...";
