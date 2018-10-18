@@ -506,17 +506,20 @@ let trace_action trace =
     print_endline "System failure. Retrying...";
     Retry
   )
-  else if (test "Uploading artifacts to coordinator... failed"
-           || test "Uploading artifacts to coordinator... error")
-          && not (test "Uploading artifacts to coordinator... ok")
+  else if
+    (test "Uploading artifacts to coordinator... failed"
+     || test "Uploading artifacts to coordinator... error")
+    && not (test "Uploading artifacts to coordinator... ok")
   then (
     print_endline "Artifact uploading failure. Retrying...";
     Retry
   )
-  else if (test "transfer closed with outstanding read data remaining"
-           || test "HTTP request sent, awaiting response... 500 Internal Server Error"
-           || test "The requested URL returned error: 502"
-           || test "The remote end hung up unexpectedly")
+  else if
+    test "transfer closed with outstanding read data remaining"
+    || test "HTTP request sent, awaiting response... 500 Internal Server Error"
+    || test "The requested URL returned error: 502"
+    || test "The remote end hung up unexpectedly"
+    || test "error: unable to download 'https://cache.nixos.org/"
   then (
     print_endline "Connectivity issue. Retrying...";
     Retry
