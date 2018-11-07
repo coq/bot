@@ -21,8 +21,8 @@ open Cohttp
 open Cohttp_lwt_unix
 open Lwt
 
-let gitlab_repo =
-  "https://" ^ username ^ ":" ^ password ^ "@gitlab.com/coq/coq.git"
+let gitlab_repo full_name =
+  "https://" ^ username ^ ":" ^ password ^ "@gitlab.com/" ^ full_name ^ ".git"
 
 let report_status command report code =
   print_string "Command \"" ;
@@ -90,31 +90,32 @@ let send_request ~body ~uri header_list =
   print_endline "Sending request." ;
   Client.post ~body ~headers uri >>= print_response
 
-let add_rebase_label issue_nb =
+let add_rebase_label full_name issue_nb =
   let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
   let uri =
-    "https://api.github.com/repos/coq/coq/issues/" ^ Int.to_string issue_nb
-    ^ "/labels"
+    "https://api.github.com/repos/" ^ full_name ^ "/issues/"
+    ^ Int.to_string issue_nb ^ "/labels"
     |> (fun url -> print_string "URL: " ; print_endline url ; url)
     |> Uri.of_string
   in
   send_request ~body ~uri []
 
-let remove_rebase_label issue_nb =
+let remove_rebase_label full_name issue_nb =
   let headers = headers [] in
   let uri =
-    "https://api.github.com/repos/coq/coq/issues/" ^ Int.to_string issue_nb
-    ^ "/labels/needs%3A rebase"
+    "https://api.github.com/repos/" ^ full_name ^ "/issues/"
+    ^ Int.to_string issue_nb ^ "/labels/needs%3A rebase"
     |> (fun url -> print_string "URL: " ; print_endline url ; url)
     |> Uri.of_string
   in
   print_endline "Sending delete request." ;
   Client.delete ~headers uri >>= print_response
 
-let update_milestone issue_nb new_milestone =
+let update_milestone ~repo_full_name issue_nb new_milestone =
   let headers = headers [] in
   let uri =
-    "https://api.github.com/repos/coq/coq/issues/" ^ Int.to_string issue_nb
+    "https://api.github.com/repos/" ^ repo_full_name ^ "/issues/"
+    ^ Int.to_string issue_nb
     |> (fun url -> print_string "URL: " ; print_endline url ; url)
     |> Uri.of_string
   in
@@ -141,7 +142,8 @@ let add_pr_to_column pr_id column_id =
   in
   send_request ~body ~uri project_api_preview_header
 
-let send_status_check ~commit ~state ~url ~context ~description =
+let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
+    =
   let body =
     "{\"state\": \"" ^ state ^ "\",\"target_url\":\"" ^ url
     ^ "\", \"description\": \"" ^ description ^ "\", \"context\": \"" ^ context
@@ -150,7 +152,7 @@ let send_status_check ~commit ~state ~url ~context ~description =
     |> Cohttp_lwt.Body.of_string
   in
   let uri =
-    "https://api.github.com/repos/coq/coq/statuses/" ^ commit
+    "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
     |> (fun url -> print_string "URL: " ; print_endline url ; url)
     |> Uri.of_string
   in
@@ -235,18 +237,20 @@ let pull_request_action json =
   print_string "Action: " ;
   print_endline action ;
   let json_pr = json |> member "pull_request" in
-  let number = json_pr |> member "number" |> to_int in
-  let pr_local_branch = "pr-" ^ Int.to_string number in
+  let number = json_pr |> member "number" |> to_int
+  and pr_base = json_pr |> member "base" in
+  let pr_base_repo = pr_base |> member "repo" in
+  let pr_base_repo_name = pr_base_repo |> member "full_name" |> to_string in
+  let pr_local_branch = "pr-" ^ Int.to_string number
+  and gitlab_repo = gitlab_repo pr_base_repo_name in
   print_string "Number: #" ;
   print_int number ;
   print_newline () ;
   match action with
   | "opened" | "reopened" | "synchronize" ->
-      let pr_head = json_pr |> member "head"
-      and pr_base = json_pr |> member "base" in
-      let pr_base_branch = pr_base |> member "ref" |> to_string
-      and pr_base_repo =
-        pr_base |> member "repo" |> member "html_url" |> to_string
+      let pr_head = json_pr |> member "head" in
+      let pr_base_branch = pr_base |> member "ref" |> to_string in
+      let pr_base_repo_url = pr_base_repo |> member "html_url" |> to_string
       and pr_head_commit = pr_head |> member "sha" |> to_string
       and pr_branch = pr_head |> member "ref" |> to_string
       and pr_repo =
@@ -256,7 +260,7 @@ let pull_request_action json =
       (fun () ->
         print_endline "Action warrants fetch / push." ;
         cd_repo
-        |&& git_fetch pr_base_repo pr_base_branch pr_local_base_branch
+        |&& git_fetch pr_base_repo_url pr_base_branch pr_local_base_branch
         |&& git_fetch pr_repo pr_branch pr_local_branch
         |&& git_is_ancestor pr_local_base_branch pr_local_branch
         |> execute_cmd
@@ -270,7 +274,7 @@ let pull_request_action json =
                    |> String.equal "needs: rebase" )
           then (
             print_endline "Removing the rebase label." ;
-            remove_rebase_label number )
+            remove_rebase_label pr_base_repo_name number )
           else return () )
           <&> (* Force push *)
           ( cd_repo
@@ -278,8 +282,9 @@ let pull_request_action json =
           |> execute_cmd >|= ignore )
         else (
           print_endline "Adding the rebase label and a failed status check." ;
-          add_rebase_label number
-          <&> send_status_check ~commit:pr_head_commit ~state:"failure" ~url:""
+          add_rebase_label pr_base_repo_name number
+          <&> send_status_check ~repo_full_name:pr_base_repo_name
+                ~commit:pr_head_commit ~state:"failure" ~url:""
                 ~context:("ci/gitlab/pr-" ^ Int.to_string number)
                 ~description:
                   "Pipeline did not run on GitLab CI because branch is not \
@@ -293,14 +298,15 @@ let pull_request_action json =
       if json_pr |> member "merged" |> to_bool |> not then (
         print_endline
           "PR was closed without getting merged: remove the milestone." ;
-        (fun () -> remove_milestone number) |> Lwt.async
+        (fun () -> remove_milestone ~repo_full_name:pr_base_repo_name number)
+        |> Lwt.async
         (* TODO: if PR was merged in master without a milestone, post an alert *) )
   | _ -> ()
 
 let backport_pr number backport_to =
   "./backport-pr.sh " ^ Int.to_string number ^ " " ^ backport_to
   |&& cd_repo
-  |&& git_push gitlab_repo "HEAD" ("staging-" ^ backport_to)
+  |&& git_push (gitlab_repo "coq/coq") "HEAD" ("staging-" ^ backport_to)
   |> execute_cmd
 
 let project_action json =
@@ -332,7 +338,8 @@ let project_action json =
           print_endline "This was a request inclusion column: PR was rejected." ;
           print_endline "Change of milestone requested to:" ;
           print_endline rejected_milestone ;
-          update_milestone issue_number rejected_milestone
+          update_milestone ~repo_full_name:"coq/coq" issue_number
+            rejected_milestone
           <&> post_comment ~access_token:github_access_token id
                 "This PR was postponed. Please update accordingly the \
                  milestone of any issue that this fixes as this cannot be \
@@ -473,7 +480,7 @@ let job_action json =
         return () )
       else (
         print_endline "Pushing a status check..." ;
-        send_status_check ~commit ~state:"failure"
+        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"failure"
           ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
           ~context:build_name
           ~description:(failure_reason ^ " on GitLab CI") )
@@ -521,11 +528,12 @@ let job_action json =
       url |> Uri.of_string |> Client.get
       >>= fun (resp, _) ->
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-        send_status_check ~commit ~state:"success" ~url ~context:build_name
+        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"success"
+          ~url ~context:build_name
           ~description:"Link to refman build artifact."
       else (
         print_endline "But we didn't get a 200 code when checking the URL." ;
-        send_status_check ~commit ~state:"failure"
+        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"failure"
           ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
           ~context:build_name
           ~description:"Link to refman build artifact: not found." ) )
@@ -538,7 +546,7 @@ let job_action json =
         print_endline
           "There existed a previous status check for this build, we'll \
            override it." ;
-        send_status_check ~commit ~state:"success"
+        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"success"
           ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
           ~context:build_name
           ~description:"Test succeeded on GitLab CI after being retried" )
