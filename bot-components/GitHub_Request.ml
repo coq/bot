@@ -6,6 +6,25 @@ open Lwt
 open Yojson.Basic
 open Yojson.Basic.Util
 
+let executable_query (query, kvariables, parse) ~token =
+  kvariables (fun variables ->
+      let uri = Uri.of_string "https://api.github.com/graphql" in
+      let headers =
+        Cohttp.Header.of_list
+          [("Authorization", "bearer " ^ token); ("User-Agent", "coqbot")]
+      in
+      let body = `Assoc [("query", `String query); ("variables", variables)] in
+      let serialized_body = Yojson.Basic.to_string body in
+      Cohttp_lwt_unix.Client.post ~headers ~body:(`String serialized_body) uri
+      >>= fun (rsp, body) ->
+      Cohttp_lwt.Body.to_string body
+      >|= fun body' ->
+      match Cohttp.Code.(code_of_status rsp.status |> is_success) with
+      | false -> Error body'
+      | true -> (
+        try Ok (Yojson.Basic.from_string body' |> parse)
+        with Yojson.Json_error err -> Error err ) )
+
 exception GraphQL_Failure of string list
 
 let graphql_query ~access_token query variables =
@@ -73,7 +92,7 @@ module Milestone = struct
     ; backported_column: int
     ; rejected_milestone: string }
 
-  let get_backport_info bot_name {description} =
+  let get_backport_info bot_name description =
     let project_column_regexp =
       "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
     in
@@ -139,30 +158,23 @@ end
 
 (* Queries *)
 
-let pull_request_id_db_id_and_milestone ~access_token owner repo number =
-  let query =
-    "query prInfo($owner: String!, $repo: String!, $number: Int!) {\n\
-    \       repository(owner: $owner,name: $repo) {\n\
-    \         pullRequest(number: $number) {\n\
-    \           id\n\
-    \           databaseId\n\
-    \           milestone { ... milestone }\n\
-    \         }\n\
-    \       }\n\
-    \     }" ^ Milestone.fragment
-  in
-  let variables =
-    [("owner", `String owner); ("repo", `String repo); ("number", `Int number)]
-  in
-  graphql_query ~access_token query variables
-  >|= fun json ->
-  let pr_json =
-    json |> member "data" |> member "repository" |> member "pullRequest"
-  in
-  let id = pr_json |> member "id" |> to_string in
-  let db_id = pr_json |> member "databaseId" |> to_int in
-  let milestone = pr_json |> member "milestone" |> Milestone.from_json in
-  (id, db_id, milestone)
+let pull_request_id_db_id_and_milestone =
+  executable_query
+    [%graphql
+      {|
+       query prInfo($owner: String!, $repo: String!, $number: Int!) {
+         repository(owner: $owner,name: $repo) {
+           pullRequest(number: $number) {
+             id
+             databaseId
+             milestone {
+               title
+               description
+             }
+           }
+         }
+       }
+       |}]
 
 let pull_request_base_milestone_and_cards ~access_token owner repo number =
   let query =
@@ -226,7 +238,7 @@ let backported_pr_info ~access_token number base_ref =
   pull_request_base_milestone_and_cards ~access_token "coq" "coq" number
   >|= fun (cards, milestone) ->
   let open Option in
-  Milestone.get_backport_info "coqbot" milestone
+  Milestone.get_backport_info "coqbot" milestone.description
   >>= fun {backport_to; request_inclusion_column; backported_column} ->
   if String.equal ("refs/heads/" ^ backport_to) base_ref then
     List.find_map cards ~f:(fun card ->

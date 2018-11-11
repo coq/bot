@@ -1,7 +1,7 @@
 { pkgs ?
   import (fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/cea4806bc5c425d2f9d9e110ae425b010e870662.tar.gz";
-    sha256 = "0i0n2c5w585n04m5hqdcqrygdcpb46ncn0bchwp6mhjyd34zyckb";
+    url = "https://github.com/Zimmi48/nixpkgs/archive/abfb32ef22c96c19dd992e75570d4fb50d2ab461.tar.gz";
+    sha256 = "0prl42qpy8wzvd22pljb7mlyvc9k1sxdw2vkfky31v4xj9pkmxj4";
   }) {}
 }:
 
@@ -19,10 +19,12 @@ stdenv.mkDerivation rec {
       ncurses
       merlin
       ocamlformat
+      nodePackages.graphql-cli
       # Libraries
       base
       cohttp
       cohttp-lwt-unix
+      ppx_graphql
       yojson
       # Publishing
       heroku

@@ -201,12 +201,26 @@ let generic_get relative_uri ?(header_list = []) ~default json_handler =
   >|= handle_json json_handler default
 
 let get_pull_request_info pr_number =
-  pull_request_id_db_id_and_milestone ~access_token:github_access_token "coq"
-    "coq" pr_number
-  >|= fun (id, pr_id, milestone) ->
-  match Milestone.get_backport_info "coqbot" milestone with
-  | None -> None
-  | Some bp_info -> Some (id, pr_id, bp_info)
+  pull_request_id_db_id_and_milestone ~token:github_access_token ~owner:"coq"
+    ~repo:"coq" ~number:pr_number ()
+  >|= function
+  | Ok result -> (
+    match result#repository with
+    | Some repo -> (
+      match repo#pullRequest with
+      | Some pr -> (
+        match (pr#databaseId, pr#milestone) with
+        | Some db_id, Some milestone -> (
+          match milestone#description with
+          | Some description -> (
+            match Milestone.get_backport_info "coqbot" description with
+            | Some bp_info -> Some (pr#id, db_id, bp_info)
+            | _ -> None )
+          | _ -> None )
+        | _ -> None )
+      | _ -> None )
+    | _ -> None )
+  | _ -> None
 
 let get_status_check ~repo_full_name ~commit ~build_name =
   generic_get

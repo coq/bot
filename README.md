@@ -10,8 +10,19 @@ Use `nix-shell` to get into an appropriate development environment or use
 Use the following command to build:
 
 ```
+dune build --ignore-promoted-rules
+```
+
+or
+
+```
 dune build
 ```
+
+This second solution will update the `bot-component/schema.json` file
+using the node package graphql-cli before building the project and provided
+the `bot-component/.github-token` file contains a single line with a GitHub
+API personal token.
 
 To run locally, use [ngrok](https://ngrok.io) to redirect a public address
 to your local machine and set up the GitHub webhook accordingly.

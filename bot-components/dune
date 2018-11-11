@@ -1,7 +1,24 @@
 (library
  (name BotComponents)
  (public_name bot-components)
- (libraries base cohttp-lwt-unix str yojson))
+ (libraries base cohttp-lwt-unix str yojson)
+ (preprocess (pps ppx_graphql))
+ (preprocessor_deps (file schema.json)))
+
+(rule
+ (targets schema.json)
+ (deps .graphqlconfig)
+ (action
+  (progn
+   (run graphql get-schema)
+   (run sed -i "s/\"timestamp\": \".*\"/\"timestamp\": \"\"/" %{targets})))
+ (mode promote))
+
+(rule
+ (targets .graphqlconfig)
+ (deps (:input .graphqlconfig.in) .github-token)
+ (action
+  (with-stdout-to %{targets} (run sed "s/%%TOKEN%%/%{read:.github-token}/" %{input}))))
 
 (env
  (dev (flags :standard -w -3-9-27)))
