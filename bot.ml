@@ -62,8 +62,13 @@ let git_push ?(force = true) repo local_ref remote_branch_name =
 let git_delete repo remote_branch_name =
   git_push ~force:false repo "" remote_branch_name
 
-let git_is_ancestor ref1 ref2 =
-  "git merge-base --is-ancestor " ^ ref1 ^ " " ^ ref2
+let git_make_ancestor ~base ref2 =
+  let (||) x y = x ^" && "^y in
+  let (&&) x y = x ^" && "^y in
+  Printf.sprintf "git checkout %s" ref2 &&
+  Printf.sprintf "git merge %s -m \"Bot merge %s into %s\" -ff" base base ref2 ||
+  "{ git merge --abort; false }"
+
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
@@ -262,7 +267,7 @@ let pull_request_action json =
         cd_repo
         |&& git_fetch pr_base_repo_url pr_base_branch pr_local_base_branch
         |&& git_fetch pr_repo pr_branch pr_local_branch
-        |&& git_is_ancestor pr_local_base_branch pr_local_branch
+        |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
         |> execute_cmd
         >|= fun ok ->
         if ok then
