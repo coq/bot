@@ -448,6 +448,13 @@ let trace_action trace =
     print_endline "Artifact uploading failure. Retrying..." ;
     Retry )
   else if
+    test "ERROR: Downloading artifacts from coordinator... error"
+    && test "request canceled (Client.Timeout exceeded while reading body)"
+    && test "FATAL: invalid argument"
+  then (
+    print_endline "Artifact downloading failure. Retrying..." ;
+    Retry )
+  else if
     test "transfer closed with outstanding read data remaining"
     || test "HTTP request sent, awaiting response... 50[0-9]"
     || test "The requested URL returned error: 502"
