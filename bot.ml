@@ -33,6 +33,8 @@ let report_status command report code =
   print_int code ;
   print_endline "."
 
+let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
+
 let execute_cmd command =
   Lwt_unix.system command
   >|= fun status ->
@@ -50,7 +52,7 @@ let execute_cmd command =
 let cd_repo = "cd repo"
 
 let git_fetch ?(force = true) repo remote_ref local_branch_name =
-  "git fetch " ^ repo
+  "git fetch -fu " ^ repo
   ^ (if force then " +" else " ")
   ^ remote_ref ^ ":refs/heads/" ^ local_branch_name
 
@@ -62,10 +64,27 @@ let git_push ?(force = true) repo local_ref remote_branch_name =
 let git_delete repo remote_branch_name =
   git_push ~force:false repo "" remote_branch_name
 
-let git_is_ancestor ref1 ref2 =
-  "git merge-base --is-ancestor " ^ ref1 ^ " " ^ ref2
+let git_make_ancestor ~base ref2 =
+  Printf.sprintf "git checkout %s" ref2
+  |&& Printf.sprintf
+        "git merge %s -m \"Bot merge $(git rev-parse %s) into $(git rev-parse \
+         %s)\" || { git merge --abort; false; }"
+        base base ref2
 
-let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
+let extract_commit json =
+  let open Yojson.Basic.Util in
+  let commit_json = json |> member "commit" in
+  let message = commit_json |> member "message" |> to_string in
+  if string_match ~regexp:"Bot merge .* into \\(.*\\)" message then
+    Str.matched_group 1 message
+  else
+    (* In the case of build webhooks, the id is a number and the sha is the
+       reference of the commit, while in the case of pipeline hooks only id
+       is present and represents the sha. *)
+    ( match commit_json |> member "sha" with
+    | `Null -> commit_json |> member "id"
+    | sha -> sha )
+    |> to_string
 
 let print_response (resp, body) =
   let code = resp |> Response.status |> Code.code_of_status in
@@ -262,7 +281,7 @@ let pull_request_action json =
         cd_repo
         |&& git_fetch pr_base_repo_url pr_base_branch pr_local_base_branch
         |&& git_fetch pr_repo pr_branch pr_local_branch
-        |&& git_is_ancestor pr_local_base_branch pr_local_branch
+        |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
         |> execute_cmd
         >|= fun ok ->
         if ok then
@@ -476,7 +495,7 @@ let job_action json =
   let build_status = json |> member "build_status" |> to_string in
   let build_id = json |> member "build_id" |> to_int in
   let build_name = json |> member "build_name" |> to_string in
-  let commit = json |> member "sha" |> to_string in
+  let commit = json |> extract_commit in
   if String.equal build_status "failed" then (
     let project_id = json |> member "project_id" |> to_int in
     let failure_reason = json |> member "build_failure_reason" |> to_string in
@@ -560,6 +579,26 @@ let job_action json =
       else return () )
     |> Lwt.async
 
+let pipeline_action json =
+  let open Yojson.Basic.Util in
+  let pipeline_json = json |> member "object_attributes" in
+  let state = pipeline_json |> member "status" |> to_string in
+  let id = pipeline_json |> member "id" |> to_int in
+  let commit = json |> extract_commit in
+  let state, description =
+    match state with
+    | "success" -> ("success", "Pipeline completed on GitLab CI")
+    | "pending" -> ("pending", "Pipeline is pending on GitLab CI")
+    | "running" -> ("pending", "Pipeline is running on GitLab CI")
+    | "failed" -> ("failure", "Pipeline completed with errors on GitLab CI")
+    | _ -> ("error", "Unknown pipeline status: " ^ state)
+  in
+  (fun () ->
+    send_status_check ~repo_full_name:"coq/coq" ~commit ~state
+      ~url:("https://gitlab.com/coq/coq/pipelines/" ^ Int.to_string id)
+      ~context:"GitLab CI pipeline" ~description )
+  |> Lwt.async
+
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
@@ -568,10 +607,11 @@ let callback _conn req body =
     Server.respond_string ~status:`OK ~body:"" ()
   in
   match Uri.path (Request.uri req) with
+  | "/job" -> handle_request job_action
+  | "/pipeline" -> handle_request pipeline_action
   | "/project" -> handle_request project_action
   | "/pull_request" -> handle_request pull_request_action
   | "/push" -> handle_request push_action
-  | "/job" -> handle_request job_action
   | _ -> Server.respond_not_found ()
 
 let server =
