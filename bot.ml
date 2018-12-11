@@ -330,8 +330,8 @@ let pull_request_action json =
         else (
           print_endline "Adding the rebase label and a failed status check." ;
           add_rebase_label repo_full_name number
-          <&> send_status_check ~repo_full_name ~commit ~state:"failure"
-                ~url:"" ~context:"GitLab CI pipeline"
+          <&> send_status_check ~repo_full_name ~commit ~state:"error" ~url:""
+                ~context:"GitLab CI pipeline"
                 ~description:
                   "Pipeline did not run on GitLab CI because PR has conflicts \
                    with base branch." ) )
@@ -649,6 +649,7 @@ let pipeline_action json =
     | "pending" -> ("pending", "Pipeline is pending on GitLab CI")
     | "running" -> ("pending", "Pipeline is running on GitLab CI")
     | "failed" -> ("failure", "Pipeline completed with errors on GitLab CI")
+    | "cancelled" -> ("error", "Pipeline was cancelled on GitLab CI")
     | _ -> ("error", "Unknown pipeline status: " ^ state)
   in
   (fun () ->
