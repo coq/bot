@@ -21,17 +21,12 @@ open Cohttp
 open Cohttp_lwt_unix
 open Lwt
 
-let gitlab_repo full_name =
-  "https://" ^ username ^ ":" ^ password ^ "@gitlab.com/" ^ full_name ^ ".git"
+let f = Printf.sprintf
+
+let gitlab_repo = f "https://%s:%s@gitlab.com/%s.git" username password
 
 let report_status command report code =
-  print_string "Command \"" ;
-  print_string command ;
-  print_string "\" " ;
-  print_string report ;
-  print_string " " ;
-  print_int code ;
-  print_endline "."
+  f "Command \"%s\" %s %d" command report code |> print_endline
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
@@ -50,20 +45,19 @@ let execute_cmd command =
       false
 
 let git_fetch ?(force = true) repo remote_ref local_branch_name =
-  "git fetch -fu " ^ repo
-  ^ (if force then " +" else " ")
-  ^ remote_ref ^ ":refs/heads/" ^ local_branch_name
+  f "git fetch -fu %s %s%s:refs/heads/%s" repo
+    (if force then "+" else "")
+    remote_ref local_branch_name
 
 let git_push ?(force = true) repo local_ref remote_branch_name =
-  "git push " ^ repo
-  ^ (if force then " +" else " ")
-  ^ local_ref ^ ":refs/heads/" ^ remote_branch_name
+  f "git push %s %s%s:refs/heads/%s" repo
+    (if force then " +" else " ")
+    local_ref remote_branch_name
 
 let git_delete repo remote_branch_name =
   git_push ~force:false repo "" remote_branch_name
 
-let git_make_ancestor ~base ref2 =
-  Printf.sprintf "./make_ancestor.sh %s %s" base ref2
+let git_make_ancestor ~base ref2 = f "./make_ancestor.sh %s %s" base ref2
 
 let extract_commit json =
   let open Yojson.Basic.Util in
