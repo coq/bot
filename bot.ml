@@ -65,7 +65,7 @@ let git_delete repo remote_branch_name =
   git_push ~force:false repo "" remote_branch_name
 
 let git_make_ancestor ~base ref2 =
-  Printf.sprintf "git checkout %s" ref2
+  Printf.sprintf "git reset --hard && git checkout %s" ref2
   |&& Printf.sprintf
         "git merge %s -m \"Bot merge $(git rev-parse %s) into $(git rev-parse \
          %s)\" || { git merge --abort; false; }"
