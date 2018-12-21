@@ -304,10 +304,10 @@ let pull_request_action json =
           add_rebase_label pr_base_repo_name number
           <&> send_status_check ~repo_full_name:pr_base_repo_name
                 ~commit:pr_head_commit ~state:"failure" ~url:""
-                ~context:("ci/gitlab/pr-" ^ Int.to_string number)
+                ~context:"GitLab CI pipeline"
                 ~description:
-                  "Pipeline did not run on GitLab CI because branch is not \
-                   up-to-date." ) )
+                  "Pipeline did not run on GitLab CI because PR has conflicts \
+                   with base branch." ) )
       |> Lwt.async
   | "closed" ->
       print_endline "Branch will be deleted following PR closing." ;
