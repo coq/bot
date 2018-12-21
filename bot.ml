@@ -49,8 +49,6 @@ let execute_cmd command =
       report_status command "was stopped by signal number" signal ;
       false
 
-let cd_repo = "cd repo"
-
 let git_fetch ?(force = true) repo remote_ref local_branch_name =
   "git fetch -fu " ^ repo
   ^ (if force then " +" else " ")
@@ -65,7 +63,7 @@ let git_delete repo remote_branch_name =
   git_push ~force:false repo "" remote_branch_name
 
 let git_make_ancestor ~base ref2 =
-  Printf.sprintf "pwd && ls .. && ../make_ancestor.sh %s %s" base ref2
+  Printf.sprintf "./make_ancestor.sh %s %s" base ref2
 
 let extract_commit json =
   let open Yojson.Basic.Util in
@@ -274,8 +272,7 @@ let pull_request_action json =
       let pr_local_base_branch = "remote-" ^ pr_base_branch in
       (fun () ->
         print_endline "Action warrants fetch / push." ;
-        cd_repo
-        |&& git_fetch pr_base_repo_url pr_base_branch pr_local_base_branch
+        git_fetch pr_base_repo_url pr_base_branch pr_local_base_branch
         |&& git_fetch pr_repo pr_branch pr_local_branch
         |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
         |> execute_cmd
@@ -292,8 +289,7 @@ let pull_request_action json =
             remove_rebase_label pr_base_repo_name number )
           else return () )
           <&> (* Force push *)
-          ( cd_repo
-          |&& git_push gitlab_repo pr_local_branch pr_local_branch
+          ( git_push gitlab_repo pr_local_branch pr_local_branch
           |> execute_cmd >|= ignore )
         else (
           print_endline "Adding the rebase label and a failed status check." ;
@@ -307,8 +303,7 @@ let pull_request_action json =
       |> Lwt.async
   | "closed" ->
       print_endline "Branch will be deleted following PR closing." ;
-      (fun () ->
-        cd_repo |&& git_delete gitlab_repo pr_local_branch |> execute_cmd )
+      (fun () -> git_delete gitlab_repo pr_local_branch |> execute_cmd)
       |> Lwt.async ;
       if json_pr |> member "merged" |> to_bool |> not then (
         print_endline
@@ -319,9 +314,11 @@ let pull_request_action json =
   | _ -> ()
 
 let backport_pr number backport_to =
-  "./backport-pr.sh " ^ Int.to_string number ^ " " ^ backport_to
-  |&& cd_repo
-  |&& git_push (gitlab_repo "coq/coq") "HEAD" ("staging-" ^ backport_to)
+  let repo = gitlab_repo "coq/coq" in
+  let refname = "staging-" ^ backport_to in
+  git_fetch repo refname refname
+  |&& Printf.sprintf "./backport-pr.sh %d %s" number refname
+  |&& git_push repo refname refname
   |> execute_cmd
 
 let project_action json =
@@ -613,8 +610,8 @@ let callback _conn req body =
 let server =
   print_endline "Initializing repository" ;
   "git config --global user.email \"coqbot@users.noreply.github.com\""
-  |&& "git config --global user.name \"coqbot\"" |&& "mkdir -p repo"
-  |&& cd_repo |&& "git init" |> execute_cmd |> Lwt.ignore_result ;
+  |&& "git config --global user.name \"coqbot\"" |&& "git init --bare"
+  |> execute_cmd |> Lwt.ignore_result ;
   let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
 
