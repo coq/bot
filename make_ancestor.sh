@@ -16,14 +16,16 @@ refcommit=$(git rev-parse "$ref")
 
 wtree=$(mktemp -d)
 
-( git checkout --detach HEAD # if ref is already checked out add worktree errors
+( #git checkout --detach HEAD # if ref is already checked out add worktree errors
   git worktree add "$wtree" "$ref"
   pushd "$wtree"
   if ! git merge "$base" -m "Bot merge $basecommit into $refcommit";
   then
       popd
-      git worktree remove --force "$wtree"
+      rm -rf "$wtree"
+      git worktree prune
       false
   fi
 )
-git worktree remove --force "$wtree"
+rm -rf "$wtree"
+git worktree prune

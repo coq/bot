@@ -65,7 +65,7 @@ let git_delete repo remote_branch_name =
   git_push ~force:false repo "" remote_branch_name
 
 let git_make_ancestor ~base ref2 =
-  Printf.sprintf "../make_ancestor.sh %s %s" base ref2
+  Printf.sprintf "pwd && ls .. && ../make_ancestor.sh %s %s" base ref2
 
 let extract_commit json =
   let open Yojson.Basic.Util in
