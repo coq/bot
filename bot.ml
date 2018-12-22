@@ -214,11 +214,10 @@ let get_pull_request_info pr_number =
   | None -> None
   | Some bp_info -> Some (id, pr_id, bp_info)
 
-let get_status_check ~commit ~build_name =
+let get_status_check ~repo_full_name ~commit ~build_name =
   generic_get
-    ("repos/coq/coq/commits/" ^ commit ^ "/statuses")
-    ~default:false
-    (fun json ->
+    (Printf.sprintf "repos/%s/commits/%s/statuses" repo_full_name commit)
+    ~default:false (fun json ->
       let open Yojson.Basic.Util in
       json |> to_list
       |> List.exists ~f:(fun json ->
@@ -489,6 +488,10 @@ let job_action json =
   let build_id = json |> member "build_id" |> to_int in
   let build_name = json |> member "build_name" |> to_string in
   let commit = json |> extract_commit in
+  let repo_full_name =
+    json |> member "project_name" |> to_string
+    |> Str.global_replace (Str.regexp " ") ""
+  in
   if String.equal build_status "failed" then (
     let project_id = json |> member "project_id" |> to_int in
     let failure_reason = json |> member "build_failure_reason" |> to_string in
@@ -499,8 +502,10 @@ let job_action json =
         return () )
       else (
         print_endline "Pushing a status check..." ;
-        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"failure"
-          ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+        send_status_check ~repo_full_name ~commit ~state:"failure"
+          ~url:
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+               build_id)
           ~context:build_name
           ~description:(failure_reason ^ " on GitLab CI") )
     in
@@ -547,26 +552,29 @@ let job_action json =
       url |> Uri.of_string |> Client.get
       >>= fun (resp, _) ->
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"success"
-          ~url ~context:build_name
-          ~description:"Link to refman build artifact."
+        send_status_check ~repo_full_name ~commit ~state:"success" ~url
+          ~context:build_name ~description:"Link to refman build artifact."
       else (
         print_endline "But we didn't get a 200 code when checking the URL." ;
-        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"failure"
-          ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+        send_status_check ~repo_full_name ~commit ~state:"failure"
+          ~url:
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+               build_id)
           ~context:build_name
           ~description:"Link to refman build artifact: not found." ) )
     |> Lwt.async )
   else if String.equal build_status "success" then
     (fun () ->
-      get_status_check ~commit ~build_name
+      get_status_check ~repo_full_name ~commit ~build_name
       >>= fun b ->
       if b then (
         print_endline
           "There existed a previous status check for this build, we'll \
            override it." ;
-        send_status_check ~repo_full_name:"coq/coq" ~commit ~state:"success"
-          ~url:("https://gitlab.com/coq/coq/-/jobs/" ^ Int.to_string build_id)
+        send_status_check ~repo_full_name ~commit ~state:"success"
+          ~url:
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+               build_id)
           ~context:build_name
           ~description:"Test succeeded on GitLab CI after being retried" )
       else return () )
@@ -578,6 +586,9 @@ let pipeline_action json =
   let state = pipeline_json |> member "status" |> to_string in
   let id = pipeline_json |> member "id" |> to_int in
   let commit = json |> extract_commit in
+  let repo_full_name =
+    json |> member "project" |> member "path_with_namespace" |> to_string
+  in
   let state, description =
     match state with
     | "success" -> ("success", "Pipeline completed on GitLab CI")
@@ -587,8 +598,9 @@ let pipeline_action json =
     | _ -> ("error", "Unknown pipeline status: " ^ state)
   in
   (fun () ->
-    send_status_check ~repo_full_name:"coq/coq" ~commit ~state
-      ~url:("https://gitlab.com/coq/coq/pipelines/" ^ Int.to_string id)
+    send_status_check ~repo_full_name ~commit ~state
+      ~url:
+        (Printf.sprintf "https://gitlab.com/%s/pipelines/%d" repo_full_name id)
       ~context:"GitLab CI pipeline" ~description )
   |> Lwt.async
 
