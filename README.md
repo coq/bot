@@ -79,10 +79,13 @@ because we won't need GitLab's own status check reporting feature. (If it is
 already activated, you can disable this integration in the "Settings" /
 "Integration" menu).
 
-In your GitLab repository, go to "Settings" / "Integration" and create two
-webhooks: one with URL <https://coqbot.herokuapp.com/pipeline> that will only
-be triggered by pipeline events, and one with URL
-<https://coqbot.herokuapp.com/job> that will only be triggered by job events.
+In your GitLab repository:
+- go to "Settings" / "Members" to add **@coqbot** as a project member with
+  "Developer" role.
+- go to "Settings" / "Integration" and create two webhooks: one with URL
+  <https://coqbot.herokuapp.com/pipeline> that will only be triggered by
+  pipeline events, and one with URL <https://coqbot.herokuapp.com/job> that
+  will only be triggered by job events.
 
 In your GitHub repository, go to "Settings" / "Webhooks" and add one webhook
 with URL <https://coqbot.herokuapp.com/pull_request> that will only be
