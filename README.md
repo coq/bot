@@ -80,16 +80,16 @@ already activated, you can disable this integration in the "Settings" /
 "Integration" menu).
 
 In your GitLab repository:
-- go to "Settings" / "Members" to add **@coqbot** as a project member with
-  "Developer" role (so that it can push new branches).
+- go to "Settings" / "Members" to add [**@coqbot**](https://gitlab.com/coqbot)
+  as a project member with "Developer" role (so that it can push new branches).
 - go to "Settings" / "Integration" and create two webhooks: one with URL
   <https://coqbot.herokuapp.com/pipeline> that will only be triggered by
   pipeline events, and one with URL <https://coqbot.herokuapp.com/job> that
   will only be triggered by job events.
 
 In your GitHub repository:
-- go to "Settings" / "Collaborators & teams" to add **@coqbot** as a
-  collaborator (so that it can push status checks).
+- go to "Settings" / "Collaborators & teams" to add [**@coqbot**](https://github.com/coqbot)
+  as a collaborator (so that it can push status checks).
 - go to "Settings" / "Webhooks" and add one webhook with URL
   <https://coqbot.herokuapp.com/pull_request> that will only be triggered by
   pull request events. Make sure you change the "content/type" value to
