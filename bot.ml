@@ -492,6 +492,24 @@ let job_action json =
     json |> member "project_name" |> to_string
     |> Str.global_replace (Str.regexp " ") ""
   in
+  let send_url (kind, url) =
+    (fun () ->
+      let description_base = Printf.sprintf "Link to %s build artifact" kind in
+      url |> Uri.of_string |> Client.get
+      >>= fun (resp, _) ->
+      if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
+        send_status_check ~repo_full_name ~commit ~state:"success" ~url
+          ~context:build_name ~description:(description_base ^ ".")
+      else (
+        print_endline "But we didn't get a 200 code when checking the URL." ;
+        send_status_check ~repo_full_name ~commit ~state:"failure"
+          ~url:
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+               build_id)
+          ~context:build_name
+          ~description:(description_base ^ ": not found.") ) )
+    |> Lwt.async
+  in
   if String.equal build_status "failed" then (
     let project_id = json |> member "project_id" |> to_int in
     let failure_reason = json |> member "build_failure_reason" |> to_string in
@@ -544,25 +562,25 @@ let job_action json =
   then (
     print_endline
       "This is a successful refman build. Pushing a status check with a link..." ;
-    let url =
-      "https://coq.gitlab.io/-/coq/-/jobs/" ^ Int.to_string build_id
-      ^ "/artifacts/_install_ci/share/doc/coq/sphinx/html/index.html"
+    let url_base =
+      Printf.sprintf
+        "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_install_ci/share/doc/coq"
+        build_id
     in
-    (fun () ->
-      url |> Uri.of_string |> Client.get
-      >>= fun (resp, _) ->
-      if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-        send_status_check ~repo_full_name ~commit ~state:"success" ~url
-          ~context:build_name ~description:"Link to refman build artifact."
-      else (
-        print_endline "But we didn't get a 200 code when checking the URL." ;
-        send_status_check ~repo_full_name ~commit ~state:"failure"
-          ~url:
-            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-               build_id)
-          ~context:build_name
-          ~description:"Link to refman build artifact: not found." ) )
-    |> Lwt.async )
+    [ ("refman", Printf.sprintf "%s/sphinx/html/index.html" url_base)
+    ; ("stdlib", Printf.sprintf "%s/html/stdlib/index.html" url_base) ]
+    |> List.iter ~f:send_url )
+  else if
+    String.equal build_status "success"
+    && String.equal build_name "doc:ml-api:odoc"
+  then (
+    print_endline
+      "This is a successful ml-api build. Pushing a status check with a link..." ;
+    ( "ml-api"
+    , Printf.sprintf
+        "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_build/default/_doc/_html/index.html"
+        build_id )
+    |> send_url )
   else if String.equal build_status "success" then
     (fun () ->
       get_status_check ~repo_full_name ~commit ~build_name
