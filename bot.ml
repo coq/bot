@@ -252,18 +252,53 @@ let pull_request_action json =
   let number = json_pr |> member "number" |> to_int
   and pr_base = json_pr |> member "base" in
   let pr_base_repo = pr_base |> member "repo" in
-  let pr_base_repo_name = pr_base_repo |> member "full_name" |> to_string in
+  let repo_full_name = pr_base_repo |> member "full_name" |> to_string in
   let pr_local_branch = "pr-" ^ Int.to_string number
-  and gitlab_repo = gitlab_repo pr_base_repo_name in
+  and gitlab_repo = gitlab_repo repo_full_name in
+  let pr_head = json_pr |> member "head" in
+  let commit = pr_head |> member "sha" |> to_string in
   print_string "Number: #" ;
   print_int number ;
   print_newline () ;
+  ( if
+    List.exists ~f:(String.equal action)
+      ["opened"; "reopened"; "synchronize"; "labeled"; "unlabeled"]
+  then
+    (* In any of these cases, we check the PR labels and push a status check. *)
+    let labels =
+      json_pr |> member "labels" |> to_list
+      |> List.map ~f:(fun label -> label |> member "name" |> to_string)
+    in
+    let error =
+      List.find_map
+        ~f:(fun f -> f ())
+        [ (* Check the absence of the needs labels. *)
+          (fun () ->
+            List.find_map labels ~f:(fun label ->
+                if string_match ~regexp:"needs:" label then
+                  Some
+                    (Printf.sprintf
+                       "Merging is blocked because of the '%s' label." label)
+                else None ) )
+        ; (* Check the presence of a kind label. *)
+          (fun () ->
+            if List.exists labels ~f:(string_match ~regexp:"kind:") then None
+            else Some "Merging is blocked because a 'kind:' label is missing."
+            ) ]
+    in
+    (fun () ->
+      match error with
+      | None ->
+          send_status_check ~repo_full_name ~commit ~state:"success" ~url:""
+            ~context:"Pull request checks" ~description:"Passed."
+      | Some description ->
+          send_status_check ~repo_full_name ~commit ~state:"failure" ~url:""
+            ~context:"Pull request checks" ~description )
+    |> Lwt.async ) ;
   match action with
   | "opened" | "reopened" | "synchronize" ->
-      let pr_head = json_pr |> member "head" in
       let pr_base_branch = pr_base |> member "ref" |> to_string in
       let pr_base_repo_url = pr_base_repo |> member "html_url" |> to_string
-      and pr_head_commit = pr_head |> member "sha" |> to_string
       and pr_branch = pr_head |> member "ref" |> to_string
       and pr_repo =
         pr_head |> member "repo" |> member "html_url" |> to_string
@@ -285,17 +320,16 @@ let pull_request_action json =
                    |> String.equal "needs: rebase" )
           then (
             print_endline "Removing the rebase label." ;
-            remove_rebase_label pr_base_repo_name number )
+            remove_rebase_label repo_full_name number )
           else return () )
           <&> (* Force push *)
           ( git_push gitlab_repo pr_local_branch pr_local_branch
           |> execute_cmd >|= ignore )
         else (
           print_endline "Adding the rebase label and a failed status check." ;
-          add_rebase_label pr_base_repo_name number
-          <&> send_status_check ~repo_full_name:pr_base_repo_name
-                ~commit:pr_head_commit ~state:"failure" ~url:""
-                ~context:"GitLab CI pipeline"
+          add_rebase_label repo_full_name number
+          <&> send_status_check ~repo_full_name ~commit ~state:"failure"
+                ~url:"" ~context:"GitLab CI pipeline"
                 ~description:
                   "Pipeline did not run on GitLab CI because PR has conflicts \
                    with base branch." ) )
@@ -307,8 +341,7 @@ let pull_request_action json =
       if json_pr |> member "merged" |> to_bool |> not then (
         print_endline
           "PR was closed without getting merged: remove the milestone." ;
-        (fun () -> remove_milestone ~repo_full_name:pr_base_repo_name number)
-        |> Lwt.async
+        (fun () -> remove_milestone ~repo_full_name number) |> Lwt.async
         (* TODO: if PR was merged in master without a milestone, post an alert *) )
   | _ -> ()
 
