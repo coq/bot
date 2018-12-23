@@ -527,19 +527,20 @@ let job_action json =
   in
   let send_url (kind, url) =
     (fun () ->
+      let context = Printf.sprintf "%s: %s artifact" build_name kind in
       let description_base = Printf.sprintf "Link to %s build artifact" kind in
       url |> Uri.of_string |> Client.get
       >>= fun (resp, _) ->
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
         send_status_check ~repo_full_name ~commit ~state:"success" ~url
-          ~context:build_name ~description:(description_base ^ ".")
+          ~context ~description:(description_base ^ ".")
       else (
         print_endline "But we didn't get a 200 code when checking the URL." ;
         send_status_check ~repo_full_name ~commit ~state:"failure"
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
-          ~context:build_name
+          ~context
           ~description:(description_base ^ ": not found.") ) )
     |> Lwt.async
   in
