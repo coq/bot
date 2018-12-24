@@ -263,8 +263,10 @@ let pull_request_action json =
   ( if
     List.exists ~f:(String.equal action)
       ["opened"; "reopened"; "synchronize"; "labeled"; "unlabeled"]
+    (* These checks are specific to the Coq repository. *)
+    && String.equal repo_full_name "coq/coq"
   then
-    (* In any of these cases, we check the PR labels and push a status check. *)
+    (* We check the PR labels and push a status check. *)
     let labels =
       json_pr |> member "labels" |> to_list
       |> List.map ~f:(fun label -> label |> member "name" |> to_string)
