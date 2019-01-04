@@ -287,9 +287,11 @@ let pull_request_action json =
       | None ->
           send_status_check ~repo_full_name ~commit ~state:"success" ~url:""
             ~context:"Pull request checks" ~description:"Passed."
-      | Some description ->
-          send_status_check ~repo_full_name ~commit ~state:"failure" ~url:""
-            ~context:"Pull request checks" ~description )
+      | Some description -> Lwt.return_unit
+      (* This is disabled until we can push a warning state. *)
+      (* send_status_check ~repo_full_name ~commit ~state:"failure" ~url:""
+            ~context:"Pull request checks" ~description *)
+      )
     |> Lwt.async ) ;
   match action with
   | "opened" | "reopened" | "synchronize" ->
