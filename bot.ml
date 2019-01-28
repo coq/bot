@@ -589,31 +589,7 @@ let job_action json =
         print_endline "Unusual error." ;
         send_status_check () ) )
     |> Lwt.async )
-  else if
-    String.equal build_status "success" && String.equal build_name "doc:refman"
-  then (
-    print_endline
-      "This is a successful refman build. Pushing a status check with a link..." ;
-    let url_base =
-      Printf.sprintf
-        "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_install_ci/share/doc/coq"
-        build_id
-    in
-    [ ("refman", Printf.sprintf "%s/sphinx/html/index.html" url_base)
-    ; ("stdlib", Printf.sprintf "%s/html/stdlib/index.html" url_base) ]
-    |> List.iter ~f:send_url )
-  else if
-    String.equal build_status "success"
-    && String.equal build_name "doc:ml-api:odoc"
-  then (
-    print_endline
-      "This is a successful ml-api build. Pushing a status check with a link..." ;
-    ( "ml-api"
-    , Printf.sprintf
-        "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_build/default/_doc/_html/index.html"
-        build_id )
-    |> send_url )
-  else if String.equal build_status "success" then
+  else if String.equal build_status "success" then (
     (fun () ->
       get_status_check ~repo_full_name ~commit ~build_name
       >>= fun b ->
@@ -628,7 +604,28 @@ let job_action json =
           ~context:build_name
           ~description:"Test succeeded on GitLab CI after being retried" )
       else return () )
-    |> Lwt.async
+    |> Lwt.async ;
+    if String.equal build_name "doc:refman" then (
+      print_endline
+        "This is a successful refman build. Pushing a status check with a \
+         link..." ;
+      let url_base =
+        Printf.sprintf
+          "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_install_ci/share/doc/coq"
+          build_id
+      in
+      [ ("refman", Printf.sprintf "%s/sphinx/html/index.html" url_base)
+      ; ("stdlib", Printf.sprintf "%s/html/stdlib/index.html" url_base) ]
+      |> List.iter ~f:send_url )
+    else if String.equal build_name "doc:ml-api:odoc" then (
+      print_endline
+        "This is a successful ml-api build. Pushing a status check with a \
+         link..." ;
+      ( "ml-api"
+      , Printf.sprintf
+          "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_build/default/_doc/_html/index.html"
+          build_id )
+      |> send_url ) )
 
 let pipeline_action json =
   let open Yojson.Basic.Util in
