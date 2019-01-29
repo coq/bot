@@ -467,7 +467,7 @@ let repeat_request request =
 
 type build_failure = Warn | Retry | Ignore
 
-let trace_action trace =
+let trace_action ~repo_full_name trace =
   let trace_size = String.length trace in
   print_string "Trace size: " ;
   print_int trace_size ;
@@ -508,7 +508,10 @@ let trace_action trace =
   else if test "fatal: reference is not a tree" then (
     print_endline "Normal failure: reference is not a tree." ;
     Ignore )
-  else if test "Error response from daemon: manifest for .* not found" then (
+  else if
+    String.equal repo_full_name "coq/coq"
+    && test "Error response from daemon: manifest for .* not found"
+  then (
     print_endline "Docker image not found. Do not report anything specific." ;
     Ignore )
   else Warn
@@ -578,7 +581,7 @@ let job_action json =
           "GitLab CI reports a script failure but it could be something else. \
            Checking the trace..." ;
         repeat_request (get_build_trace ~project_id ~build_id)
-        >|= trace_action
+        >|= trace_action ~repo_full_name
         >>= function
         | Warn ->
             print_endline "Actual failure." ;
