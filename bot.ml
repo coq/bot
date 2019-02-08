@@ -639,21 +639,25 @@ let pipeline_action json =
   let repo_full_name =
     json |> member "project" |> member "path_with_namespace" |> to_string
   in
-  let state, description =
-    match state with
-    | "success" -> ("success", "Pipeline completed on GitLab CI")
-    | "pending" -> ("pending", "Pipeline is pending on GitLab CI")
-    | "running" -> ("pending", "Pipeline is running on GitLab CI")
-    | "failed" -> ("failure", "Pipeline completed with errors on GitLab CI")
-    | "cancelled" -> ("error", "Pipeline was cancelled on GitLab CI")
-    | _ -> ("error", "Unknown pipeline status: " ^ state)
-  in
-  (fun () ->
-    send_status_check ~repo_full_name ~commit ~state
-      ~url:
-        (Printf.sprintf "https://gitlab.com/%s/pipelines/%d" repo_full_name id)
-      ~context:"GitLab CI pipeline" ~description )
-  |> Lwt.async
+  match state with
+  | "skipped" -> ()
+  | _ ->
+      let state, description =
+        match state with
+        | "success" -> ("success", "Pipeline completed on GitLab CI")
+        | "pending" -> ("pending", "Pipeline is pending on GitLab CI")
+        | "running" -> ("pending", "Pipeline is running on GitLab CI")
+        | "failed" -> ("failure", "Pipeline completed with errors on GitLab CI")
+        | "cancelled" -> ("error", "Pipeline was cancelled on GitLab CI")
+        | _ -> ("error", "Unknown pipeline status: " ^ state)
+      in
+      (fun () ->
+        send_status_check ~repo_full_name ~commit ~state
+          ~url:
+            (Printf.sprintf "https://gitlab.com/%s/pipelines/%d" repo_full_name
+               id)
+          ~context:"GitLab CI pipeline" ~description )
+      |> Lwt.async
 
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
