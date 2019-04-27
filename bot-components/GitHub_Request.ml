@@ -27,12 +27,12 @@ let executable_query (query, kvariables, parse) ~token =
 
 exception GraphQL_Failure of string list
 
-let graphql_query ~access_token query variables =
+let graphql_query ~token query variables =
   let body =
     `Assoc [("query", `String query); ("variables", `Assoc variables)]
     |> pretty_to_string |> Body.of_string
   in
-  let headers = Header.init_with "Authorization" ("token " ^ access_token) in
+  let headers = Header.init_with "Authorization" ("token " ^ token) in
   Client.post ~body ~headers (Uri.of_string "https://api.github.com/graphql")
   >>= (fun (resp, body) ->
         Body.to_string body
@@ -176,7 +176,7 @@ let pull_request_id_db_id_and_milestone =
        }
        |}]
 
-let pull_request_base_milestone_and_cards ~access_token owner repo number =
+let pull_request_base_milestone_and_cards ~token owner repo number =
   let query =
     "query prInfo($owner: String!, $repo: String!, $number: Int!) {\n\
     \       repository(owner: $owner,name: $repo) {\n\
@@ -192,7 +192,7 @@ let pull_request_base_milestone_and_cards ~access_token owner repo number =
   let variables =
     [("owner", `String owner); ("repo", `String repo); ("number", `Int number)]
   in
-  graphql_query ~access_token query variables
+  graphql_query ~token query variables
   >|= fun json ->
   let pr_json =
     json |> member "data" |> member "repository" |> member "pullRequest"
@@ -208,7 +208,7 @@ let pull_request_base_milestone_and_cards ~access_token owner repo number =
 
 type mv_card_to_column_input = {card_id: string; column_id: string}
 
-let mv_card_to_column ~access_token {card_id; column_id} =
+let mv_card_to_column ~token {card_id; column_id} =
   let mutation =
     "mutation moveCard($card_id:ID!,$column_id:ID!) {\n\
     \       moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {\n\
@@ -219,9 +219,9 @@ let mv_card_to_column ~access_token {card_id; column_id} =
   let variables =
     [("card_id", `String card_id); ("column_id", `String column_id)]
   in
-  graphql_query ~access_token mutation variables >|= ignore
+  graphql_query ~token mutation variables >|= ignore
 
-let post_comment ~access_token id message =
+let post_comment ~token id message =
   let mutation =
     "mutation addComment($id:ID!,$message:String!) {\n\
     \       addComment(input:{subjectId:$id,body:$message}) {\n\
@@ -230,12 +230,12 @@ let post_comment ~access_token id message =
     \     }"
   in
   let variables = [("id", `String id); ("message", `String message)] in
-  graphql_query ~access_token mutation variables >|= ignore
+  graphql_query ~token mutation variables >|= ignore
 
 (* Scratch work *)
 
-let backported_pr_info ~access_token number base_ref =
-  pull_request_base_milestone_and_cards ~access_token "coq" "coq" number
+let backported_pr_info ~token number base_ref =
+  pull_request_base_milestone_and_cards ~token "coq" "coq" number
   >|= fun (cards, milestone) ->
   let open Option in
   Milestone.get_backport_info "coqbot" milestone.description

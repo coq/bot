@@ -396,7 +396,7 @@ let project_action json =
           print_endline rejected_milestone ;
           update_milestone ~repo_full_name:"coq/coq" issue_number
             rejected_milestone
-          <&> post_comment ~access_token:github_access_token id
+          <&> post_comment ~token:github_access_token id
                 "This PR was postponed. Please update accordingly the \
                  milestone of any issue that this fixes as this cannot be \
                  done automatically."
@@ -441,8 +441,8 @@ let push_action json =
       print_string "PR #" ;
       print_string pr_number ;
       print_endline " was backported." ;
-      backported_pr_info ~access_token:github_access_token
-        (Int.of_string pr_number) base_ref
+      backported_pr_info ~token:github_access_token (Int.of_string pr_number)
+        base_ref
       >>= function
       | Some ({card_id; column_id} as input) ->
           print_string "Moving card " ;
@@ -450,7 +450,7 @@ let push_action json =
           print_string " to column " ;
           print_string column_id ;
           print_newline () ;
-          mv_card_to_column ~access_token:github_access_token input
+          mv_card_to_column ~token:github_access_token input
       | None ->
           prerr_endline "Could not find backporting info for backported PR." ;
           return () )
