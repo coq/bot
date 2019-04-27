@@ -686,6 +686,28 @@ let callback _conn req body =
   | "/project" -> handle_request project_action
   | "/pull_request" -> handle_request pull_request_action
   | "/push" -> handle_request push_action
+  | "/github" -> (
+      body
+      >>= fun body ->
+      match BotComponents.Webhooks.receive (Request.headers req) body with
+      | Ok (BotComponents.Webhooks.NoOp s) ->
+          Server.respond_string ~status:`OK
+            ~body:(f "No action taken: %s" s)
+            ()
+      | Ok (BotComponents.Webhooks.IssueClosed issue) ->
+          (fun () ->
+            BotComponents.Synchro_Issue_Milestones.query_and_mutate
+              ~token:github_access_token issue )
+          |> Lwt.async ;
+          Server.respond_string ~status:`OK
+            ~body:
+              (f "Issue %s/%s#%d was closed." issue.owner issue.repo
+                 issue.number)
+            ()
+      | Error s ->
+          Server.respond ~status:(Code.status_of_code 400)
+            ~body:(Cohttp_lwt.Body.of_string (f "Error: %s" s))
+            () )
   | _ -> Server.respond_not_found ()
 
 let server =

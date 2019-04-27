@@ -3,6 +3,7 @@ open Cohttp
 open Cohttp_lwt
 open Cohttp_lwt_unix
 open Lwt
+open Utils
 open Yojson.Basic
 open Yojson.Basic.Util
 
@@ -22,8 +23,10 @@ let executable_query (query, kvariables, parse) ~token =
       match Cohttp.Code.(code_of_status rsp.status |> is_success) with
       | false -> Error body'
       | true -> (
-        try Ok (Yojson.Basic.from_string body' |> parse)
-        with Yojson.Json_error err -> Error err ) )
+        try Ok (Yojson.Basic.from_string body' |> parse) with
+        | Yojson.Json_error err -> Error (f "Json error: %s" err)
+        | Yojson.Basic.Util.Type_error (err, _) ->
+            Error (f "Json type error: %s" err) ) )
 
 exception GraphQL_Failure of string list
 
