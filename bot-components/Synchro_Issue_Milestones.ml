@@ -110,7 +110,10 @@ let issue_milestone_mutation ~token ~issue ~milestone =
   let variables =
     [("issue", `String issue); ("milestone", `String milestone)]
   in
-  graphql_query ~token mutation variables >|= ignore
+  graphql_query ~token mutation variables
+  >|= function
+  | Ok _ -> ()
+  | Error err -> print_endline (f "Error in issue_milestone_mutation: %s" err)
 
 let query_and_mutate ~token {owner; repo; number} =
   issue_milestone ~token ~owner ~repo ~number

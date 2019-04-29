@@ -188,10 +188,6 @@ let handle_json action default body =
       prerr_string "Json type error: " ;
       prerr_endline err ;
       default
-  | GraphQL_Failure errors ->
-      prerr_endline "GraphQL failure:" ;
-      errors |> String.concat |> prerr_endline ;
-      default
 
 let generic_get relative_uri ?(header_list = []) ~default json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in

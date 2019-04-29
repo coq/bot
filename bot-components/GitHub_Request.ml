@@ -4,8 +4,6 @@ open Cohttp_lwt
 open Cohttp_lwt_unix
 open Lwt
 open Utils
-open Yojson.Basic
-open Yojson.Basic.Util
 
 let executable_query (query, kvariables, parse) ~token =
   kvariables (fun variables ->
@@ -28,12 +26,10 @@ let executable_query (query, kvariables, parse) ~token =
         | Yojson.Basic.Util.Type_error (err, _) ->
             Error (f "Json type error: %s" err) ) )
 
-exception GraphQL_Failure of string list
-
 let graphql_query ~token query variables =
   let body =
     `Assoc [("query", `String query); ("variables", `Assoc variables)]
-    |> pretty_to_string |> Body.of_string
+    |> Yojson.pretty_to_string |> Body.of_string
   in
   let headers = Header.init_with "Authorization" ("token " ^ token) in
   Client.post ~body ~headers (Uri.of_string "https://api.github.com/graphql")
@@ -43,30 +39,11 @@ let graphql_query ~token query variables =
         )
   >|= fun (code, body) ->
   if code < 200 || code > 299 then
-    raise (GraphQL_Failure ["Response code: " ^ Int.to_string code; body]) ;
-  let json =
-    try from_string body with _ ->
-      let message =
-        "Unexpected failure while parsing successful request's JSON body."
-      in
-      raise (GraphQL_Failure [message; body])
-  in
-  try
-    match json |> member "errors" with
-    | `Null -> json
-    | `List errors ->
-        raise
-          (GraphQL_Failure
-             (List.map errors ~f:(fun error ->
-                  error |> member "message" |> to_string )))
-    | _ -> failwith "Shouldn't happen"
-  with
-  | GraphQL_Failure errors -> raise (GraphQL_Failure errors)
-  | _ ->
-      let message =
-        "Unexpected failure while parsing unsuccessful request's JSON body."
-      in
-      raise (GraphQL_Failure [message; body])
+    Error
+      (f "GraphQL request was not successful. Response code: %d.\n%s" code body)
+  else
+    try Ok (Yojson.Basic.from_string body) with Yojson.Json_error err ->
+      Error (f "Json error: %s while parsing:%s\n" err body)
 
 let string_match ~regexp string =
   try
@@ -86,6 +63,7 @@ module Milestone = struct
     \       }"
 
   let from_json json =
+    let open Yojson.Basic.Util in
     { title= json |> member "title" |> to_string
     ; description= json |> member "description" |> to_string }
 
@@ -132,6 +110,7 @@ module ProjectColumn = struct
     \       }"
 
   let from_json json =
+    let open Yojson.Basic.Util in
     { id= json |> member "id" |> to_string
     ; db_id= json |> member "databaseId" |> to_int }
 end
@@ -151,6 +130,7 @@ module ProjectCard = struct
     \       }" ^ ProjectColumn.fragment
 
   let from_json json =
+    let open Yojson.Basic.Util in
     { id= json |> member "id" |> to_string
     ; column= json |> member "column" |> ProjectColumn.from_json
     ; columns=
@@ -196,16 +176,23 @@ let pull_request_base_milestone_and_cards ~token owner repo number =
     [("owner", `String owner); ("repo", `String repo); ("number", `Int number)]
   in
   graphql_query ~token query variables
-  >|= fun json ->
-  let pr_json =
-    json |> member "data" |> member "repository" |> member "pullRequest"
-  in
-  let cards =
-    pr_json |> member "projectCards" |> member "nodes" |> to_list
-    |> List.map ~f:ProjectCard.from_json
-  in
-  let milestone = pr_json |> member "milestone" |> Milestone.from_json in
-  (cards, milestone)
+  >|= function
+  | Ok json ->
+      let pr_json =
+        let open Yojson.Basic.Util in
+        json |> member "data" |> member "repository" |> member "pullRequest"
+      in
+      let cards =
+        let open Yojson.Basic.Util in
+        pr_json |> member "projectCards" |> member "nodes" |> to_list
+        |> List.map ~f:ProjectCard.from_json
+      in
+      let milestone =
+        let open Yojson.Basic.Util in
+        pr_json |> member "milestone" |> Milestone.from_json
+      in
+      Ok (cards, milestone)
+  | Error err -> Error err
 
 (* Mutations *)
 
@@ -239,16 +226,20 @@ let post_comment ~token id message =
 
 let backported_pr_info ~token number base_ref =
   pull_request_base_milestone_and_cards ~token "coq" "coq" number
-  >|= fun (cards, milestone) ->
-  let open Option in
-  Milestone.get_backport_info "coqbot" milestone.description
-  >>= fun {backport_to; request_inclusion_column; backported_column} ->
-  if String.equal ("refs/heads/" ^ backport_to) base_ref then
-    List.find_map cards ~f:(fun card ->
-        if Int.equal request_inclusion_column card.column.db_id then
-          List.find_map card.columns ~f:(fun column ->
-              if Int.equal backported_column column.db_id then
-                Some {card_id= card.id; column_id= column.id}
-              else None )
-        else None )
-  else None
+  >|= function
+  | Ok (cards, milestone) ->
+      let open Option in
+      Milestone.get_backport_info "coqbot" milestone.description
+      >>= fun {backport_to; request_inclusion_column; backported_column} ->
+      if String.equal ("refs/heads/" ^ backport_to) base_ref then
+        List.find_map cards ~f:(fun card ->
+            if Int.equal request_inclusion_column card.column.db_id then
+              List.find_map card.columns ~f:(fun column ->
+                  if Int.equal backported_column column.db_id then
+                    Some {card_id= card.id; column_id= column.id}
+                  else None )
+            else None )
+      else None
+  | Error err ->
+      print_endline "Error in backported_pr_info: %s" ;
+      None
