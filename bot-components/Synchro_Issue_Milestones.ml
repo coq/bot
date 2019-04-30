@@ -115,7 +115,7 @@ let issue_milestone_mutation ~token ~issue ~milestone =
   | Ok _ -> ()
   | Error err -> print_endline (f "Error in issue_milestone_mutation: %s" err)
 
-let query_and_mutate ~token {owner; repo; number} =
+let query_and_mutate ~token {owner; repo; number} () =
   issue_milestone ~token ~owner ~repo ~number
   >>= function
   | Ok (issue, None, milestone) ->

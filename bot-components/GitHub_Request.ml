@@ -45,12 +45,6 @@ let graphql_query ~token query variables =
     try Ok (Yojson.Basic.from_string body) with Yojson.Json_error err ->
       Error (f "Json error: %s while parsing:%s\n" err body)
 
-let string_match ~regexp string =
-  try
-    let _ = Str.search_forward (Str.regexp regexp) string 0 in
-    true
-  with Not_found -> false
-
 (* Types and fragments *)
 
 module Milestone = struct

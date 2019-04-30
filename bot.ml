@@ -16,12 +16,12 @@ let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
 open Base
-open BotComponents.GitHub_Request
+open BotComponents
 open Cohttp
 open Cohttp_lwt_unix
+open GitHub_Request
 open Lwt
-
-let f = Printf.sprintf
+open Utils
 
 let gitlab_repo = f "https://%s:%s@gitlab.com/%s.git" username password
 
@@ -361,45 +361,27 @@ let backport_pr number backport_to =
   |&& git_push repo refname refname
   |> execute_cmd
 
-let project_action json =
-  let open Yojson.Basic.Util in
-  let project_action = json |> member "action" |> to_string in
-  let card = json |> member "project_card" in
-  let content_url = card |> member "content_url" |> to_string in
-  let regexp =
-    "https://api.github.com/repos/[^/]*/[^/]*/issues/\\([0-9]*\\)"
-  in
-  if String.equal project_action "deleted" && string_match ~regexp content_url
-  then (
-    let issue_number = Str.matched_group 1 content_url |> Int.of_string in
-    print_string "Issue or PR #" ;
-    print_int issue_number ;
-    print_endline " was removed from project column:" ;
-    let project_col = card |> member "column_url" |> to_string in
-    print_endline project_col ;
-    (fun () ->
-      get_pull_request_info issue_number
-      >>= function
-      | None ->
-          print_endline "Could not find backporting info for PR." ;
-          return ()
-      | Some (id, _, {request_inclusion_column; rejected_milestone})
-        when "https://api.github.com/projects/columns/"
-             ^ Int.to_string request_inclusion_column
-             |> String.equal project_col ->
-          print_endline "This was a request inclusion column: PR was rejected." ;
-          print_endline "Change of milestone requested to:" ;
-          print_endline rejected_milestone ;
-          update_milestone ~repo_full_name:"coq/coq" issue_number
-            rejected_milestone
-          <&> post_comment ~token:github_access_token id
-                "This PR was postponed. Please update accordingly the \
-                 milestone of any issue that this fixes as this cannot be \
-                 done automatically."
-      | _ ->
-          print_endline "This was not a request inclusion column: ignoring." ;
-          return () )
-    |> Lwt.async )
+let project_action (card : Webhooks.projectCard) () =
+  get_pull_request_info card.issue.number
+  >>= function
+  | None ->
+      print_endline "Could not find backporting info for PR." ;
+      return ()
+  | Some (id, _, {request_inclusion_column; rejected_milestone})
+    when Int.equal request_inclusion_column card.column_id ->
+      print_endline "This was a request inclusion column: PR was rejected." ;
+      print_endline "Change of milestone requested to:" ;
+      print_endline rejected_milestone ;
+      update_milestone
+        ~repo_full_name:(f "%s/%s" card.issue.owner card.issue.repo)
+        card.issue.number rejected_milestone
+      <&> post_comment ~token:github_access_token id
+            "This PR was postponed. Please update accordingly the milestone \
+             of any issue that this fixes as this cannot be done \
+             automatically."
+  | _ ->
+      print_endline "This was not a request inclusion column: ignoring." ;
+      return ()
 
 let push_action json =
   print_endline "Merge and backport commit messages:" ;
@@ -679,26 +661,33 @@ let callback _conn req body =
   match Uri.path (Request.uri req) with
   | "/job" -> handle_request job_action
   | "/pipeline" -> handle_request pipeline_action
-  | "/project" -> handle_request project_action
   | "/pull_request" -> handle_request pull_request_action
   | "/push" -> handle_request push_action
   | "/github" -> (
       body
       >>= fun body ->
-      match BotComponents.Webhooks.receive (Request.headers req) body with
-      | Ok (BotComponents.Webhooks.NoOp s) ->
-          Server.respond_string ~status:`OK
-            ~body:(f "No action taken: %s" s)
-            ()
-      | Ok (BotComponents.Webhooks.IssueClosed issue) ->
-          (fun () ->
-            BotComponents.Synchro_Issue_Milestones.query_and_mutate
-              ~token:github_access_token issue )
+      match Webhooks.receive (Request.headers req) body with
+      | Ok (Webhooks.IssueClosed issue) ->
+          issue
+          |> Synchro_Issue_Milestones.query_and_mutate
+               ~token:github_access_token
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Issue %s/%s#%d was closed." issue.owner issue.repo
                  issue.number)
+            ()
+      | Ok (Webhooks.RemovedFromProject card) ->
+          card |> project_action |> Lwt.async ;
+          Server.respond_string ~status:`OK
+            ~body:
+              (f "Issue or PR %s/%s#%d was removed from project column %d."
+                 card.issue.owner card.issue.repo card.issue.number
+                 card.column_id)
+            ()
+      | Ok (Webhooks.NoOp s) ->
+          Server.respond_string ~status:`OK
+            ~body:(f "No action taken: %s" s)
             ()
       | Error s ->
           Server.respond ~status:(Code.status_of_code 400)
