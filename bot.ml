@@ -264,45 +264,6 @@ let pull_request_action json =
   print_string "Number: #" ;
   print_int number ;
   print_newline () ;
-  ( if
-    List.exists ~f:(String.equal action)
-      ["opened"; "reopened"; "synchronize"; "labeled"; "unlabeled"]
-    (* These checks are specific to the Coq repository. *)
-    && String.equal repo_full_name "coq/coq"
-  then
-    (* We check the PR labels and push a status check. *)
-    let labels =
-      json_pr |> member "labels" |> to_list
-      |> List.map ~f:(fun label -> label |> member "name" |> to_string)
-    in
-    let error =
-      List.find_map
-        ~f:(fun f -> f ())
-        [ (* Check the absence of the needs labels. *)
-          (fun () ->
-            List.find_map labels ~f:(fun label ->
-                if string_match ~regexp:"needs:" label then
-                  Some
-                    (Printf.sprintf
-                       "Merging is blocked because of the '%s' label." label)
-                else None ) )
-        ; (* Check the presence of a kind label. *)
-          (fun () ->
-            if List.exists labels ~f:(string_match ~regexp:"kind:") then None
-            else Some "Merging is blocked because a 'kind:' label is missing."
-            ) ]
-    in
-    (fun () ->
-      match error with
-      | None ->
-          send_status_check ~repo_full_name ~commit ~state:"success" ~url:""
-            ~context:"Pull request checks" ~description:"Passed."
-      | Some description -> Lwt.return_unit
-      (* This is disabled until we can push a warning state. *)
-      (* send_status_check ~repo_full_name ~commit ~state:"failure" ~url:""
-            ~context:"Pull request checks" ~description *)
-      )
-    |> Lwt.async ) ;
   match action with
   | "opened" | "reopened" | "synchronize" ->
       let pr_base_branch = pr_base |> member "ref" |> to_string in
