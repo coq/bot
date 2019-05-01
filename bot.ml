@@ -627,7 +627,7 @@ let callback _conn req body =
   | "/github" -> (
       body
       >>= fun body ->
-      match Webhooks.receive (Request.headers req) body with
+      match Webhooks.receive_github (Request.headers req) body with
       | Ok (Webhooks.IssueClosed issue) ->
           issue
           |> Synchro_Issue_Milestones.query_and_mutate
