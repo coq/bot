@@ -23,7 +23,7 @@ open GitHub_Request
 open Lwt
 open Utils
 
-let gitlab_repo = f "https://%s:%s@gitlab.com/%s.git" username password
+let gitlab_repo = f "https://%s:%s@gitlab.com/%s/%s.git" username password
 
 let report_status command report code =
   f "Command \"%s\" %s %d" command report code |> print_endline
@@ -97,32 +97,32 @@ let send_request ~body ~uri header_list =
   print_endline "Sending request." ;
   Client.post ~body ~headers uri >>= print_response
 
-let add_rebase_label full_name issue_nb =
+let add_rebase_label (issue : Webhooks.issue) =
   let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
   let uri =
-    "https://api.github.com/repos/" ^ full_name ^ "/issues/"
-    ^ Int.to_string issue_nb ^ "/labels"
+    f "https://api.github.com/repos/%s/%s/issues/%d/labels" issue.owner
+      issue.repo issue.number
     |> (fun url -> print_string "URL: " ; print_endline url ; url)
     |> Uri.of_string
   in
   send_request ~body ~uri []
 
-let remove_rebase_label full_name issue_nb =
+let remove_rebase_label (issue : Webhooks.issue) =
   let headers = headers [] in
   let uri =
-    "https://api.github.com/repos/" ^ full_name ^ "/issues/"
-    ^ Int.to_string issue_nb ^ "/labels/needs%3A rebase"
+    f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
+      issue.owner issue.repo issue.number
     |> (fun url -> print_string "URL: " ; print_endline url ; url)
     |> Uri.of_string
   in
   print_endline "Sending delete request." ;
   Client.delete ~headers uri >>= print_response
 
-let update_milestone ~repo_full_name issue_nb new_milestone =
+let update_milestone new_milestone (issue : Webhooks.issue) =
   let headers = headers [] in
   let uri =
-    "https://api.github.com/repos/" ^ repo_full_name ^ "/issues/"
-    ^ Int.to_string issue_nb
+    f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
+      issue.number
     |> (fun url -> print_string "URL: " ; print_endline url ; url)
     |> Uri.of_string
   in
@@ -132,7 +132,7 @@ let update_milestone ~repo_full_name issue_nb new_milestone =
   print_endline "Sending patch request." ;
   Client.patch ~headers ~body uri >>= print_response
 
-let remove_milestone issue_nb = update_milestone issue_nb "null"
+let remove_milestone = update_milestone "null"
 
 let add_pr_to_column pr_id column_id =
   let body =
@@ -247,82 +247,64 @@ let get_cards_in_column column_id =
                Some (pr_number, card_id)
              else None ) )
 
-let pull_request_action json =
-  let open Yojson.Basic.Util in
-  let action = json |> member "action" |> to_string in
-  print_string "Action: " ;
-  print_endline action ;
-  let json_pr = json |> member "pull_request" in
-  let number = json_pr |> member "number" |> to_int
-  and pr_base = json_pr |> member "base" in
-  let pr_base_repo = pr_base |> member "repo" in
-  let repo_full_name = pr_base_repo |> member "full_name" |> to_string in
-  let pr_local_branch = "pr-" ^ Int.to_string number
-  and gitlab_repo = gitlab_repo repo_full_name in
-  let pr_head = json_pr |> member "head" in
-  let commit = pr_head |> member "sha" |> to_string in
-  print_string "Number: #" ;
-  print_int number ;
-  print_newline () ;
-  match action with
-  | "opened" | "reopened" | "synchronize" ->
-      let pr_base_branch = pr_base |> member "ref" |> to_string in
-      let pr_base_repo_url = pr_base_repo |> member "html_url" |> to_string
-      and pr_branch = pr_head |> member "ref" |> to_string
-      and pr_repo =
-        pr_head |> member "repo" |> member "html_url" |> to_string
-      in
-      let pr_local_base_branch = "remote-" ^ pr_base_branch in
-      (fun () ->
-        print_endline "Action warrants fetch / push." ;
-        git_fetch pr_base_repo_url pr_base_branch pr_local_base_branch
-        |&& git_fetch pr_repo pr_branch pr_local_branch
-        |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
-        |> execute_cmd
-        >|= fun ok ->
-        if ok then
-          (* Remove rebase label *)
-          ( if
-            json_pr |> member "labels" |> to_list
-            |> List.exists ~f:(fun label ->
-                   label |> member "name" |> to_string
-                   |> String.equal "needs: rebase" )
-          then (
-            print_endline "Removing the rebase label." ;
-            remove_rebase_label repo_full_name number )
-          else return () )
-          <&> (* Force push *)
-          ( git_push gitlab_repo pr_local_branch pr_local_branch
-          |> execute_cmd >|= ignore )
-        else (
-          print_endline "Adding the rebase label and a failed status check." ;
-          add_rebase_label repo_full_name number
-          <&> send_status_check ~repo_full_name ~commit ~state:"error" ~url:""
-                ~context:"GitLab CI pipeline"
-                ~description:
-                  "Pipeline did not run on GitLab CI because PR has conflicts \
-                   with base branch." ) )
-      |> Lwt.async
-  | "closed" ->
-      print_endline "Branch will be deleted following PR closing." ;
-      (fun () -> git_delete gitlab_repo pr_local_branch |> execute_cmd)
-      |> Lwt.async ;
-      if json_pr |> member "merged" |> to_bool |> not then (
-        print_endline
-          "PR was closed without getting merged: remove the milestone." ;
-        (fun () -> remove_milestone ~repo_full_name number) |> Lwt.async
-        (* TODO: if PR was merged in master without a milestone, post an alert *) )
-  | _ -> ()
+let pull_request_updated (pr_info : Webhooks.pull_request_info) () =
+  let pr_local_branch = f "pr-%d" pr_info.issue.issue.number in
+  let gitlab_repo =
+    gitlab_repo pr_info.issue.issue.owner pr_info.issue.issue.repo
+  in
+  let pr_local_base_branch = f "remote-%s" pr_info.base.branch_name in
+  print_endline "Action warrants fetch / push." ;
+  git_fetch pr_info.base.repo_url pr_info.base.branch_name pr_local_base_branch
+  |&& git_fetch pr_info.head.repo_url pr_info.head.branch_name pr_local_branch
+  |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
+  |> execute_cmd
+  >|= fun ok ->
+  if ok then
+    (* Remove rebase label *)
+    ( if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
+    then (
+      print_endline "Removing the rebase label." ;
+      remove_rebase_label pr_info.issue.issue )
+    else return () )
+    <&> (* Force push *)
+    ( git_push gitlab_repo pr_local_branch pr_local_branch
+    |> execute_cmd >|= ignore )
+  else (
+    print_endline "Adding the rebase label and a failed status check." ;
+    add_rebase_label pr_info.issue.issue
+    <&> send_status_check
+          ~repo_full_name:
+            (f "%s/%s" pr_info.issue.issue.owner pr_info.issue.issue.repo)
+          ~commit:pr_info.head.sha ~state:"error" ~url:""
+          ~context:"GitLab CI pipeline"
+          ~description:
+            "Pipeline did not run on GitLab CI because PR has conflicts with \
+             base branch." )
+
+let pull_request_closed (pr_info : Webhooks.pull_request_info) () =
+  let pr_local_branch = f "pr-%d" pr_info.issue.issue.number in
+  let gitlab_repo =
+    gitlab_repo pr_info.issue.issue.owner pr_info.issue.issue.repo
+  in
+  git_delete gitlab_repo pr_local_branch
+  |> execute_cmd >|= ignore
+  <&>
+  if not pr_info.merged then (
+    print_endline "PR was closed without getting merged: remove the milestone." ;
+    remove_milestone pr_info.issue.issue )
+  else
+    (* TODO: if PR was merged in master without a milestone, post an alert *)
+    return ()
 
 let backport_pr number backport_to =
-  let repo = gitlab_repo "coq/coq" in
+  let repo = gitlab_repo "coq" "coq" in
   let refname = "staging-" ^ backport_to in
   git_fetch repo refname refname
   |&& Printf.sprintf "./backport-pr.sh %d %s" number refname
   |&& git_push repo refname refname
   |> execute_cmd
 
-let project_action (card : Webhooks.projectCard) () =
+let project_action (card : Webhooks.project_card) () =
   get_pull_request_info card.issue.number
   >>= function
   | None ->
@@ -333,9 +315,7 @@ let project_action (card : Webhooks.projectCard) () =
       print_endline "This was a request inclusion column: PR was rejected." ;
       print_endline "Change of milestone requested to:" ;
       print_endline rejected_milestone ;
-      update_milestone
-        ~repo_full_name:(f "%s/%s" card.issue.owner card.issue.repo)
-        card.issue.number rejected_milestone
+      update_milestone rejected_milestone card.issue
       <&> post_comment ~token:github_access_token id
             "This PR was postponed. Please update accordingly the milestone \
              of any issue that this fixes as this cannot be done \
@@ -622,13 +602,26 @@ let callback _conn req body =
   match Uri.path (Request.uri req) with
   | "/job" -> handle_request job_action
   | "/pipeline" -> handle_request pipeline_action
-  | "/pull_request" -> handle_request pull_request_action
   | "/push" -> handle_request push_action
   | "/github" -> (
       body
       >>= fun body ->
       match Webhooks.receive_github (Request.headers req) body with
-      | Ok (Webhooks.IssueClosed issue) ->
+      | Ok (Webhooks.PullRequestUpdated pr_info) ->
+          pull_request_updated pr_info |> Lwt.async ;
+          Server.respond_string ~status:`OK
+            ~body:
+              (f "Pull request %s/%s#%d was updated." pr_info.issue.issue.owner
+                 pr_info.issue.issue.repo pr_info.issue.issue.number)
+            ()
+      | Ok (Webhooks.PullRequestClosed pr_info) ->
+          pull_request_closed pr_info |> Lwt.async ;
+          Server.respond_string ~status:`OK
+            ~body:
+              (f "Pull request %s/%s#%d was closed." pr_info.issue.issue.owner
+                 pr_info.issue.issue.repo pr_info.issue.issue.number)
+            ()
+      | Ok (Webhooks.IssueClosed {issue}) ->
           issue
           |> Synchro_Issue_Milestones.query_and_mutate
                ~token:github_access_token
