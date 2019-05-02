@@ -318,7 +318,7 @@ let project_action (card : GitHub_subscriptions.project_card) () =
       print_endline "Change of milestone requested to:" ;
       print_endline rejected_milestone ;
       update_milestone rejected_milestone card.issue
-      <&> GitHub_queries.post_comment ~token:github_access_token id
+      <&> GitHub_mutations.post_comment ~token:github_access_token id
             "This PR was postponed. Please update accordingly the milestone \
              of any issue that this fixes as this cannot be done \
              automatically."
@@ -371,7 +371,7 @@ let push_action json =
           print_string " to column " ;
           print_string column_id ;
           print_newline () ;
-          GitHub_queries.mv_card_to_column ~token:github_access_token input
+          GitHub_mutations.mv_card_to_column ~token:github_access_token input
       | None ->
           prerr_endline "Could not find backporting info for backported PR." ;
           return () )
@@ -624,8 +624,10 @@ let callback _conn req body =
                  pr_info.issue.issue.repo pr_info.issue.issue.number)
             ()
       | Ok (GitHub_subscriptions.IssueClosed {issue}) ->
-          issue
-          |> GitHub_mutations.query_and_mutate ~token:github_access_token
+          (fun () ->
+            GitHub_queries.issue_milestone ~token:github_access_token issue
+            >>= GitHub_mutations.query_and_mutate ~token:github_access_token
+                  issue )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
