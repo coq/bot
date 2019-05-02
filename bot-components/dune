@@ -1,5 +1,5 @@
 (library
- (name BotComponents)
+ (name Bot_components)
  (public_name bot-components)
  (libraries base cohttp-lwt-unix str yojson)
  (preprocess (pps ppx_graphql))

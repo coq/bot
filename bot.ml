@@ -16,10 +16,9 @@ let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
 open Base
-open BotComponents
+open Bot_components
 open Cohttp
 open Cohttp_lwt_unix
-open GitHub_Request
 open Lwt
 open Utils
 
@@ -97,7 +96,7 @@ let send_request ~body ~uri header_list =
   print_endline "Sending request." ;
   Client.post ~body ~headers uri >>= print_response
 
-let add_rebase_label (issue : Webhooks.issue) =
+let add_rebase_label (issue : GitHub_subscriptions.issue) =
   let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels" issue.owner
@@ -107,7 +106,7 @@ let add_rebase_label (issue : Webhooks.issue) =
   in
   send_request ~body ~uri []
 
-let remove_rebase_label (issue : Webhooks.issue) =
+let remove_rebase_label (issue : GitHub_subscriptions.issue) =
   let headers = headers [] in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
@@ -118,7 +117,7 @@ let remove_rebase_label (issue : Webhooks.issue) =
   print_endline "Sending delete request." ;
   Client.delete ~headers uri >>= print_response
 
-let update_milestone new_milestone (issue : Webhooks.issue) =
+let update_milestone new_milestone (issue : GitHub_subscriptions.issue) =
   let headers = headers [] in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
@@ -197,8 +196,8 @@ let generic_get relative_uri ?(header_list = []) ~default json_handler =
   >|= handle_json json_handler default
 
 let get_pull_request_info pr_number =
-  pull_request_id_db_id_and_milestone ~token:github_access_token ~owner:"coq"
-    ~repo:"coq" ~number:pr_number ()
+  GitHub_queries.pull_request_id_db_id_and_milestone ~token:github_access_token
+    ~owner:"coq" ~repo:"coq" ~number:pr_number ()
   >|= function
   | Ok result -> (
     match result#repository with
@@ -209,7 +208,9 @@ let get_pull_request_info pr_number =
         | Some db_id, Some milestone -> (
           match milestone#description with
           | Some description -> (
-            match Milestone.get_backport_info "coqbot" description with
+            match
+              GitHub_queries.Milestone.get_backport_info "coqbot" description
+            with
             | Some bp_info -> Some (pr#id, db_id, bp_info)
             | _ -> None )
           | _ -> None )
@@ -247,7 +248,8 @@ let get_cards_in_column column_id =
                Some (pr_number, card_id)
              else None ) )
 
-let pull_request_updated (pr_info : Webhooks.pull_request_info) () =
+let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
+    =
   let pr_local_branch = f "pr-%d" pr_info.issue.issue.number in
   let gitlab_repo =
     gitlab_repo pr_info.issue.issue.owner pr_info.issue.issue.repo
@@ -281,7 +283,7 @@ let pull_request_updated (pr_info : Webhooks.pull_request_info) () =
             "Pipeline did not run on GitLab CI because PR has conflicts with \
              base branch." )
 
-let pull_request_closed (pr_info : Webhooks.pull_request_info) () =
+let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
   let pr_local_branch = f "pr-%d" pr_info.issue.issue.number in
   let gitlab_repo =
     gitlab_repo pr_info.issue.issue.owner pr_info.issue.issue.repo
@@ -304,7 +306,7 @@ let backport_pr number backport_to =
   |&& git_push repo refname refname
   |> execute_cmd
 
-let project_action (card : Webhooks.project_card) () =
+let project_action (card : GitHub_subscriptions.project_card) () =
   get_pull_request_info card.issue.number
   >>= function
   | None ->
@@ -316,7 +318,7 @@ let project_action (card : Webhooks.project_card) () =
       print_endline "Change of milestone requested to:" ;
       print_endline rejected_milestone ;
       update_milestone rejected_milestone card.issue
-      <&> post_comment ~token:github_access_token id
+      <&> GitHub_queries.post_comment ~token:github_access_token id
             "This PR was postponed. Please update accordingly the milestone \
              of any issue that this fixes as this cannot be done \
              automatically."
@@ -360,8 +362,8 @@ let push_action json =
       print_string "PR #" ;
       print_string pr_number ;
       print_endline " was backported." ;
-      backported_pr_info ~token:github_access_token (Int.of_string pr_number)
-        base_ref
+      GitHub_queries.backported_pr_info ~token:github_access_token
+        (Int.of_string pr_number) base_ref
       >>= function
       | Some ({card_id; column_id} as input) ->
           print_string "Moving card " ;
@@ -369,7 +371,7 @@ let push_action json =
           print_string " to column " ;
           print_string column_id ;
           print_newline () ;
-          mv_card_to_column ~token:github_access_token input
+          GitHub_queries.mv_card_to_column ~token:github_access_token input
       | None ->
           prerr_endline "Could not find backporting info for backported PR." ;
           return () )
@@ -606,32 +608,31 @@ let callback _conn req body =
   | "/github" -> (
       body
       >>= fun body ->
-      match Webhooks.receive_github (Request.headers req) body with
-      | Ok (Webhooks.PullRequestUpdated pr_info) ->
+      match GitHub_subscriptions.receive_github (Request.headers req) body with
+      | Ok (GitHub_subscriptions.PullRequestUpdated pr_info) ->
           pull_request_updated pr_info |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Pull request %s/%s#%d was updated." pr_info.issue.issue.owner
                  pr_info.issue.issue.repo pr_info.issue.issue.number)
             ()
-      | Ok (Webhooks.PullRequestClosed pr_info) ->
+      | Ok (GitHub_subscriptions.PullRequestClosed pr_info) ->
           pull_request_closed pr_info |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Pull request %s/%s#%d was closed." pr_info.issue.issue.owner
                  pr_info.issue.issue.repo pr_info.issue.issue.number)
             ()
-      | Ok (Webhooks.IssueClosed {issue}) ->
+      | Ok (GitHub_subscriptions.IssueClosed {issue}) ->
           issue
-          |> Synchro_Issue_Milestones.query_and_mutate
-               ~token:github_access_token
+          |> GitHub_mutations.query_and_mutate ~token:github_access_token
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Issue %s/%s#%d was closed." issue.owner issue.repo
                  issue.number)
             ()
-      | Ok (Webhooks.RemovedFromProject card) ->
+      | Ok (GitHub_subscriptions.RemovedFromProject card) ->
           card |> project_action |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -639,7 +640,7 @@ let callback _conn req body =
                  card.issue.owner card.issue.repo card.issue.number
                  card.column_id)
             ()
-      | Ok (Webhooks.NoOp s) ->
+      | Ok (GitHub_subscriptions.NoOp s) ->
           Server.respond_string ~status:`OK
             ~body:(f "No action taken: %s" s)
             ()

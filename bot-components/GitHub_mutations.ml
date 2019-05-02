@@ -1,11 +1,9 @@
 open Base
-open GitHub_Request
 open Lwt
 open Utils
-open Webhooks
 
 let issue_milestone_query =
-  executable_query
+  GitHub_queries.executable_query
     [%graphql
       {|
       query issueMilestone($owner: String!, $repo: String!, $number: Int!) {
@@ -110,12 +108,13 @@ let issue_milestone_mutation ~token ~issue ~milestone =
   let variables =
     [("issue", `String issue); ("milestone", `String milestone)]
   in
-  graphql_query ~token mutation variables
+  GitHub_queries.graphql_query ~token mutation variables
   >|= function
   | Ok _ -> ()
   | Error err -> print_endline (f "Error in issue_milestone_mutation: %s" err)
 
-let query_and_mutate ~token {owner; repo; number} () =
+let query_and_mutate ~token
+    ({owner; repo; number} : GitHub_subscriptions.issue) () =
   issue_milestone ~token ~owner ~repo ~number
   >>= function
   | Ok (issue, None, milestone) ->
@@ -128,7 +127,7 @@ let query_and_mutate ~token {owner; repo; number} () =
         return () )
       else
         issue_milestone_mutation ~token ~issue ~milestone
-        <&> post_comment ~token issue
+        <&> GitHub_queries.post_comment ~token issue
               "The milestone of this issue was changed to reflect the one of \
                the pull request that closed it."
   | Error s ->
