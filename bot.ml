@@ -602,7 +602,7 @@ let callback _conn req body =
   | "/job" -> handle_request job_action
   | "/pipeline" -> handle_request pipeline_action
   | "/push" -> handle_request push_action
-  | "/github" -> (
+  | "/pull_request" | "/github" -> (
       body
       >>= fun body ->
       match GitHub_subscriptions.receive_github (Request.headers req) body with
