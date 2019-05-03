@@ -254,10 +254,12 @@ let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
   let gitlab_repo =
     gitlab_repo pr_info.issue.issue.owner pr_info.issue.issue.repo
   in
-  let pr_local_base_branch = f "remote-%s" pr_info.base.branch_name in
+  let pr_local_base_branch = f "remote-%s" pr_info.base.branch.name in
   print_endline "Action warrants fetch / push." ;
-  git_fetch pr_info.base.repo_url pr_info.base.branch_name pr_local_base_branch
-  |&& git_fetch pr_info.head.repo_url pr_info.head.branch_name pr_local_branch
+  git_fetch pr_info.base.branch.repo_url pr_info.base.branch.name
+    pr_local_base_branch
+  |&& git_fetch pr_info.head.branch.repo_url pr_info.head.branch.name
+        pr_local_branch
   |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
   |> execute_cmd
   >|= fun ok ->
@@ -646,6 +648,9 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:(f "No action taken: %s" s)
             ()
+      | Ok _ ->
+          Server.respond_string ~status:`OK
+            ~body:"No action taken: event or action is not yet supported." ()
       | Error s ->
           Server.respond ~status:(Code.status_of_code 400)
             ~body:(Cohttp_lwt.Body.of_string (f "Error: %s" s))

@@ -7,7 +7,9 @@ type issue = {owner: string; repo: string; number: int}
 
 type issue_info = {issue: issue; labels: string list; milestoned: bool}
 
-type commit_info = {repo_url: string; branch_name: string; sha: string}
+type ref_info = {repo_url: string; name: string}
+
+type commit_info = {branch: ref_info; sha: string}
 
 type pull_request_info =
   {issue: issue_info; base: commit_info; head: commit_info; merged: bool}
@@ -20,6 +22,8 @@ type msg =
   | RemovedFromProject of project_card
   | PullRequestUpdated of pull_request_info
   | PullRequestClosed of pull_request_info
+  | BranchCreated of ref_info
+  | TagCreated of ref_info
 
 let issue_info_of_json ?issue_json json =
   let issue_json =
@@ -40,8 +44,9 @@ let issue_info_of_json ?issue_json json =
   }
 
 let commit_info_of_json json =
-  { repo_url= json |> member "repo" |> member "html_url" |> to_string
-  ; branch_name= json |> member "ref" |> to_string
+  { branch=
+      { repo_url= json |> member "repo" |> member "html_url" |> to_string
+      ; name= json |> member "ref" |> to_string }
   ; sha= json |> member "sha" |> to_string }
 
 let pull_request_info_of_json json =
@@ -81,7 +86,18 @@ let github_action ~event ~action json =
   | _ -> Ok (NoOp "Unhandled GitHub action.")
 
 let github_event ~event json =
-  match event with _ -> Ok (NoOp "Unhandled GitHub event.")
+  match event with
+  | "create" -> (
+      let ref_info =
+        { repo_url=
+            json |> member "repository" |> member "html_url" |> to_string
+        ; name= json |> member "ref" |> to_string }
+      in
+      match json |> member "ref_type" |> to_string with
+      | "branch" -> Ok (BranchCreated ref_info)
+      | "tag" -> Ok (TagCreated ref_info)
+      | ref_type -> Error (f "Unexpected ref_type: %s" ref_type) )
+  | _ -> Ok (NoOp "Unhandled GitHub event.")
 
 let receive_github headers body =
   match Header.get headers "X-GitHub-Event" with
