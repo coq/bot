@@ -14,9 +14,12 @@ let mv_card_to_column ~token
   let variables =
     [("card_id", `String card_id); ("column_id", `String column_id)]
   in
-  GitHub_queries.graphql_query ~token mutation variables >|= ignore
+  GitHub_queries.graphql_query ~token mutation variables
+  >|= function
+  | Ok _ -> ()
+  | Error err -> print_endline (f "Error while moving project card: %s" err)
 
-let post_comment ~token id message =
+let post_comment ~token ~id ~message =
   let mutation =
     "mutation addComment($id:ID!,$message:String!) {\n\
     \       addComment(input:{subjectId:$id,body:$message}) {\n\
@@ -25,11 +28,14 @@ let post_comment ~token id message =
     \     }"
   in
   let variables = [("id", `String id); ("message", `String message)] in
-  GitHub_queries.graphql_query ~token mutation variables >|= ignore
+  GitHub_queries.graphql_query ~token mutation variables
+  >|= function
+  | Ok _ -> ()
+  | Error err -> print_endline (f "Error while posting comment: %s" err)
 
-let issue_milestone_mutation ~token ~issue ~milestone =
+let update_milestone ~token ~issue ~milestone =
   let mutation =
-    " mutation issueMilestone($issue: ID!, $milestone: ID!) {\n\
+    " mutation updateMilestone($issue: ID!, $milestone: ID!) {\n\
     \   updateIssue(input: {id: $issue, milestoneId: $milestone}) {\n\
     \     clientMutationId\n\
     \   }\n\
@@ -41,23 +47,27 @@ let issue_milestone_mutation ~token ~issue ~milestone =
   GitHub_queries.graphql_query ~token mutation variables
   >|= function
   | Ok _ -> ()
-  | Error err -> print_endline (f "Error in issue_milestone_mutation: %s" err)
+  | Error err -> print_endline (f "Error while updating milestone: %s" err)
 
-let query_and_mutate ~token
-    ({owner; repo; number} : GitHub_subscriptions.issue) = function
-  | Ok (issue, None, milestone) ->
-      issue_milestone_mutation ~token ~issue ~milestone
-  | Ok (issue, Some previous_milestone, milestone) ->
-      if String.equal previous_milestone milestone then (
-        print_endline
-          (f "Issue %s/%s#%d is already in the right milestone" owner repo
-             number) ;
-        return () )
-      else
-        issue_milestone_mutation ~token ~issue ~milestone
-        <&> post_comment ~token issue
-              "The milestone of this issue was changed to reflect the one of \
-               the pull request that closed it."
-  | Error s ->
-      print_endline (f "Error: %s" s) ;
-      return ()
+let reflect_pull_request_milestone ~token
+    (issue_closer_info : GitHub_queries.issue_closer_info) =
+  match issue_closer_info.closer with
+  | None -> Lwt_io.print "No closer information: doing nothing."
+  | Some closer -> (
+    match closer.milestone_id with
+    | None -> Lwt_io.printf "PR closed without a milestone: doing nothing."
+    | Some milestone -> (
+      match issue_closer_info.milestone_id with
+      | None ->
+          (* No previous milestone: setting the one of the PR which closed the issue *)
+          update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
+      | Some previous_milestone when String.equal previous_milestone milestone
+        ->
+          Lwt_io.print
+            "Issue is already in the right milestone: doing nothing."
+      | Some previous_milestone ->
+          update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
+          <&> post_comment ~token ~id:issue_closer_info.issue_id
+                ~message:
+                  "The milestone of this issue was changed to reflect the one \
+                   of the pull request that closed it." ) )

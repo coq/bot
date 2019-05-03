@@ -228,11 +228,13 @@ let issue_milestone_query =
                   closer {
                     __typename
                     ... on PullRequest {
+                      id
                       milestone { id }
                     }
                     ... on Commit {
                       associatedPullRequests(first: 2) {
                         nodes {
+                          id
                           milestone { id }
                         }
                       }
@@ -246,64 +248,47 @@ let issue_milestone_query =
       }
       |}]
 
-let issue_milestone ~token ({owner; repo; number} : GitHub_subscriptions.issue)
-    =
+type closer_info = {pull_request_id: string; milestone_id: string option}
+
+let closer_info_of_pr pr =
+  { milestone_id= pr#milestone |> Option.map ~f:(fun milestone -> milestone#id)
+  ; pull_request_id= pr#id }
+
+let closer_info_option_of_closer closer =
+  match closer with
+  | `PullRequest pr -> Some (closer_info_of_pr pr)
+  | `Commit commit -> (
+    match commit#associatedPullRequests with
+    | None -> None
+    | Some prs -> (
+      match prs#nodes with
+      | Some [Some pr] -> Some (closer_info_of_pr pr)
+      | _ -> None ) )
+
+type issue_closer_info =
+  {issue_id: string; milestone_id: string option; closer: closer_info option}
+
+let issue_closer_info_of_resp ~owner ~repo ~number resp =
+  match resp#repository with
+  | None -> Error (f "Unknown repository %s/%s." owner repo)
+  | Some repository -> (
+    match repository#issue with
+    | None -> Error (f "Unknown issue number %s/%s#%d." owner repo number)
+    | Some issue -> (
+      match (issue#timelineItems)#nodes with
+      | Some [Some (`ClosedEvent event)] ->
+          Ok
+            { issue_id= issue#id
+            ; milestone_id=
+                issue#milestone |> Option.map ~f:(fun milestone -> milestone#id)
+            ; closer=
+                event#closer |> Option.bind ~f:closer_info_option_of_closer }
+      | _ -> Error (f "No close event for issue %s/%s#%d." owner repo number) )
+    )
+
+let get_issue_closer_info ~token
+    ({owner; repo; number} : GitHub_subscriptions.issue) =
   issue_milestone_query ~token ~owner ~repo ~number ()
-  >|= function
-  | Ok result -> (
-    match result#repository with
-    | Some repository -> (
-      match repository#issue with
-      | Some issue -> (
-          let issue_id = issue#id in
-          let previous_milestone =
-            match issue#milestone with
-            | Some milestone -> Some milestone#id
-            | None -> None
-          in
-          match (issue#timelineItems)#nodes with
-          | Some [Some (`ClosedEvent event)] -> (
-            match event#closer with
-            | Some closer -> (
-              match closer with
-              | `PullRequest pr -> (
-                match pr#milestone with
-                | Some milestone ->
-                    Ok (issue_id, previous_milestone, milestone#id)
-                | None ->
-                    Error
-                      (f "Issue %s/%s#%d was closed by a PR without milestone."
-                         owner repo number) )
-              | `Commit commit -> (
-                match commit#associatedPullRequests with
-                | Some prs -> (
-                  match prs#nodes with
-                  | Some [Some pr] -> (
-                    match pr#milestone with
-                    | Some milestone ->
-                        Ok (issue_id, previous_milestone, milestone#id)
-                    | None ->
-                        Error
-                          (f
-                             "Issue %s/%s#%d was closed by a commit \
-                              associated to a PR without milestone."
-                             owner repo number) )
-                  | _ ->
-                      Error
-                        (Printf.sprintf
-                           "Issue %s/%s#%d was closed by a commit with no or \
-                            several associated pull requests."
-                           owner repo number) )
-                | None ->
-                    Error
-                      (Printf.sprintf
-                         "Issue %s/%s#%d was closed by a commit with no \
-                          associated pull request."
-                         owner repo number) ) )
-            | None -> Error "Issue was not closed by PR or commit." )
-          | _ ->
-              Error (f "No close event for issue %s/%s#%d." owner repo number)
-          )
-      | None -> Error (f "Unknown issue number %s/%s#%d." owner repo number) )
-    | None -> Error (f "Unknown repository %s/%s." owner repo) )
-  | Error s -> Error (f "Query issue_milestone failed with %s" s)
+  >|= Result.map_error ~f:(fun err ->
+          f "Query issue_milestone failed with %s" err )
+  >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)

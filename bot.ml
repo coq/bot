@@ -312,10 +312,11 @@ let project_action (card : GitHub_subscriptions.project_card) () =
       print_endline "Change of milestone requested to:" ;
       print_endline rejected_milestone ;
       update_milestone rejected_milestone card.issue
-      <&> GitHub_mutations.post_comment ~token:github_access_token id
-            "This PR was postponed. Please update accordingly the milestone \
-             of any issue that this fixes as this cannot be done \
-             automatically."
+      <&> GitHub_mutations.post_comment ~token:github_access_token ~id
+            ~message:
+              "This PR was postponed. Please update accordingly the milestone \
+               of any issue that this fixes as this cannot be done \
+               automatically."
   | _ ->
       print_endline "This was not a request inclusion column: ignoring." ;
       return ()
@@ -616,9 +617,13 @@ let callback _conn req body =
             ()
       | Ok (GitHub_subscriptions.IssueClosed {issue}) ->
           (fun () ->
-            GitHub_queries.issue_milestone ~token:github_access_token issue
-            >>= GitHub_mutations.query_and_mutate ~token:github_access_token
-                  issue )
+            GitHub_queries.get_issue_closer_info ~token:github_access_token
+              issue
+            >>= function
+            | Ok result ->
+                GitHub_mutations.reflect_pull_request_milestone
+                  ~token:github_access_token result
+            | Error err -> Lwt_io.print (f "Error: %s" err) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
