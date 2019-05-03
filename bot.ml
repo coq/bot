@@ -300,14 +300,6 @@ let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
     (* TODO: if PR was merged in master without a milestone, post an alert *)
     return ()
 
-let backport_pr number backport_to =
-  let repo = gitlab_repo "coq" "coq" in
-  let refname = "staging-" ^ backport_to in
-  git_fetch repo refname refname
-  |&& Printf.sprintf "./backport-pr.sh %d %s" number refname
-  |&& git_push repo refname refname
-  |> execute_cmd
-
 let project_action (card : GitHub_subscriptions.project_card) () =
   get_pull_request_info card.issue.number
   >>= function
@@ -350,10 +342,7 @@ let push_action json =
             print_endline "PR was merged into the backportig branch directly." ;
             add_pr_to_column pr_id backported_column )
           else (
-            print_string "Backporting to " ;
-            print_string backport_to ;
-            print_endline " was requested." ;
-            Lwt.async (fun () -> backport_pr pr_number backport_to) ;
+            print_endline (f "Backporting to %s was requested." backport_to) ;
             add_pr_to_column pr_id request_inclusion_column )
       | None ->
           print_endline "Did not get any backporting info." ;
