@@ -262,7 +262,7 @@ let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
         pr_local_branch
   |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
   |> execute_cmd
-  >|= fun ok ->
+  >>= fun ok ->
   if ok then
     (* Remove rebase label *)
     ( if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
@@ -586,6 +586,11 @@ let pipeline_action json =
           ~context:"GitLab CI pipeline" ~description )
       |> Lwt.async
 
+let owner_team_map =
+  Map.of_alist_exn
+    (module String)
+    [("martijnbastiaan-test-org", "martijnbastiaan-test-team")]
+
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
@@ -601,19 +606,45 @@ let callback _conn req body =
       body
       >>= fun body ->
       match GitHub_subscriptions.receive_github (Request.headers req) body with
-      | Ok (GitHub_subscriptions.PullRequestUpdated pr_info) ->
-          pull_request_updated pr_info |> Lwt.async ;
-          Server.respond_string ~status:`OK
-            ~body:
-              (f "Pull request %s/%s#%d was updated." pr_info.issue.issue.owner
-                 pr_info.issue.issue.repo pr_info.issue.issue.number)
-            ()
+      | Ok (GitHub_subscriptions.PullRequestUpdated pr_info) -> (
+        match Map.find owner_team_map pr_info.issue.issue.owner with
+        | Some team ->
+            (fun () ->
+              GitHub_queries.get_team_membership ~token:github_access_token
+                ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
+              >>= function
+              | Ok true ->
+                  print_endline "Authorized user: pushing to GitLab." ;
+                  pull_request_updated pr_info ()
+              | Ok false -> Lwt_io.print "Unauthorized user: doing nothing."
+              | Error err -> Lwt_io.printf "Error: %s" err )
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Pull request was (re)opened / updated. Checking that user \
+                    %s is a member of @%s/%s before pushing to GitLab."
+                   pr_info.issue.user pr_info.issue.issue.owner team)
+              ()
+        | None ->
+            pull_request_updated pr_info |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Pull request %s/%s#%d was (re)opened / updated: \
+                    (force-)pushing to GitLab."
+                   pr_info.issue.issue.owner pr_info.issue.issue.repo
+                   pr_info.issue.issue.number)
+              () )
       | Ok (GitHub_subscriptions.PullRequestClosed pr_info) ->
           pull_request_closed pr_info |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
-              (f "Pull request %s/%s#%d was closed." pr_info.issue.issue.owner
-                 pr_info.issue.issue.repo pr_info.issue.issue.number)
+              (f
+                 "Pull request %s/%s#%d was closed: removing the branch from \
+                  GitLab."
+                 pr_info.issue.issue.owner pr_info.issue.issue.repo
+                 pr_info.issue.issue.number)
             ()
       | Ok (GitHub_subscriptions.IssueClosed {issue}) ->
           (fun () ->
@@ -627,14 +658,16 @@ let callback _conn req body =
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
-              (f "Issue %s/%s#%d was closed." issue.owner issue.repo
-                 issue.number)
+              (f "Issue %s/%s#%d was closed: checking its milestone."
+                 issue.owner issue.repo issue.number)
             ()
       | Ok (GitHub_subscriptions.RemovedFromProject card) ->
           card |> project_action |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
-              (f "Issue or PR %s/%s#%d was removed from project column %d."
+              (f
+                 "Issue or PR %s/%s#%d was removed from project column %d: \
+                  checking if this was a backporting column."
                  card.issue.owner card.issue.repo card.issue.number
                  card.column_id)
             ()

@@ -292,3 +292,40 @@ let get_issue_closer_info ~token
   >|= Result.map_error ~f:(fun err ->
           f "Query issue_milestone failed with %s" err )
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
+
+let get_team_membership_query =
+  executable_query
+    [%graphql
+      {|
+       query teamMember($org: String!, $team: String!, $user: String!) {
+         organization(login:$org) {
+           team(slug:$team) {
+             members(query:$user, first:1) {
+               nodes { login }
+             }
+           }
+         }
+       }
+       |}]
+
+let team_membership_of_resp ~org ~team ~user resp =
+  match resp#organization with
+  | None -> Error (f "Organization %s does not exist." org)
+  | Some resp -> (
+    match resp#team with
+    | None -> Error (f "Team @%s/%s does not exist." org team)
+    | Some resp -> (
+      match (resp#members)#nodes with
+      | Some members
+        when members
+             |> List.exists ~f:(function
+                  | Some member when String.equal member#login user -> true
+                  | _ -> false ) ->
+          Ok true
+      | _ -> Ok false ) )
+
+let get_team_membership ~token ~org ~team ~user =
+  get_team_membership_query ~token ~org ~team ~user ()
+  >|= Result.map_error ~f:(fun err ->
+          f "Query get_team_membership failed with %s" err )
+  >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)

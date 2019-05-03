@@ -5,7 +5,8 @@ open Yojson.Basic.Util
 
 type issue = {owner: string; repo: string; number: int}
 
-type issue_info = {issue: issue; labels: string list; milestoned: bool}
+type issue_info =
+  {issue: issue; user: string; labels: string list; milestoned: bool}
 
 type ref_info = {repo_url: string; name: string}
 
@@ -36,6 +37,7 @@ let issue_info_of_json ?issue_json json =
       { owner= repo_json |> member "owner" |> member "login" |> to_string
       ; repo= repo_json |> member "name" |> to_string
       ; number= issue_json |> member "number" |> to_int }
+  ; user= issue_json |> member "user" |> member "login" |> to_string
   ; labels=
       issue_json |> member "labels" |> to_list
       |> List.map ~f:(fun json -> json |> member "name" |> to_string)
