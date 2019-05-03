@@ -78,14 +78,22 @@ let github_action ~event ~action json =
       | `Null ->
           Ok (NoOp "GitHub card removed, but no associated issue or PR.")
       | _ -> Error "content_url field has unexpected type." )
-  | _ -> Ok (NoOp "Unhandled GitHub event or action.")
+  | _ -> Ok (NoOp "Unhandled GitHub action.")
+
+let github_event ~event json =
+  match event with _ -> Ok (NoOp "Unhandled GitHub event.")
 
 let receive_github headers body =
   match Header.get headers "X-GitHub-Event" with
   | Some event -> (
     try
       let json = Yojson.Basic.from_string body in
-      github_action ~event ~action:(json |> member "action" |> to_string) json
+      match event with
+      | "pull_request" | "issues" | "project_card" ->
+          github_action ~event
+            ~action:(json |> member "action" |> to_string)
+            json
+      | _ -> github_event ~event json
     with
     | Yojson.Json_error err -> Error (f "Json error: %s" err)
     | Type_error (err, _) -> Error (f "Json type error: %s" err) )
