@@ -616,8 +616,8 @@ let callback _conn req body =
               | Ok true ->
                   print_endline "Authorized user: pushing to GitLab." ;
                   pull_request_updated pr_info ()
-              | Ok false -> Lwt_io.print "Unauthorized user: doing nothing."
-              | Error err -> Lwt_io.printf "Error: %s" err )
+              | Ok false -> Lwt_io.print "Unauthorized user: doing nothing.\n"
+              | Error err -> Lwt_io.printf "Error: %s\n" err )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
@@ -654,7 +654,7 @@ let callback _conn req body =
             | Ok result ->
                 GitHub_mutations.reflect_pull_request_milestone
                   ~token:github_access_token result
-            | Error err -> Lwt_io.print (f "Error: %s" err) )
+            | Error err -> Lwt_io.print (f "Error: %s\n" err) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:

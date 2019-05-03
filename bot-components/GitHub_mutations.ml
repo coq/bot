@@ -52,10 +52,10 @@ let update_milestone ~token ~issue ~milestone =
 let reflect_pull_request_milestone ~token
     (issue_closer_info : GitHub_queries.issue_closer_info) =
   match issue_closer_info.closer with
-  | None -> Lwt_io.print "No closer information: doing nothing."
+  | None -> Lwt_io.print "No closer information: doing nothing.\n"
   | Some closer -> (
     match closer.milestone_id with
-    | None -> Lwt_io.printf "PR closed without a milestone: doing nothing."
+    | None -> Lwt_io.printf "PR closed without a milestone: doing nothing.\n"
     | Some milestone -> (
       match issue_closer_info.milestone_id with
       | None ->
@@ -64,7 +64,7 @@ let reflect_pull_request_milestone ~token
       | Some previous_milestone when String.equal previous_milestone milestone
         ->
           Lwt_io.print
-            "Issue is already in the right milestone: doing nothing."
+            "Issue is already in the right milestone: doing nothing.\n"
       | Some previous_milestone ->
           update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
           <&> post_comment ~token ~id:issue_closer_info.issue_id
