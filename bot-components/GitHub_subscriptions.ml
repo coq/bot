@@ -20,7 +20,7 @@ type commit_info = {branch: ref_info; sha: string}
 type pull_request_info =
   {issue: issue_info; base: commit_info; head: commit_info; merged: bool}
 
-type project_card = {issue: issue; column_id: int}
+type project_card = {issue: issue option; column_id: int}
 
 type comment_info = {body: string; author: string; issue: issue_info}
 
@@ -70,6 +70,22 @@ let pull_request_info_of_json json =
   ; head= pr_json |> member "head" |> commit_info_of_json
   ; merged= pr_json |> member "merged" |> to_bool }
 
+let project_card_of_json json =
+  let card_json = json |> member "project_card" in
+  let column_id = card_json |> member "column_id" |> to_int in
+  let regexp =
+    "https://api.github.com/repos/\\([^/]*\\)/\\([^/]*\\)/issues/\\([0-9]*\\)"
+  in
+  match card_json |> member "content_url" with
+  | `Null -> Ok {issue= None; column_id}
+  | `String content_url when string_match ~regexp content_url ->
+      let owner = Str.matched_group 1 content_url in
+      let repo = Str.matched_group 2 content_url in
+      let number = Str.matched_group 3 content_url |> Int.of_string in
+      Ok {issue= Some {owner; repo; number}; column_id}
+  | `String _ -> Error "Could not parse content_url field."
+  | _ -> Error "content_url field has unexpected type."
+
 let comment_info_of_json json =
   let comment_json = json |> member "comment" in
   { body= comment_json |> member "body" |> to_string
@@ -83,26 +99,9 @@ let github_action ~event ~action json =
   | "pull_request", "closed" ->
       Ok (PullRequestClosed (pull_request_info_of_json json))
   | "issues", "closed" -> Ok (IssueClosed (issue_info_of_json json))
-  | "project_card", "deleted" -> (
-      let card = json |> member "project_card" in
-      match card |> member "content_url" with
-      | `String content_url ->
-          let regexp =
-            "https://api.github.com/repos/\\([^/]*\\)/\\([^/]*\\)/issues/\\([0-9]*\\)"
-          in
-          if string_match ~regexp content_url then (
-            let owner = Str.matched_group 1 content_url in
-            let repo = Str.matched_group 2 content_url in
-            let number = Str.matched_group 3 content_url |> Int.of_string in
-            let column_id = card |> member "column_id" |> to_int in
-            print_endline
-              (f "Issue or PR %s/%s#%d was removed from project column %d."
-                 owner repo number column_id) ;
-            Ok (RemovedFromProject {issue= {owner; repo; number}; column_id}) )
-          else Error "Could not parse content_url field."
-      | `Null ->
-          Ok (NoOp "GitHub card removed, but no associated issue or PR.")
-      | _ -> Error "content_url field has unexpected type." )
+  | "project_card", "deleted" ->
+      json |> project_card_of_json
+      |> Result.map ~f:(fun card -> RemovedFromProject card)
   | "issue_comment", "created" ->
       Ok (CommentCreated (comment_info_of_json json))
   | _ -> Ok (NoOp "Unhandled GitHub action.")

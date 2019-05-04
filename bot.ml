@@ -300,18 +300,18 @@ let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
     (* TODO: if PR was merged in master without a milestone, post an alert *)
     return ()
 
-let project_action (card : GitHub_subscriptions.project_card) () =
-  get_pull_request_info card.issue.number
+let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
+  get_pull_request_info issue.number
   >>= function
   | None ->
       print_endline "Could not find backporting info for PR." ;
       return ()
   | Some (id, _, {request_inclusion_column; rejected_milestone})
-    when Int.equal request_inclusion_column card.column_id ->
+    when Int.equal request_inclusion_column column_id ->
       print_endline "This was a request inclusion column: PR was rejected." ;
       print_endline "Change of milestone requested to:" ;
       print_endline rejected_milestone ;
-      update_milestone rejected_milestone card.issue
+      update_milestone rejected_milestone issue
       <&> GitHub_mutations.post_comment ~token:github_access_token ~id
             ~message:
               "This PR was postponed. Please update accordingly the milestone \
@@ -661,16 +661,20 @@ let callback _conn req body =
               (f "Issue %s/%s#%d was closed: checking its milestone."
                  issue.owner issue.repo issue.number)
             ()
-      | Ok (GitHub_subscriptions.RemovedFromProject card) ->
-          card |> project_action |> Lwt.async ;
+      | Ok
+          (GitHub_subscriptions.RemovedFromProject
+            ({issue= Some issue; column_id} as card)) ->
+          project_action ~issue ~column_id |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f
                  "Issue or PR %s/%s#%d was removed from project column %d: \
                   checking if this was a backporting column."
-                 card.issue.owner card.issue.repo card.issue.number
-                 card.column_id)
+                 issue.owner issue.repo issue.number card.column_id)
             ()
+      | Ok (GitHub_subscriptions.RemovedFromProject _) ->
+          Server.respond_string ~status:`OK
+            ~body:"Note card removed from project: nothing to do." ()
       | Ok (GitHub_subscriptions.NoOp s) ->
           Server.respond_string ~status:`OK
             ~body:(f "No action taken: %s" s)
