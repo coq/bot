@@ -22,7 +22,7 @@ type pull_request_info =
 
 type project_card = {issue: issue; column_id: int}
 
-type comment_info = {body: string; author: string; issue: issue}
+type comment_info = {body: string; author: string; issue: issue_info}
 
 type msg =
   | NoOp of string
@@ -70,6 +70,12 @@ let pull_request_info_of_json json =
   ; head= pr_json |> member "head" |> commit_info_of_json
   ; merged= pr_json |> member "merged" |> to_bool }
 
+let comment_info_of_json json =
+  let comment_json = json |> member "comment" in
+  { body= comment_json |> member "body" |> to_string
+  ; author= comment_json |> member "user" |> member "login" |> to_string
+  ; issue= json |> issue_info_of_json }
+
 let github_action ~event ~action json =
   match (event, action) with
   | "pull_request", ("opened" | "reopened" | "synchronize") ->
@@ -97,10 +103,14 @@ let github_action ~event ~action json =
       | `Null ->
           Ok (NoOp "GitHub card removed, but no associated issue or PR.")
       | _ -> Error "content_url field has unexpected type." )
+  | "issue_comment", "created" ->
+      Ok (CommentCreated (comment_info_of_json json))
   | _ -> Ok (NoOp "Unhandled GitHub action.")
 
 let github_event ~event json =
   match event with
+  | "pull_request" | "issues" | "project_card" | "issue_comment" ->
+      github_action ~event ~action:(json |> member "action" |> to_string) json
   | "create" -> (
       let ref_info =
         { repo_url=
@@ -118,12 +128,7 @@ let receive_github headers body =
   | Some event -> (
     try
       let json = Yojson.Basic.from_string body in
-      match event with
-      | "pull_request" | "issues" | "project_card" ->
-          github_action ~event
-            ~action:(json |> member "action" |> to_string)
-            json
-      | _ -> github_event ~event json
+      github_event ~event json
     with
     | Yojson.Json_error err -> Error (f "Json error: %s" err)
     | Type_error (err, _) -> Error (f "Json type error: %s" err) )
