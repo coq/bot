@@ -5,7 +5,8 @@ This bot is triggered by a few GitHub webhooks.
 ## Build locally ##
 
 Use `nix-shell` to get into an appropriate development environment or use
-`opam` to install `cohttp`, `cohttp-lwt-unix` and `yojson`.
+`opam` to install the dependencies: `base`, `cohttp`, `cohttp-lwt-unix`,
+`ppx_graphql` and `yojson`.
 
 Use the following command to build:
 
@@ -54,9 +55,10 @@ Then:
 ./deploy.sh --app my-coqbot
 ```
 
-The bot will need access to an SSH key without passphrase `bot_rsa`
-to be able to push to GitLab, unless the environment variables
-`USERNAME` and `PASSWORD` are defined.
+The bot will need to read a few environment variables:
+- `USERNAME` and `PASSWORD`
+- `GITLAB_ACCESS_TOKEN`
+- `GITHUB_ACCESS_TOKEN`
 
 ## To-do ##
 
@@ -102,6 +104,6 @@ In your GitHub repository:
 - go to "Settings" / "Collaborators & teams" to add [**@coqbot**](https://github.com/coqbot)
   as a collaborator (so that it can push status checks).
 - go to "Settings" / "Webhooks" and add one webhook with URL
-  <https://coqbot.herokuapp.com/pull_request> that will only be triggered by
+  <https://coqbot.herokuapp.com/github> that will only be triggered by
   pull request events. Make sure you change the "content/type" value to
   "application/json".
