@@ -6,7 +6,12 @@ open Yojson.Basic.Util
 type issue = {owner: string; repo: string; number: int}
 
 type issue_info =
-  {issue: issue; user: string; labels: string list; milestoned: bool}
+  { issue: issue
+  ; id: string
+  ; user: string
+  ; labels: string list
+  ; milestoned: bool
+  ; pull_request: bool }
 
 type ref_info = {repo_url: string; name: string}
 
@@ -17,6 +22,8 @@ type pull_request_info =
 
 type project_card = {issue: issue; column_id: int}
 
+type comment_info = {body: string; author: string; issue: issue}
+
 type msg =
   | NoOp of string
   | IssueClosed of issue_info
@@ -25,6 +32,7 @@ type msg =
   | PullRequestClosed of pull_request_info
   | BranchCreated of ref_info
   | TagCreated of ref_info
+  | CommentCreated of comment_info
 
 let issue_info_of_json ?issue_json json =
   let issue_json =
@@ -37,13 +45,17 @@ let issue_info_of_json ?issue_json json =
       { owner= repo_json |> member "owner" |> member "login" |> to_string
       ; repo= repo_json |> member "name" |> to_string
       ; number= issue_json |> member "number" |> to_int }
+  ; id= issue_json |> member "node_id" |> to_string
   ; user= issue_json |> member "user" |> member "login" |> to_string
   ; labels=
       issue_json |> member "labels" |> to_list
       |> List.map ~f:(fun json -> json |> member "name" |> to_string)
   ; milestoned=
       (match issue_json |> member "milestone" with `Null -> false | _ -> true)
-  }
+  ; pull_request=
+      ( match issue_json |> member "pull_request" with
+      | `Null -> false
+      | _ -> true ) }
 
 let commit_info_of_json json =
   { branch=
