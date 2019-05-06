@@ -86,11 +86,19 @@ let project_card_of_json json =
   | `String _ -> Error "Could not parse content_url field."
   | _ -> Error "content_url field has unexpected type."
 
-let comment_info_of_json json =
-  let comment_json = json |> member "comment" in
-  { body= comment_json |> member "body" |> to_string
+let comment_info_of_json ?comment_json ?issue_json json =
+  let comment_json =
+    match comment_json with
+    | Some comment_json -> comment_json
+    | None -> json |> member "comment"
+  in
+  { body=
+      ( match comment_json |> member "body" with
+      | `String body -> body
+      | `Null (* body of review comments can be null *) -> ""
+      | _ -> raise (Yojson.Json_error "Unexpected type for field \"body\".") )
   ; author= comment_json |> member "user" |> member "login" |> to_string
-  ; issue= json |> issue_info_of_json }
+  ; issue= json |> issue_info_of_json ?issue_json }
 
 let github_action ~event ~action json =
   match (event, action) with
@@ -104,11 +112,18 @@ let github_action ~event ~action json =
       |> Result.map ~f:(fun card -> RemovedFromProject card)
   | "issue_comment", "created" ->
       Ok (CommentCreated (comment_info_of_json json))
+  | "pull_request_review", "submitted" ->
+      Ok
+        (CommentCreated
+           (comment_info_of_json json
+              ~comment_json:(json |> member "review")
+              ~issue_json:(json |> member "pull_request")))
   | _ -> Ok (NoOp "Unhandled GitHub action.")
 
 let github_event ~event json =
   match event with
-  | "pull_request" | "issues" | "project_card" | "issue_comment" ->
+  | "pull_request" | "issues" | "project_card" | "issue_comment"
+   |"pull_request_review" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
   | "create" -> (
       let ref_info =
