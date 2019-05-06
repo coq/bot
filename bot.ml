@@ -675,6 +675,45 @@ let callback _conn req body =
       | Ok (GitHub_subscriptions.RemovedFromProject _) ->
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
+      | Ok (GitHub_subscriptions.CommentCreated comment_info)
+        when string_match ~regexp:"@coqbot: [Rr]un CI now" comment_info.body ->
+          (fun () ->
+            match Map.find owner_team_map comment_info.issue.issue.owner with
+            | None ->
+                Lwt_io.printf
+                  "Could not find %s in our list of organizations.\n"
+                  comment_info.issue.issue.owner
+            | Some team -> (
+                GitHub_queries.get_team_membership ~token:github_access_token
+                  ~org:comment_info.issue.issue.owner ~team
+                  ~user:comment_info.issue.user
+                >>= function
+                | Ok false ->
+                    Lwt_io.print "Unauthorized user: doing nothing.\n"
+                | Error err -> Lwt_io.printf "Error: %s\n" err
+                | Ok true -> (
+                    print_endline "Authorized user: pushing to GitLab." ;
+                    match comment_info.pull_request with
+                    | Some pr_info -> pull_request_updated pr_info ()
+                    | None -> Lwt_io.printf "TODO: get pull request data.\n" )
+                ) )
+          |> Lwt.async ;
+          Server.respond_string ~status:`OK
+            ~body:(f "Received a request to run CI: not implemented yet.")
+            ()
+      | Ok (GitHub_subscriptions.CommentCreated comment_info)
+        when string_match ~regexp:"@coqbot: [Mm]erge now" comment_info.body ->
+          Server.respond_string ~status:`OK
+            ~body:
+              (f "Received a request to merge the PR: not implemented yet.")
+            ()
+      | Ok (GitHub_subscriptions.CommentCreated comment_info) ->
+          Server.respond_string ~status:`OK
+            ~body:
+              (f
+                 "Comment doesn't contain any request to @coqbot: nothing to \
+                  do.")
+            ()
       | Ok (GitHub_subscriptions.NoOp s) ->
           Server.respond_string ~status:`OK
             ~body:(f "No action taken: %s" s)
