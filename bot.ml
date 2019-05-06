@@ -675,6 +675,10 @@ let callback _conn req body =
       | Ok (GitHub_subscriptions.RemovedFromProject _) ->
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
+      | Ok (GitHub_subscriptions.CommentCreated {issue= {pull_request= false}})
+        ->
+          Server.respond_string ~status:`OK
+            ~body:"Issue comment: nothing to do." ()
       | Ok (GitHub_subscriptions.CommentCreated comment_info)
         when string_match ~regexp:"@coqbot: [Rr]un CI now" comment_info.body ->
           (fun () ->
@@ -711,8 +715,8 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:
               (f
-                 "Comment doesn't contain any request to @coqbot: nothing to \
-                  do.")
+                 "Pull request comment doesn't contain any request to \
+                  @coqbot: nothing to do.")
             ()
       | Ok (GitHub_subscriptions.NoOp s) ->
           Server.respond_string ~status:`OK

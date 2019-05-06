@@ -10,7 +10,8 @@ type issue_info =
   ; id: string
   ; user: string
   ; labels: string list
-  ; milestoned: bool }
+  ; milestoned: bool
+  ; pull_request: bool }
 
 type ref_info = {repo_url: string; name: string}
 
@@ -55,7 +56,9 @@ let issue_info_of_json ?issue_json json =
       |> List.map ~f:(fun json -> json |> member "name" |> to_string)
   ; milestoned=
       (match issue_json |> member "milestone" with `Null -> false | _ -> true)
-  }
+  ; pull_request=
+      issue_json |> member "html_url" |> to_string
+      |> string_match ~regexp:"https://github.com/[^/]*/[^/]*/pull/[0-9]*" }
 
 let commit_info_of_json json =
   { branch=
