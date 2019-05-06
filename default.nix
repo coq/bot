@@ -1,7 +1,7 @@
 { pkgs ?
   import (fetchTarball {
-    url = "https://github.com/Zimmi48/nixpkgs/archive/abfb32ef22c96c19dd992e75570d4fb50d2ab461.tar.gz";
-    sha256 = "0prl42qpy8wzvd22pljb7mlyvc9k1sxdw2vkfky31v4xj9pkmxj4";
+    url = "https://github.com/Zimmi48/nixpkgs/archive/c40636e15dd690d25aec998b260e812e29227818.tar.gz";
+    sha256 = "12cy25cg4mzxqjrmkzqp786pyq2gskl7r2d42vb1ddwq4rcgidq9";
   }) {}
 }:
 

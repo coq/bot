@@ -6,7 +6,8 @@ This bot is triggered by a few GitHub webhooks.
 
 Use `nix-shell` to get into an appropriate development environment or use
 `opam` to install the dependencies: `base`, `cohttp`, `cohttp-lwt-unix`,
-`ppx_graphql` and `yojson`.
+and `yojson`. And clone https://github.com/Zimmi48/ppx_graphql into a
+subfolder of the `vendor/` sub-directory.
 
 Use the following command to build:
 

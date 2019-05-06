@@ -188,8 +188,6 @@ let pull_request_base_milestone_and_cards ~token owner repo number =
       Ok (cards, milestone)
   | Error err -> Error err
 
-(* Mutations *)
-
 type mv_card_to_column_input = {card_id: string; column_id: string}
 
 let backported_pr_info ~token number base_ref =
@@ -273,7 +271,7 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
   | None -> Error (f "Unknown repository %s/%s." owner repo)
   | Some repository -> (
     match repository#issue with
-    | None -> Error (f "Unknown issue number %s/%s#%d." owner repo number)
+    | None -> Error (f "Unknown issue %s/%s#%d." owner repo number)
     | Some issue -> (
       match (issue#timelineItems)#nodes with
       | Some [Some (`ClosedEvent event)] ->
@@ -329,3 +327,48 @@ let get_team_membership ~token ~org ~team ~user =
   >|= Result.map_error ~f:(fun err ->
           f "Query get_team_membership failed with %s" err )
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
+
+let pull_request_info_query =
+  executable_query
+    [%graphql
+      {|
+     query pull_request_info($owner: String!, $repo: String!, $number: Int!) {
+       repository(owner: $owner, name:$repo) {
+         pullRequest(number: $number) {
+           baseRefName
+           baseRefOid
+           headRefName
+           headRefOid
+           merged
+         }
+       }
+     }
+     |}]
+
+let pull_request_info_of_resp
+    ({issue= {owner; repo; number}} as issue : GitHub_subscriptions.issue_info)
+    resp : (GitHub_subscriptions.pull_request_info, string) Result.t =
+  let repo_url = f "https://github.com/%s/%s" owner repo in
+  match resp#repository with
+  | None -> Error (f "Unknown repository %s/%s." owner repo)
+  | Some repository -> (
+    match repository#pullRequest with
+    | None -> Error (f "Unknown pull request %s/%s#%d." owner repo number)
+    | Some pull_request ->
+        Ok
+          { issue
+          ; base=
+              { branch= {repo_url; name= pull_request#baseRefName}
+              ; sha= pull_request#baseRefOid }
+          ; head=
+              { branch= {repo_url; name= pull_request#headRefName}
+              ; sha= pull_request#headRefOid }
+          ; merged= pull_request#merged } )
+
+let get_pull_request_info ~token
+    ({issue= {owner; repo; number}} as issue : GitHub_subscriptions.issue_info)
+    =
+  pull_request_info_query ~token ~owner ~repo ~number ()
+  >|= Result.map_error ~f:(fun err ->
+          f "Query pull_request_info failed with %s" err )
+  >|= Result.bind ~f:(pull_request_info_of_resp issue)

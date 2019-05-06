@@ -7,3 +7,6 @@
 .merlin
 _build
 *.install
+
+# Directory containing dependencies for compositional builds
+vendor/

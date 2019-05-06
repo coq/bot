@@ -699,8 +699,12 @@ let callback _conn req body =
                     print_endline "Authorized user: pushing to GitLab." ;
                     match comment_info.pull_request with
                     | Some pr_info -> pull_request_updated pr_info ()
-                    | None -> Lwt_io.printf "TODO: get pull request data.\n" )
-                ) )
+                    | None -> (
+                        GitHub_queries.get_pull_request_info
+                          ~token:github_access_token comment_info.issue
+                        >>= function
+                        | Ok pr_info -> pull_request_updated pr_info ()
+                        | Error err -> Lwt_io.printf "Error: %s\n" err ) ) ) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:(f "Received a request to run CI: not implemented yet.")
