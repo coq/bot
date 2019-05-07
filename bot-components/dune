@@ -21,4 +21,4 @@
   (with-stdout-to %{targets} (run sed "s/%%TOKEN%%/%{read:.github-token}/" %{input}))))
 
 (env
- (dev (flags :standard -w -3-9-27)))
+ (dev (flags :standard -w -3-9)))

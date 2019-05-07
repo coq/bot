@@ -192,7 +192,7 @@ let generic_get relative_uri ?(header_list = []) ~default json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
   let headers = headers header_list in
   Client.get ~headers uri
-  >>= (fun (response, body) -> Cohttp_lwt.Body.to_string body)
+  >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
   >|= handle_json json_handler default
 
 let get_pull_request_info pr_number =
@@ -723,7 +723,7 @@ let callback _conn req body =
             ~body:
               (f "Received a request to merge the PR: not implemented yet.")
             ()
-      | Ok (GitHub_subscriptions.CommentCreated comment_info) ->
+      | Ok (GitHub_subscriptions.CommentCreated _) ->
           Server.respond_string ~status:`OK
             ~body:
               (f

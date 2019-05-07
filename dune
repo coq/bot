@@ -4,4 +4,4 @@
  (libraries str base cohttp-lwt-unix yojson bot-components))
 
 (env
- (dev (flags :standard -w -3-9-27)))
+ (dev (flags :standard -w -3-9)))

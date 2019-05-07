@@ -65,7 +65,7 @@ let reflect_pull_request_milestone ~token
         ->
           Lwt_io.print
             "Issue is already in the right milestone: doing nothing.\n"
-      | Some previous_milestone ->
+      | Some _ ->
           update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
           <&> post_comment ~token ~id:issue_closer_info.issue_id
                 ~message:
