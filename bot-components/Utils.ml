@@ -1,5 +1,3 @@
-open Base
-
 let f = Printf.sprintf
 
 let string_match ~regexp string =

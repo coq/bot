@@ -207,7 +207,7 @@ let backported_pr_info ~token number base_ref =
             else None )
       else None
   | Error err ->
-      print_endline (f "Error in backported_pr_info: %s" err) ;
+      Stdio.printf "Error in backported_pr_info: %s\n" err ;
       None
 
 let issue_milestone_query =
