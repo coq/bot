@@ -680,35 +680,43 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"Issue comment: nothing to do." ()
       | Ok (GitHub_subscriptions.CommentCreated comment_info)
-        when string_match ~regexp:"@coqbot: [Rr]un CI now" comment_info.body ->
-          (fun () ->
-            match Map.find owner_team_map comment_info.issue.issue.owner with
-            | None ->
-                Lwt_io.printf
-                  "Could not find %s in our list of organizations.\n"
-                  comment_info.issue.issue.owner
-            | Some team -> (
-                GitHub_queries.get_team_membership ~token:github_access_token
-                  ~org:comment_info.issue.issue.owner ~team
-                  ~user:comment_info.issue.user
-                >>= function
-                | Ok false ->
-                    Lwt_io.print "Unauthorized user: doing nothing.\n"
-                | Error err -> Lwt_io.printf "Error: %s\n" err
-                | Ok true -> (
-                    print_endline "Authorized user: pushing to GitLab." ;
-                    match comment_info.pull_request with
-                    | Some pr_info -> pull_request_updated pr_info ()
-                    | None -> (
-                        GitHub_queries.get_pull_request_info
-                          ~token:github_access_token comment_info.issue
-                        >>= function
-                        | Ok pr_info -> pull_request_updated pr_info ()
-                        | Error err -> Lwt_io.printf "Error: %s\n" err ) ) ) )
-          |> Lwt.async ;
-          Server.respond_string ~status:`OK
-            ~body:(f "Received a request to run CI: not implemented yet.")
-            ()
+        when string_match ~regexp:"@coqbot: [Rr]un CI now" comment_info.body -> (
+        match Map.find owner_team_map comment_info.issue.issue.owner with
+        | None ->
+            (* TODO: check if user is member of the host organization. *)
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Received a request to run CI but no team defined for \
+                    organization %s: nothing to do."
+                   comment_info.issue.issue.owner)
+              ()
+        | Some team ->
+            (fun () ->
+              GitHub_queries.get_team_membership ~token:github_access_token
+                ~org:comment_info.issue.issue.owner ~team
+                ~user:comment_info.issue.user
+              >>= function
+              | Ok false -> Lwt_io.print "Unauthorized user: doing nothing.\n"
+              | Error err -> Lwt_io.printf "Error: %s\n" err
+              | Ok true -> (
+                  print_endline "Authorized user: pushing to GitLab." ;
+                  match comment_info.pull_request with
+                  | Some pr_info -> pull_request_updated pr_info ()
+                  | None -> (
+                      GitHub_queries.get_pull_request_info
+                        ~token:github_access_token comment_info.issue
+                      >>= function
+                      | Ok pr_info -> pull_request_updated pr_info ()
+                      | Error err -> Lwt_io.printf "Error: %s\n" err ) ) )
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Received a request to run CI: checking that @%s is a \
+                    member of @%s/%s before doing so."
+                   comment_info.issue.user comment_info.issue.issue.owner team)
+              () )
       | Ok (GitHub_subscriptions.CommentCreated comment_info)
         when string_match ~regexp:"@coqbot: [Mm]erge now" comment_info.body ->
           Server.respond_string ~status:`OK
