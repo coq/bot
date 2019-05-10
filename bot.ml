@@ -689,7 +689,7 @@ let callback _conn req body =
             (fun () ->
               GitHub_queries.get_team_membership ~token:github_access_token
                 ~org:comment_info.issue.issue.owner ~team
-                ~user:comment_info.issue.user
+                ~user:comment_info.author
               >>= function
               | Ok false -> Lwt_io.print "Unauthorized user: doing nothing.\n"
               | Error err -> Lwt_io.printf "Error: %s\n" err
