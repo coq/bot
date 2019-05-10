@@ -103,8 +103,7 @@ let headers header_list =
 
 let send_request ~body ~uri header_list =
   let headers = headers header_list in
-  Lwt_io.printf "Sending request.\n"
-  >>= fun () -> Client.post ~body ~headers uri >>= print_response
+  Client.post ~body ~headers uri >>= print_response
 
 let add_rebase_label (issue : GitHub_subscriptions.issue) =
   let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
