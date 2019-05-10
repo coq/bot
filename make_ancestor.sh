@@ -4,6 +4,8 @@
 # PWD must be in the relevant git repo
 # merges base in head if necessary
 
+# exit with status code 10 if merge was unsuccessful
+
 set -ex
 
 if [ $# != 2 ]; then >&2 echo Bad argument count; fi
@@ -23,7 +25,7 @@ wtree=$(mktemp -d)
       popd
       rm -rf "$wtree"
       git worktree prune
-      false
+      exit 10
   fi
 )
 rm -rf "$wtree"

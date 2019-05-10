@@ -1,7 +1,7 @@
 open Bot_components
 open Cohttp
 open Cohttp_lwt_unix
-open Lwt
+open Lwt.Infix
 open Utils
 
 let port = try Sys.getenv "PORT" |> int_of_string with Not_found -> 8000
@@ -26,7 +26,7 @@ let project_api_preview_header =
 let gitlab_repo = f "https://%s:%s@gitlab.com/%s/%s.git" username password
 
 let report_status command report code =
-  Stdio.printf "Command \"%s\" %s %d\n" command report code
+  Error (f "Command \"%s\" %s %d\n" command report code)
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
@@ -35,14 +35,12 @@ let execute_cmd command =
   >|= fun status ->
   match status with
   | Unix.WEXITED code ->
-      report_status command "exited with status" code ;
-      if Int.equal code 0 then true else false
+      if Int.equal code 0 then Ok ()
+      else report_status command "exited with status" code
   | Unix.WSIGNALED signal ->
-      report_status command "was killed by signal number" signal ;
-      false
+      report_status command "was killed by signal number" signal
   | Unix.WSTOPPED signal ->
-      report_status command "was stopped by signal number" signal ;
-      false
+      report_status command "was stopped by signal number" signal
 
 let git_fetch ?(force = true)
     (remote_ref : GitHub_subscriptions.remote_ref_info) local_branch_name =
@@ -58,7 +56,19 @@ let git_push ?(force = true)
 
 let git_delete remote_ref = git_push ~force:false remote_ref ""
 
-let git_make_ancestor ~base head = f "./make_ancestor.sh %s %s" base head
+let git_make_ancestor ~base head =
+  f "./make_ancestor.sh %s %s" base head
+  |> Lwt_unix.system
+  >|= fun status ->
+  match status with
+  | Unix.WEXITED 0 -> Ok true (* merge successful *)
+  | Unix.WEXITED 10 -> Ok false (* merge unsuccessful *)
+  | Unix.WEXITED code ->
+      Error (f "git_make_ancestor script exited with status %d." code)
+  | Unix.WSIGNALED signal ->
+      Error (f "git_make_ancestor script killed by signal %d." signal)
+  | Unix.WSTOPPED signal ->
+      Error (f "git_make_ancestor script stopped by signal %d." signal)
 
 let extract_commit json =
   let open Yojson.Basic.Util in
@@ -83,7 +93,7 @@ let print_response (resp, body) =
     |> Lwt_io.printf "Headers: %s\n"
     >>= fun () ->
     body |> Cohttp_lwt.Body.to_string >>= Lwt_io.printf "Body:\n%s\n"
-  else return ()
+  else Lwt.return ()
 
 let headers header_list =
   Header.init ()
@@ -268,6 +278,7 @@ let gitlab_ref (issue : GitHub_subscriptions.issue) :
 
 let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
     =
+  let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
     f "head-%s-%s" pr_info.head.branch.name pr_info.head.sha
@@ -277,31 +288,28 @@ let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
   in
   git_fetch pr_info.base.branch local_base_branch
   |&& git_fetch pr_info.head.branch local_head_branch
-  |&& git_make_ancestor ~base:local_base_branch local_head_branch
   |> execute_cmd
+  >>= (fun () -> git_make_ancestor ~base:local_base_branch local_head_branch)
   >>= fun ok ->
-  if ok then
+  if ok then (
     (* Remove rebase label *)
-    ( if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
-    then
-      Lwt_io.printf "Removing the rebase label.\n"
-      >>= fun () -> remove_rebase_label pr_info.issue.issue
-    else return () )
-    <&> (* Force push *)
-    ( git_push (gitlab_ref pr_info.issue.issue) local_head_branch
-    |> execute_cmd >|= ignore )
-  else
-    Lwt_io.printf "Adding the rebase label and a failed status check.\n"
-    >>= fun () ->
-    add_rebase_label pr_info.issue.issue
-    <&> send_status_check
-          ~repo_full_name:
-            (f "%s/%s" pr_info.issue.issue.owner pr_info.issue.issue.repo)
-          ~commit:pr_info.head.sha ~state:"error" ~url:""
-          ~context:"GitLab CI pipeline"
-          ~description:
-            "Pipeline did not run on GitLab CI because PR has conflicts with \
-             base branch."
+    if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
+    then (fun () -> remove_rebase_label pr_info.issue.issue) |> Lwt.async ;
+    (* Force push *)
+    git_push (gitlab_ref pr_info.issue.issue) local_head_branch |> execute_cmd )
+  else (
+    (* Remove rebase label *)
+    (fun () -> add_rebase_label pr_info.issue.issue) |> Lwt.async ;
+    (* Add fail status check *)
+    send_status_check
+      ~repo_full_name:
+        (f "%s/%s" pr_info.issue.issue.owner pr_info.issue.issue.repo)
+      ~commit:pr_info.head.sha ~state:"error" ~url:""
+      ~context:"GitLab CI pipeline"
+      ~description:
+        "Pipeline did not run on GitLab CI because PR has conflicts with base \
+         branch."
+    |> Lwt_result.ok )
 
 let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
   git_delete (gitlab_ref pr_info.issue.issue)
@@ -313,7 +321,7 @@ let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
     >>= fun () -> remove_milestone pr_info.issue.issue
   else
     (* TODO: if PR was merged in master without a milestone, post an alert *)
-    return ()
+    Lwt.return ()
 
 let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
   get_pull_request_info issue.number
@@ -371,7 +379,7 @@ let push_action json =
           GitHub_mutations.mv_card_to_column ~token:github_access_token input
       | None ->
           Lwt_io.printf "Could not find backporting info for backported PR.\n"
-    else return ()
+    else Lwt.return ()
   in
   (fun () ->
     json |> member "commits" |> to_list |> Lwt_list.iter_s commit_action )
@@ -392,7 +400,7 @@ let repeat_request request =
     request
     >>= fun body ->
     if String.is_empty body then Lwt_unix.sleep t >>= fun () -> aux (t *. 2.)
-    else return body
+    else Lwt.return body
   in
   aux 2.
 
@@ -511,7 +519,7 @@ let job_action json =
         >>= function
         | Warn -> Lwt_io.printf "Actual failure.\n" <&> send_status_check ()
         | Retry -> retry_job ~project_id ~build_id
-        | Ignore -> return ()
+        | Ignore -> Lwt.return ()
       else Lwt_io.printf "Unusual error.\n" <&> send_status_check () )
     |> Lwt.async
   else if String.equal build_status "success" then (
@@ -528,7 +536,7 @@ let job_action json =
                    repo_full_name build_id)
               ~context:build_name
               ~description:"Test succeeded on GitLab CI after being retried"
-      else return () )
+      else Lwt.return () )
     |> Lwt.async ;
     if String.equal build_name "doc:refman" then (
       Stdio.printf
@@ -605,14 +613,18 @@ let callback _conn req body =
         match Map.find owner_team_map pr_info.issue.issue.owner with
         | Some team ->
             (fun () ->
+              let open Lwt_result.Infix in
               GitHub_queries.get_team_membership ~token:github_access_token
                 ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
-              >>= function
-              | Ok true ->
-                  Lwt_io.printf "Authorized user: pushing to GitLab.\n"
-                  <&> pull_request_updated pr_info ()
-              | Ok false -> Lwt_io.print "Unauthorized user: doing nothing.\n"
-              | Error err -> Lwt_io.printf "Error: %s\n" err )
+              >>= (fun is_member ->
+                    if is_member then (
+                      Stdio.printf "Authorized user: pushing to GitLab.\n" ;
+                      pull_request_updated pr_info () )
+                    else
+                      Lwt_io.print "Unauthorized user: doing nothing.\n"
+                      |> Lwt_result.ok )
+              |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+                     Lwt_io.printf "Error: %s\n" err ) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
@@ -688,23 +700,24 @@ let callback _conn req body =
               ()
         | Some team ->
             (fun () ->
+              let open Lwt_result.Infix in
               GitHub_queries.get_team_membership ~token:github_access_token
                 ~org:comment_info.issue.issue.owner ~team
                 ~user:comment_info.author
-              >>= function
-              | Ok false -> Lwt_io.print "Unauthorized user: doing nothing.\n"
-              | Error err -> Lwt_io.printf "Error: %s\n" err
-              | Ok true -> (
-                  Lwt_io.printf "Authorized user: pushing to GitLab.\n"
-                  <&>
-                  match comment_info.pull_request with
-                  | Some pr_info -> pull_request_updated pr_info ()
-                  | None -> (
-                      GitHub_queries.get_pull_request_info
-                        ~token:github_access_token comment_info.issue
-                      >>= function
-                      | Ok pr_info -> pull_request_updated pr_info ()
-                      | Error err -> Lwt_io.printf "Error: %s\n" err ) ) )
+              >>= (fun is_member ->
+                    if is_member then (
+                      Stdio.printf "Authorized user: pushing to GitLab.\n" ;
+                      match comment_info.pull_request with
+                      | Some pr_info -> pull_request_updated pr_info ()
+                      | None ->
+                          GitHub_queries.get_pull_request_info
+                            ~token:github_access_token comment_info.issue
+                          >>= fun pr_info -> pull_request_updated pr_info () )
+                    else
+                      Lwt_io.print "Unauthorized user: doing nothing.\n"
+                      |> Lwt_result.ok )
+              |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+                     Lwt_io.printf "Error: %s\n" err ) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
