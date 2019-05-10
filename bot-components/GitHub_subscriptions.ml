@@ -13,9 +13,9 @@ type issue_info =
   ; milestoned: bool
   ; pull_request: bool }
 
-type ref_info = {repo_url: string; name: string}
+type remote_ref_info = {repo_url: string; name: string}
 
-type commit_info = {branch: ref_info; sha: string}
+type commit_info = {branch: remote_ref_info; sha: string}
 
 type pull_request_info =
   {issue: issue_info; base: commit_info; head: commit_info; merged: bool}
@@ -34,8 +34,8 @@ type msg =
   | RemovedFromProject of project_card
   | PullRequestUpdated of pull_request_info
   | PullRequestClosed of pull_request_info
-  | BranchCreated of ref_info
-  | TagCreated of ref_info
+  | BranchCreated of remote_ref_info
+  | TagCreated of remote_ref_info
   | CommentCreated of comment_info
 
 let issue_info_of_json ?issue_json json =

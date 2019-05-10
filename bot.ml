@@ -44,18 +44,19 @@ let execute_cmd command =
       report_status command "was stopped by signal number" signal ;
       false
 
-let git_fetch ?(force = true) repo remote_ref local_branch_name =
-  f "git fetch -fu %s %s%s:refs/heads/%s" repo
+let git_fetch ?(force = true)
+    (remote_ref : GitHub_subscriptions.remote_ref_info) local_branch_name =
+  f "git fetch -fu %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then "+" else "")
-    remote_ref local_branch_name
+    remote_ref.name local_branch_name
 
-let git_push ?(force = true) repo local_ref remote_branch_name =
-  f "git push %s %s%s:refs/heads/%s" repo
+let git_push ?(force = true)
+    (remote_ref : GitHub_subscriptions.remote_ref_info) local_ref =
+  f "git push %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then " +" else " ")
-    local_ref remote_branch_name
+    local_ref remote_ref.name
 
-let git_delete repo remote_branch_name =
-  git_push ~force:false repo "" remote_branch_name
+let git_delete remote_ref = git_push ~force:false remote_ref ""
 
 let git_make_ancestor ~base ref2 = f "./make_ancestor.sh %s %s" base ref2
 
@@ -261,18 +262,22 @@ let get_cards_in_column column_id =
                Some (pr_number, card_id)
              else None ) )
 
+let gitlab_ref (issue : GitHub_subscriptions.issue) :
+    GitHub_subscriptions.remote_ref_info =
+  {name= f "pr-%d" issue.number; repo_url= gitlab_repo issue.owner issue.repo}
+
 let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
     =
-  let pr_local_branch = f "pr-%d" pr_info.issue.issue.number in
-  let gitlab_repo =
-    gitlab_repo pr_info.issue.issue.owner pr_info.issue.issue.repo
+  (* Try as much as possible to get unique refnames for local branches. *)
+  let local_head_branch =
+    f "head-%s-%s" pr_info.head.branch.name pr_info.head.sha
   in
-  let pr_local_base_branch = f "remote-%s" pr_info.base.branch.name in
-  git_fetch pr_info.base.branch.repo_url pr_info.base.branch.name
-    pr_local_base_branch
-  |&& git_fetch pr_info.head.branch.repo_url pr_info.head.branch.name
-        pr_local_branch
-  |&& git_make_ancestor ~base:pr_local_base_branch pr_local_branch
+  let local_base_branch =
+    f "base-%s-%s" pr_info.base.branch.name pr_info.base.sha
+  in
+  git_fetch pr_info.base.branch local_base_branch
+  |&& git_fetch pr_info.head.branch local_head_branch
+  |&& git_make_ancestor ~base:local_base_branch local_head_branch
   |> execute_cmd
   >>= fun ok ->
   if ok then
@@ -283,7 +288,7 @@ let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
       >>= fun () -> remove_rebase_label pr_info.issue.issue
     else return () )
     <&> (* Force push *)
-    ( git_push gitlab_repo pr_local_branch pr_local_branch
+    ( git_push (gitlab_ref pr_info.issue.issue) local_head_branch
     |> execute_cmd >|= ignore )
   else
     Lwt_io.printf "Adding the rebase label and a failed status check.\n"
@@ -299,11 +304,7 @@ let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
              base branch."
 
 let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
-  let pr_local_branch = f "pr-%d" pr_info.issue.issue.number in
-  let gitlab_repo =
-    gitlab_repo pr_info.issue.issue.owner pr_info.issue.issue.repo
-  in
-  git_delete gitlab_repo pr_local_branch
+  git_delete (gitlab_ref pr_info.issue.issue)
   |> execute_cmd >|= ignore
   <&>
   if not pr_info.merged then
