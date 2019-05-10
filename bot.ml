@@ -58,7 +58,7 @@ let git_push ?(force = true)
 
 let git_delete remote_ref = git_push ~force:false remote_ref ""
 
-let git_make_ancestor ~base ref2 = f "./make_ancestor.sh %s %s" base ref2
+let git_make_ancestor ~base head = f "./make_ancestor.sh %s %s" base head
 
 let extract_commit json =
   let open Yojson.Basic.Util in
