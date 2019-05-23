@@ -38147,7 +38147,7 @@
         {
           "kind": "ENUM",
           "name": "PinnableItemType",
-          "description": "Represents items that can be pinned to a profile page.",
+          "description": "Represents items that can be pinned to a profile page or dashboard.",
           "fields": null,
           "inputFields": null,
           "interfaces": null,
@@ -38161,6 +38161,12 @@
             {
               "name": "GIST",
               "description": "A gist.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ISSUE",
+              "description": "An issue.",
               "isDeprecated": false,
               "deprecationReason": null
             }
@@ -45949,6 +45955,22 @@
                       "ofType": null
                     }
                   }
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "origin",
+              "description": "The organization that originated the advisory",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
                 }
               },
               "isDeprecated": false,
