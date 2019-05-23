@@ -24,6 +24,8 @@ stdenv.mkDerivation rec {
       base
       cohttp
       cohttp-lwt-unix
+      hex
+      nocrypto
       ppx_graphql
       yojson
       # Publishing

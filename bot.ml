@@ -18,6 +18,8 @@ let gitlab_header = [("PRIVATE-TOKEN", gitlab_access_token)]
 
 let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
 
+let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
+
 open Base
 
 let project_api_preview_header =
@@ -593,6 +595,8 @@ let owner_team_map =
     (module String)
     [("martijnbastiaan-test-org", "martijnbastiaan-test-team")]
 
+(* TODO: deprecate unsigned webhooks *)
+
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
@@ -607,10 +611,14 @@ let callback _conn req body =
   | "/pull_request" | "/github" -> (
       body
       >>= fun body ->
-      match GitHub_subscriptions.receive_github (Request.headers req) body with
+      match
+        GitHub_subscriptions.receive_github ~secret:github_webhook_secret
+          (Request.headers req) body
+      with
       | Ok
-          (GitHub_subscriptions.PullRequestUpdated
-            (PullRequestClosed, pr_info)) ->
+          ( _
+          , GitHub_subscriptions.PullRequestUpdated (PullRequestClosed, pr_info)
+          ) ->
           pull_request_closed pr_info |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -620,7 +628,8 @@ let callback _conn req body =
                  pr_info.issue.issue.owner pr_info.issue.issue.repo
                  pr_info.issue.issue.number)
             ()
-      | Ok (GitHub_subscriptions.PullRequestUpdated (action, pr_info)) -> (
+      | Ok (signed, GitHub_subscriptions.PullRequestUpdated (action, pr_info))
+        -> (
           ( match (action, pr_info.base.branch.repo_url) with
           | PullRequestOpened, "https://github.com/coq/coq"
             when String.equal pr_info.base.branch.name pr_info.head.branch.name
@@ -641,7 +650,7 @@ let callback _conn req body =
               |> Lwt.async
           | _ -> () ) ;
           match Map.find owner_team_map pr_info.issue.issue.owner with
-          | Some team ->
+          | Some team when signed ->
               (fun () ->
                 let open Lwt_result.Infix in
                 GitHub_queries.get_team_membership ~token:github_access_token
@@ -664,6 +673,9 @@ let callback _conn req body =
                       GitLab."
                      pr_info.issue.user pr_info.issue.issue.owner team)
                 ()
+          | Some _ ->
+              Server.respond_string ~status:(Code.status_of_code 403)
+                ~body:"Webhook requires secret." ()
           | None ->
               pull_request_updated pr_info |> Lwt.async ;
               Server.respond_string ~status:`OK
@@ -674,7 +686,8 @@ let callback _conn req body =
                      pr_info.issue.issue.owner pr_info.issue.issue.repo
                      pr_info.issue.issue.number)
                 () )
-      | Ok (GitHub_subscriptions.IssueClosed {issue}) ->
+      | Ok (_, GitHub_subscriptions.IssueClosed {issue}) ->
+          (* TODO: only for projects that requested this feature *)
           (fun () ->
             GitHub_queries.get_issue_closer_info ~token:github_access_token
               issue
@@ -690,8 +703,9 @@ let callback _conn req body =
                  issue.owner issue.repo issue.number)
             ()
       | Ok
-          (GitHub_subscriptions.RemovedFromProject
-            ({issue= Some issue; column_id} as card)) ->
+          ( _
+          , GitHub_subscriptions.RemovedFromProject
+              ({issue= Some issue; column_id} as card) ) ->
           project_action ~issue ~column_id |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -700,26 +714,19 @@ let callback _conn req body =
                   checking if this was a backporting column."
                  issue.owner issue.repo issue.number card.column_id)
             ()
-      | Ok (GitHub_subscriptions.RemovedFromProject _) ->
+      | Ok (_, GitHub_subscriptions.RemovedFromProject _) ->
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
-      | Ok (GitHub_subscriptions.CommentCreated {issue= {pull_request= false}})
-        ->
+      | Ok
+          ( _
+          , GitHub_subscriptions.CommentCreated {issue= {pull_request= false}}
+          ) ->
           Server.respond_string ~status:`OK
             ~body:"Issue comment: nothing to do." ()
-      | Ok (GitHub_subscriptions.CommentCreated comment_info)
+      | Ok (signed, GitHub_subscriptions.CommentCreated comment_info)
         when string_match ~regexp:"@coqbot: [Rr]un CI now" comment_info.body -> (
         match Map.find owner_team_map comment_info.issue.issue.owner with
-        | None ->
-            (* TODO: check if user is member of the host organization. *)
-            Server.respond_string ~status:`OK
-              ~body:
-                (f
-                   "Received a request to run CI but no team defined for \
-                    organization %s: nothing to do."
-                   comment_info.issue.issue.owner)
-              ()
-        | Some team ->
+        | Some team when signed ->
             (fun () ->
               let open Lwt_result.Infix in
               GitHub_queries.get_team_membership ~token:github_access_token
@@ -746,21 +753,34 @@ let callback _conn req body =
                    "Received a request to run CI: checking that @%s is a \
                     member of @%s/%s before doing so."
                    comment_info.issue.user comment_info.issue.issue.owner team)
+              ()
+        | Some _ ->
+            Server.respond_string ~status:(Code.status_of_code 403)
+              ~body:"Webhook requires secret." ()
+        | None ->
+            (* TODO: check if user is member of the host organization. *)
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Received a request to run CI but no team defined for \
+                    organization %s: nothing to do."
+                   comment_info.issue.issue.owner)
               () )
-      | Ok (GitHub_subscriptions.CommentCreated comment_info)
+      | Ok (_signed, GitHub_subscriptions.CommentCreated comment_info)
         when string_match ~regexp:"@coqbot: [Mm]erge now" comment_info.body ->
+          (* Should be restricted to coq *)
           Server.respond_string ~status:`OK
             ~body:
               (f "Received a request to merge the PR: not implemented yet.")
             ()
-      | Ok (GitHub_subscriptions.CommentCreated _) ->
+      | Ok (_, GitHub_subscriptions.CommentCreated _) ->
           Server.respond_string ~status:`OK
             ~body:
               (f
                  "Pull request comment doesn't contain any request to \
                   @coqbot: nothing to do.")
             ()
-      | Ok (GitHub_subscriptions.NoOp s) ->
+      | Ok (_, GitHub_subscriptions.NoOp s) ->
           Server.respond_string ~status:`OK
             ~body:(f "No action taken: %s" s)
             ()
@@ -768,9 +788,8 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"No action taken: event or action is not yet supported." ()
       | Error s ->
-          Server.respond ~status:(Code.status_of_code 400)
-            ~body:(Cohttp_lwt.Body.of_string (f "Error: %s" s))
-            () )
+          Server.respond_string ~status:(Code.status_of_code 400)
+            ~body:(f "Error: %s" s) () )
   | _ -> Server.respond_not_found ()
 
 let server =

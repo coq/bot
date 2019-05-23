@@ -158,12 +158,26 @@ let github_event ~event json =
       | ref_type -> Error (f "Unexpected ref_type: %s" ref_type) )
   | _ -> Ok (NoOp "Unhandled GitHub event.")
 
-let receive_github headers body =
+let receive_github ~secret headers body =
+  let open Result in
+  ( match Header.get headers "X-Hub-Signature" with
+  | Some signature ->
+      let expected =
+        Nocrypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
+          (Cstruct.of_string body)
+        |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
+      in
+      (* TODO: move to constant time equality function, such as https://github.com/mirage/eqaf,
+           as recommended by GitHub *)
+      if String.equal signature expected then return true
+      else fail "Webhook signed but with wrong signature."
+  | None -> return false )
+  >>= fun signed ->
   match Header.get headers "X-GitHub-Event" with
   | Some event -> (
     try
       let json = Yojson.Basic.from_string body in
-      github_event ~event json
+      github_event ~event json |> Result.map ~f:(fun r -> (signed, r))
     with
     | Yojson.Json_error err -> Error (f "Json error: %s" err)
     | Type_error (err, _) -> Error (f "Json type error: %s" err) )
