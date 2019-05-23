@@ -17,6 +17,12 @@ type remote_ref_info = {repo_url: string; name: string}
 
 type commit_info = {branch: remote_ref_info; sha: string}
 
+type pull_request_action =
+  | PullRequestOpened
+  | PullRequestClosed
+  | PullRequestReopened
+  | PullRequestSynchronized
+
 type pull_request_info =
   {issue: issue_info; base: commit_info; head: commit_info; merged: bool}
 
@@ -32,8 +38,7 @@ type msg =
   | NoOp of string
   | IssueClosed of issue_info
   | RemovedFromProject of project_card
-  | PullRequestUpdated of pull_request_info
-  | PullRequestClosed of pull_request_info
+  | PullRequestUpdated of pull_request_action * pull_request_info
   | BranchCreated of remote_ref_info
   | TagCreated of remote_ref_info
   | CommentCreated of comment_info
@@ -112,10 +117,20 @@ let comment_info_of_json ?(review_comment = false) json =
 
 let github_action ~event ~action json =
   match (event, action) with
-  | "pull_request", ("opened" | "reopened" | "synchronize") ->
-      Ok (PullRequestUpdated (pull_request_info_of_json json))
+  | "pull_request", "opened" ->
+      Ok
+        (PullRequestUpdated (PullRequestOpened, pull_request_info_of_json json))
+  | "pull_request", "reopened" ->
+      Ok
+        (PullRequestUpdated
+           (PullRequestReopened, pull_request_info_of_json json))
+  | "pull_request", "synchronize" ->
+      Ok
+        (PullRequestUpdated
+           (PullRequestSynchronized, pull_request_info_of_json json))
   | "pull_request", "closed" ->
-      Ok (PullRequestClosed (pull_request_info_of_json json))
+      Ok
+        (PullRequestUpdated (PullRequestClosed, pull_request_info_of_json json))
   | "issues", "closed" -> Ok (IssueClosed (issue_info_of_json json))
   | "project_card", "deleted" ->
       json |> project_card_of_json

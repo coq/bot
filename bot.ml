@@ -608,41 +608,9 @@ let callback _conn req body =
       body
       >>= fun body ->
       match GitHub_subscriptions.receive_github (Request.headers req) body with
-      | Ok (GitHub_subscriptions.PullRequestUpdated pr_info) -> (
-        match Map.find owner_team_map pr_info.issue.issue.owner with
-        | Some team ->
-            (fun () ->
-              let open Lwt_result.Infix in
-              GitHub_queries.get_team_membership ~token:github_access_token
-                ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
-              >>= (fun is_member ->
-                    if is_member then (
-                      Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                      pull_request_updated pr_info () )
-                    else
-                      Lwt_io.print "Unauthorized user: doing nothing.\n"
-                      |> Lwt_result.ok )
-              |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                     Lwt_io.printf "Error: %s\n" err ) )
-            |> Lwt.async ;
-            Server.respond_string ~status:`OK
-              ~body:
-                (f
-                   "Pull request was (re)opened / updated. Checking that user \
-                    %s is a member of @%s/%s before pushing to GitLab."
-                   pr_info.issue.user pr_info.issue.issue.owner team)
-              ()
-        | None ->
-            pull_request_updated pr_info |> Lwt.async ;
-            Server.respond_string ~status:`OK
-              ~body:
-                (f
-                   "Pull request %s/%s#%d was (re)opened / updated: \
-                    (force-)pushing to GitLab."
-                   pr_info.issue.issue.owner pr_info.issue.issue.repo
-                   pr_info.issue.issue.number)
-              () )
-      | Ok (GitHub_subscriptions.PullRequestClosed pr_info) ->
+      | Ok
+          (GitHub_subscriptions.PullRequestUpdated
+            (PullRequestClosed, pr_info)) ->
           pull_request_closed pr_info |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -652,6 +620,60 @@ let callback _conn req body =
                  pr_info.issue.issue.owner pr_info.issue.issue.repo
                  pr_info.issue.issue.number)
             ()
+      | Ok (GitHub_subscriptions.PullRequestUpdated (action, pr_info)) -> (
+          ( match (action, pr_info.base.branch.repo_url) with
+          | PullRequestOpened, "https://github.com/coq/coq"
+            when String.equal pr_info.base.branch.name pr_info.head.branch.name
+            ->
+              (fun () ->
+                GitHub_mutations.post_comment ~token:github_access_token
+                  ~id:pr_info.issue.id
+                  ~message:
+                    (f
+                       "Hello, thanks for your pull request!\n\
+                        In the future, we strongly recommend that you *do \
+                        not* use %s as the name of your branch when \
+                        submitting a pull request.\n\
+                        By the way, you may be interested in reading [our \
+                        contributing \
+                        guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
+                       pr_info.base.branch.name) )
+              |> Lwt.async
+          | _ -> () ) ;
+          match Map.find owner_team_map pr_info.issue.issue.owner with
+          | Some team ->
+              (fun () ->
+                let open Lwt_result.Infix in
+                GitHub_queries.get_team_membership ~token:github_access_token
+                  ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
+                >>= (fun is_member ->
+                      if is_member then (
+                        Stdio.printf "Authorized user: pushing to GitLab.\n" ;
+                        pull_request_updated pr_info () )
+                      else
+                        Lwt_io.print "Unauthorized user: doing nothing.\n"
+                        |> Lwt_result.ok )
+                |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+                       Lwt_io.printf "Error: %s\n" err ) )
+              |> Lwt.async ;
+              Server.respond_string ~status:`OK
+                ~body:
+                  (f
+                     "Pull request was (re)opened / synchronized. Checking \
+                      that user %s is a member of @%s/%s before pushing to \
+                      GitLab."
+                     pr_info.issue.user pr_info.issue.issue.owner team)
+                ()
+          | None ->
+              pull_request_updated pr_info |> Lwt.async ;
+              Server.respond_string ~status:`OK
+                ~body:
+                  (f
+                     "Pull request %s/%s#%d was (re)opened / synchronized: \
+                      (force-)pushing to GitLab."
+                     pr_info.issue.issue.owner pr_info.issue.issue.repo
+                     pr_info.issue.issue.number)
+                () )
       | Ok (GitHub_subscriptions.IssueClosed {issue}) ->
           (fun () ->
             GitHub_queries.get_issue_closer_info ~token:github_access_token
