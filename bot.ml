@@ -802,4 +802,9 @@ let server =
   let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
 
+let () =
+  Lwt.async_exception_hook :=
+    fun exn ->
+      Stdio.printf "Error: Unhandled exception: %s" (Exn.to_string exn)
+
 let () = Lwt_main.run server
