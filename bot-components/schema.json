@@ -1483,6 +1483,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "ReadyForReviewEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "AddedToProjectEvent",
               "ofType": null
             },
@@ -4155,7 +4160,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -4169,7 +4174,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -4232,7 +4237,7 @@
                 }
               },
               "isDeprecated": true,
-              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-07-01 UTC."
+              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "project",
@@ -4424,7 +4429,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -4438,7 +4443,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -5629,7 +5634,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[ARCHIVED, NOT_ARCHIVED]"
                 }
               ],
               "type": {
@@ -6049,7 +6054,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[ARCHIVED, NOT_ARCHIVED]"
                 }
               ],
               "type": {
@@ -7116,7 +7121,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[ARCHIVED, NOT_ARCHIVED]"
                 }
               ],
               "type": {
@@ -7352,8 +7357,8 @@
                   "ofType": null
                 }
               },
-              "isDeprecated": false,
-              "deprecationReason": null
+              "isDeprecated": true,
+              "deprecationReason": "`timeline` will be removed Use Issue.timelineItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "timelineItems",
@@ -9089,7 +9094,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -9103,7 +9108,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -9166,7 +9171,7 @@
                 }
               },
               "isDeprecated": true,
-              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-07-01 UTC."
+              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "project",
@@ -9538,7 +9543,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -9552,7 +9557,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -10002,7 +10007,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR, ORGANIZATION_MEMBER]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -10016,7 +10021,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -10240,7 +10245,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -10254,7 +10259,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -10317,7 +10322,7 @@
                 }
               },
               "isDeprecated": true,
-              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-07-01 UTC."
+              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "repositories",
@@ -10355,7 +10360,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -10369,7 +10374,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -11330,7 +11335,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "ownerAffiliations",
@@ -11344,7 +11349,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[OWNER, COLLABORATOR]"
                 },
                 {
                   "name": "isLocked",
@@ -11552,6 +11557,22 @@
             {
               "name": "isPrivate",
               "description": "Identifies if the repository is private.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "isTemplate",
+              "description": "Identifies if the repository is a template that can be used to generate new repositories.",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -12163,6 +12184,22 @@
                 "kind": "INTERFACE",
                 "name": "GitObject",
                 "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "openGraphImageUrl",
+              "description": "The image used to represent this repository in Open Graph data.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -12947,6 +12984,18 @@
               "deprecationReason": null
             },
             {
+              "name": "templateRepository",
+              "description": "The repository from which this repository was generated, if any.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Repository",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "updatedAt",
               "description": "Identifies the date and time when the object was last updated.",
               "args": [],
@@ -12972,6 +13021,22 @@
                 "ofType": {
                   "kind": "SCALAR",
                   "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "usesCustomOpenGraphImage",
+              "description": "Whether this repository has a custom image to use with Open Graph as opposed to being represented by the owner's avatar.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
                   "ofType": null
                 }
               },
@@ -13716,6 +13781,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "ReadyForReviewEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "Release",
               "ofType": null
             },
@@ -13921,6 +13991,22 @@
               "deprecationReason": null
             },
             {
+              "name": "isTemplate",
+              "description": "Identifies if the repository is a template that can be used to generate new repositories.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "licenseInfo",
               "description": "The license associated with the repository",
               "args": [],
@@ -13982,6 +14068,22 @@
                 "ofType": {
                   "kind": "SCALAR",
                   "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "openGraphImageUrl",
+              "description": "The image used to represent this repository in Open Graph data.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
                   "ofType": null
                 }
               },
@@ -14085,6 +14187,22 @@
                 "ofType": {
                   "kind": "SCALAR",
                   "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "usesCustomOpenGraphImage",
+              "description": "Whether this repository has a custom image to use with Open Graph as opposed to being represented by the owner's avatar.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
                   "ofType": null
                 }
               },
@@ -14559,6 +14677,22 @@
             {
               "name": "requiresApprovingReviews",
               "description": "Are approving reviews required to update matching branches.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "requiresCodeOwnerReviews",
+              "description": "Are reviews from code owners required to update matching branches.",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -16268,7 +16402,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": null
+                  "defaultValue": "[ARCHIVED, NOT_ARCHIVED]"
                 }
               ],
               "type": {
@@ -16747,8 +16881,8 @@
                   "ofType": null
                 }
               },
-              "isDeprecated": false,
-              "deprecationReason": null
+              "isDeprecated": true,
+              "deprecationReason": "`timeline` will be removed Use PullRequest.timelineItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "timelineItems",
@@ -24069,6 +24203,29 @@
           "description": "Represents an individual commit status context",
           "fields": [
             {
+              "name": "avatarUrl",
+              "description": "The avatar of the OAuth application or the user that created the status",
+              "args": [
+                {
+                  "name": "size",
+                  "description": "The size of the resulting square image.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": "40"
+                }
+              ],
+              "type": {
+                "kind": "SCALAR",
+                "name": "URI",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "commit",
               "description": "This commit this status context is attached to.",
               "args": [],
@@ -24771,6 +24928,22 @@
                 "ofType": {
                   "kind": "SCALAR",
                   "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "issuePrioritiesDebug",
+              "description": "Just for debugging on review-lab",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
                   "ofType": null
                 }
               },
@@ -26560,6 +26733,18 @@
               "deprecationReason": null
             },
             {
+              "name": "expiresAt",
+              "description": "If set, the status will not be shown after this date.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "id",
               "description": "ID of the object.",
               "args": [],
@@ -27671,19 +27856,31 @@
           "enumValues": [
             {
               "name": "ADMIN",
-              "description": "Can read, clone, push, and add collaborators",
+              "description": "Can read, clone, and push to this repository. Can also manage issues, pull requests, and repository settings, including adding collaborators",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "MAINTAIN",
+              "description": "Can read, clone, and push to this repository. They can also manage issues, pull requests, and some repository settings",
               "isDeprecated": false,
               "deprecationReason": null
             },
             {
               "name": "WRITE",
-              "description": "Can read, clone and push",
+              "description": "Can read, clone, and push to this repository. Can also manage issues and pull requests",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "TRIAGE",
+              "description": "Can read and clone this repository. Can also manage issues and pull requests",
               "isDeprecated": false,
               "deprecationReason": null
             },
             {
               "name": "READ",
-              "description": "Can read and clone",
+              "description": "Can read and clone this repository. Can also open and comment on issues and pull requests",
               "isDeprecated": false,
               "deprecationReason": null
             }
@@ -33016,38 +33213,6 @@
               "deprecationReason": null
             },
             {
-              "name": "message",
-              "description": "Identifies the message associated with the 'review_dismissed' event.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "`message` is being removed because it not nullable, whereas the underlying field is optional. Use `dismissalMessage` instead. Removal on 2019-07-01 UTC."
-            },
-            {
-              "name": "messageHtml",
-              "description": "The message associated with the event, rendered to HTML.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "HTML",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "`messageHtml` is being removed because it not nullable, whereas the underlying field is optional. Use `dismissalMessageHTML` instead. Removal on 2019-07-01 UTC."
-            },
-            {
               "name": "previousReviewState",
               "description": "Identifies the previous state of the review with the 'review_dismissed' event.",
               "args": [],
@@ -33383,6 +33548,12 @@
             {
               "name": "REVIEW_REQUEST_REMOVED_EVENT",
               "description": "Represents an 'review_request_removed' event on a given pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "READY_FOR_REVIEW_EVENT",
+              "description": "Represents a 'ready_for_review' event on a given pull request.",
               "isDeprecated": false,
               "deprecationReason": null
             },
@@ -33794,6 +33965,11 @@
             {
               "kind": "OBJECT",
               "name": "ReviewRequestRemovedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "ReadyForReviewEvent",
               "ofType": null
             },
             {
@@ -34221,6 +34397,120 @@
             {
               "kind": "INTERFACE",
               "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "ReadyForReviewEvent",
+          "description": "Represents a 'ready_for_review' event on a given pull request.",
+          "fields": [
+            {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pullRequest",
+              "description": "PullRequest referenced by event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PullRequest",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "resourcePath",
+              "description": "The HTTP path for this ready for review event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "url",
+              "description": "The HTTP URL for this ready for review event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            },
+            {
+              "kind": "INTERFACE",
+              "name": "UniformResourceLocatable",
               "ofType": null
             }
           ],
@@ -38169,6 +38459,36 @@
               "description": "An issue.",
               "isDeprecated": false,
               "deprecationReason": null
+            },
+            {
+              "name": "PROJECT",
+              "description": "A project.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "PULL_REQUEST",
+              "description": "A pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "USER",
+              "description": "A user.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ORGANIZATION",
+              "description": "An organization.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "TEAM",
+              "description": "A team.",
+              "isDeprecated": false,
+              "deprecationReason": null
             }
           ],
           "possibleTypes": null
@@ -38495,6 +38815,16 @@
                     "ofType": null
                   },
                   "defaultValue": "10"
+                },
+                {
+                  "name": "oid",
+                  "description": "The oid of the files to return",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "GitObjectID",
+                    "ofType": null
+                  },
+                  "defaultValue": null
                 }
               ],
               "type": {
@@ -38503,6 +38833,73 @@
                 "ofType": {
                   "kind": "OBJECT",
                   "name": "GistFile",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "forks",
+              "description": "A list of forks associated with the gist",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "orderBy",
+                  "description": "Ordering options for gists returned from the connection",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "GistOrder",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "GistConnection",
                   "ofType": null
                 }
               },
@@ -39392,6 +39789,188 @@
           "possibleTypes": null
         },
         {
+          "kind": "INPUT_OBJECT",
+          "name": "GistOrder",
+          "description": "Ordering options for gist connections",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "field",
+              "description": "The field to order repositories by.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "GistOrderField",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "direction",
+              "description": "The ordering direction.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "OrderDirection",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "GistOrderField",
+          "description": "Properties by which gist connections can be ordered.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "CREATED_AT",
+              "description": "Order gists by creation time",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "UPDATED_AT",
+              "description": "Order gists by update time",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "PUSHED_AT",
+              "description": "Order gists by push time",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "GistConnection",
+          "description": "The connection type for Gist.",
+          "fields": [
+            {
+              "name": "edges",
+              "description": "A list of edges.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "GistEdge",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "nodes",
+              "description": "A list of nodes.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "Gist",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pageInfo",
+              "description": "Information to aid in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PageInfo",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalCount",
+              "description": "Identifies the total count of items in the connection.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "GistEdge",
+          "description": "An edge in a connection.",
+          "fields": [
+            {
+              "name": "cursor",
+              "description": "A cursor for use in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "node",
+              "description": "The item at the end of the edge.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Gist",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
           "kind": "OBJECT",
           "name": "ContributionsCollection",
           "description": "A contributions collection aggregates contributions such as opened issues and commits created by a user.",
@@ -39518,18 +40097,7 @@
             {
               "name": "firstIssueContribution",
               "description": "The first issue the user opened on GitHub. This will be null if that issue was opened outside the collection's time range and ignoreTimeRange is false. If the issue is not visible but the user has opted to show private contributions, a RestrictedContribution will be returned.",
-              "args": [
-                {
-                  "name": "ignoreTimeRange",
-                  "description": "If true, the first issue will be returned even if it was opened outside of the collection's time range.\n\n**Upcoming Change on 2019-07-01 UTC**\n**Description:** `ignoreTimeRange` will be removed. Use a `ContributionsCollection` starting sufficiently far back\n**Reason:** ignore_time_range will be removed\n",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": "false"
-                }
-              ],
+              "args": [],
               "type": {
                 "kind": "UNION",
                 "name": "CreatedIssueOrRestrictedContribution",
@@ -39541,18 +40109,7 @@
             {
               "name": "firstPullRequestContribution",
               "description": "The first pull request the user opened on GitHub. This will be null if that pull request was opened outside the collection's time range and ignoreTimeRange is not true. If the pull request is not visible but the user has opted to show private contributions, a RestrictedContribution will be returned.",
-              "args": [
-                {
-                  "name": "ignoreTimeRange",
-                  "description": "If true, the first pull request will be returned even if it was opened outside of the collection's time range.\n\n**Upcoming Change on 2019-07-01 UTC**\n**Description:** `ignoreTimeRange` will be removed. Use a `ContributionsCollection` starting sufficiently far back\n**Reason:** ignore_time_range will be removed\n",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": "false"
-                }
-              ],
+              "args": [],
               "type": {
                 "kind": "UNION",
                 "name": "CreatedPullRequestOrRestrictedContribution",
@@ -39564,18 +40121,7 @@
             {
               "name": "firstRepositoryContribution",
               "description": "The first repository the user created on GitHub. This will be null if that first repository was created outside the collection's time range and ignoreTimeRange is false. If the repository is not visible, then a RestrictedContribution is returned.",
-              "args": [
-                {
-                  "name": "ignoreTimeRange",
-                  "description": "If true, the first repository will be returned even if it was opened outside of the collection's time range.\n\n**Upcoming Change on 2019-07-01 UTC**\n**Description:** `ignoreTimeRange` will be removed. Use a `ContributionsCollection` starting sufficiently far back\n**Reason:** ignore_time_range will be removed\n",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": "false"
-                }
-              ],
+              "args": [],
               "type": {
                 "kind": "UNION",
                 "name": "CreatedRepositoryOrRestrictedContribution",
@@ -39793,18 +40339,7 @@
             {
               "name": "joinedGitHubContribution",
               "description": "When the user signed up for GitHub. This will be null if that sign up date falls outside the collection's time range and ignoreTimeRange is false.",
-              "args": [
-                {
-                  "name": "ignoreTimeRange",
-                  "description": "If true, the contribution will be returned even if the user signed up outside of the collection's time range.\n\n**Upcoming Change on 2019-07-01 UTC**\n**Description:** `ignoreTimeRange` will be removed. Use a `ContributionsCollection` starting sufficiently far back\n**Reason:** ignore_time_range will be removed\n",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": "false"
-                }
-              ],
+              "args": [],
               "type": {
                 "kind": "OBJECT",
                 "name": "JoinedGitHubContribution",
@@ -41878,15 +42413,11 @@
           "inputFields": [
             {
               "name": "field",
-              "description": "The field by which to order contributions.",
+              "description": "The field by which to order contributions.\n\n**Upcoming Change on 2019-10-01 UTC**\n**Description:** `field` will be removed. Only one order field is supported.\n**Reason:** `field` will be removed.\n",
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "ContributionOrderField",
-                  "ofType": null
-                }
+                "kind": "ENUM",
+                "name": "ContributionOrderField",
+                "ofType": null
               },
               "defaultValue": null
             },
@@ -43086,188 +43617,6 @@
           "possibleTypes": null
         },
         {
-          "kind": "INPUT_OBJECT",
-          "name": "GistOrder",
-          "description": "Ordering options for gist connections",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "field",
-              "description": "The field to order repositories by.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "GistOrderField",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "direction",
-              "description": "The ordering direction.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "OrderDirection",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "GistOrderField",
-          "description": "Properties by which gist connections can be ordered.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "CREATED_AT",
-              "description": "Order gists by creation time",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "UPDATED_AT",
-              "description": "Order gists by update time",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "PUSHED_AT",
-              "description": "Order gists by push time",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "GistConnection",
-          "description": "The connection type for Gist.",
-          "fields": [
-            {
-              "name": "edges",
-              "description": "A list of edges.",
-              "args": [],
-              "type": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "GistEdge",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "nodes",
-              "description": "A list of nodes.",
-              "args": [],
-              "type": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "Gist",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "pageInfo",
-              "description": "Information to aid in pagination.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "PageInfo",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "totalCount",
-              "description": "Identifies the total count of items in the connection.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "GistEdge",
-          "description": "An edge in a connection.",
-          "fields": [
-            {
-              "name": "cursor",
-              "description": "A cursor for use in pagination.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "node",
-              "description": "The item at the end of the edge.",
-              "args": [],
-              "type": {
-                "kind": "OBJECT",
-                "name": "Gist",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
           "kind": "OBJECT",
           "name": "OrganizationConnection",
           "description": "The connection type for Organization.",
@@ -43502,7 +43851,7 @@
           "fields": [
             {
               "name": "accessedAt",
-              "description": "The last time this authorization was used to perform an action",
+              "description": "The last time this authorization was used to perform an action. Values will be null for keys not owned by the user.",
               "args": [],
               "type": {
                 "kind": "SCALAR",
@@ -43514,28 +43863,28 @@
             },
             {
               "name": "createdAt",
-              "description": "Identifies the date and time when the object was created.",
+              "description": "Identifies the date and time when the key was created. Keys created before March 5th, 2014 have inaccurate values. Values will be null for keys not owned by the user.",
               "args": [],
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "DateTime",
-                  "ofType": null
-                }
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
             },
             {
               "name": "fingerprint",
-              "description": "The fingerprint for this PublicKey",
+              "description": "The fingerprint for this PublicKey.",
               "args": [],
               "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -43558,23 +43907,19 @@
             },
             {
               "name": "isReadOnly",
-              "description": "Whether this PublicKey is read-only or not",
+              "description": "Whether this PublicKey is read-only or not. Values will be null for keys not owned by the user.",
               "args": [],
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                }
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
             },
             {
               "name": "key",
-              "description": "The public key string",
+              "description": "The public key string.",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -43590,16 +43935,12 @@
             },
             {
               "name": "updatedAt",
-              "description": "Identifies the date and time when the object was last updated.",
+              "description": "Identifies the date and time when the key was updated. Keys created before March 5th, 2014 may have inaccurate values. Values will be null for keys not owned by the user.",
               "args": [],
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "DateTime",
-                  "ofType": null
-                }
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -45504,6 +45845,11 @@
               "kind": "OBJECT",
               "name": "MarketplaceListing",
               "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "App",
+              "ofType": null
             }
           ]
         },
@@ -47039,6 +47385,33 @@
               "deprecationReason": null
             },
             {
+              "name": "cloneTemplateRepository",
+              "description": "Create a new repository with the same files and directory structure as a template repository.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "CloneTemplateRepositoryInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "CloneTemplateRepositoryPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "closeIssue",
               "description": "Close an issue.",
               "args": [
@@ -47222,6 +47595,60 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "CreatePullRequestPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createRef",
+              "description": "Create a new Git Ref.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "CreateRefInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "CreateRefPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createRepository",
+              "description": "Create a new repository.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "CreateRepositoryInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "CreateRepositoryPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -47465,6 +47892,33 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "DeletePullRequestReviewCommentPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "deleteRef",
+              "description": "Delete a Git Ref.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "DeleteRefInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "DeleteRefPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -48194,6 +48648,33 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "UpdatePullRequestReviewCommentPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "updateRef",
+              "description": "Update a Git Ref.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "UpdateRefInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "UpdateRefPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -49396,6 +49877,16 @@
               "defaultValue": "false"
             },
             {
+              "name": "expiresAt",
+              "description": "If set, the user status will not be shown after this date.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "DateTime",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
               "name": "clientMutationId",
               "description": "A unique identifier for the client performing the mutation.",
               "type": {
@@ -49648,6 +50139,157 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "Project",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "CloneTemplateRepositoryInput",
+          "description": "Autogenerated input type of CloneTemplateRepository",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "repositoryId",
+              "description": "The Node ID of the template repository.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "name",
+              "description": "The name of the new repository.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "ownerId",
+              "description": "The ID of the owner for the new repository.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "description",
+              "description": "A short description of the new repository.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "visibility",
+              "description": "Indicates the repository's visibility level.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "RepositoryVisibility",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "RepositoryVisibility",
+          "description": "The repository's visibility level.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "PRIVATE",
+              "description": "The repository is visible only to those with explicit access.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "PUBLIC",
+              "description": "The repository is visible to everyone.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "INTERNAL",
+              "description": "The repository is visible only to users in the same business.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "CloneTemplateRepositoryPayload",
+          "description": "Autogenerated return type of CloneTemplateRepository",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "repository",
+              "description": "The new repository.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Repository",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -50527,6 +51169,258 @@
         },
         {
           "kind": "INPUT_OBJECT",
+          "name": "CreateRefInput",
+          "description": "Autogenerated input type of CreateRef",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "repositoryId",
+              "description": "The Node ID of the Repository to create the Ref in.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "name",
+              "description": "The fully qualified name of the new Ref (ie: `refs/heads/my_new_branch`).",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "oid",
+              "description": "The GitObjectID that the new Ref shall target. Must point to a commit.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "GitObjectID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "CreateRefPayload",
+          "description": "Autogenerated return type of CreateRef",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ref",
+              "description": "The newly created ref.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Ref",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "CreateRepositoryInput",
+          "description": "Autogenerated input type of CreateRepository",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "name",
+              "description": "The name of the new repository.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "ownerId",
+              "description": "The ID of the owner for the new repository.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "description",
+              "description": "A short description of the new repository.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "visibility",
+              "description": "Indicates the repository's visibility level.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "RepositoryVisibility",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "template",
+              "description": "Whether this repository should be marked as a template such that anyone who can access it can create new repositories with the same files and directory structure.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": "false"
+            },
+            {
+              "name": "homepageUrl",
+              "description": "The URL for a web page about this repository.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "URI",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "hasWikiEnabled",
+              "description": "Indicates if the repository should have the wiki feature enabled.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": "false"
+            },
+            {
+              "name": "hasIssuesEnabled",
+              "description": "Indicates if the repository should have the issues feature enabled.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": "true"
+            },
+            {
+              "name": "teamId",
+              "description": "When an organization is specified as the owner, this ID identifies the team that should be granted access to the new repository.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "CreateRepositoryPayload",
+          "description": "Autogenerated return type of CreateRepository",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "repository",
+              "description": "The new repository.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Repository",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
           "name": "DeclineTopicSuggestionInput",
           "description": "Autogenerated input type of DeclineTopicSuggestion",
           "fields": null,
@@ -51207,6 +52101,64 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "PullRequestReview",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "DeleteRefInput",
+          "description": "Autogenerated input type of DeleteRef",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "refId",
+              "description": "The Node ID of the Ref to be deleted.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "DeleteRefPayload",
+          "description": "Autogenerated return type of DeleteRef",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -53779,6 +54731,100 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "PullRequestReviewComment",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "UpdateRefInput",
+          "description": "Autogenerated input type of UpdateRef",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "refId",
+              "description": "The Node ID of the Ref to be updated.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "oid",
+              "description": "The GitObjectID that the Ref shall be updated to target.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "GitObjectID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "force",
+              "description": "Permit updates of branch Refs that are not fast-forwards?",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": "false"
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "UpdateRefPayload",
+          "description": "Autogenerated return type of UpdateRef",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ref",
+              "description": "The updated Ref.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Ref",
                 "ofType": null
               },
               "isDeprecated": false,
