@@ -460,9 +460,14 @@ let job_action json =
   let build_id = json |> member "build_id" |> to_int in
   let build_name = json |> member "build_name" |> to_string in
   let commit = json |> extract_commit in
-  let repo_full_name =
+  let gitlab_full_name =
     json |> member "project_name" |> to_string
     |> Str.global_replace (Str.regexp " ") ""
+  in
+  let repo_full_name =
+    if String.equal gitlab_full_name "near-protocol/nearcore" then
+      "nearprotocol/nearcore"
+    else gitlab_full_name
   in
   let send_url (kind, url) =
     (fun () ->
@@ -478,7 +483,7 @@ let job_action json =
         >>= fun () ->
         send_status_check ~repo_full_name ~commit ~state:"failure"
           ~url:
-            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" gitlab_full_name
                build_id)
           ~context
           ~description:(description_base ^ ": not found.") )
@@ -495,7 +500,7 @@ let job_action json =
         >>= fun () ->
         send_status_check ~repo_full_name ~commit ~state:"failure"
           ~url:
-            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" gitlab_full_name
                build_id)
           ~context:build_name
           ~description:(failure_reason ^ " on GitLab CI")
@@ -534,7 +539,7 @@ let job_action json =
         <&> send_status_check ~repo_full_name ~commit ~state:"success"
               ~url:
                 (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                   repo_full_name build_id)
+                   gitlab_full_name build_id)
               ~context:build_name
               ~description:"Test succeeded on GitLab CI after being retried"
       else Lwt.return () )
@@ -567,8 +572,13 @@ let pipeline_action json =
   let state = pipeline_json |> member "status" |> to_string in
   let id = pipeline_json |> member "id" |> to_int in
   let commit = json |> extract_commit in
-  let repo_full_name =
+  let gitlab_full_name =
     json |> member "project" |> member "path_with_namespace" |> to_string
+  in
+  let repo_full_name =
+    if String.equal gitlab_full_name "near-protocol/nearcore" then
+      "nearprotocol/nearcore"
+    else gitlab_full_name
   in
   match state with
   | "skipped" -> ()
@@ -585,8 +595,8 @@ let pipeline_action json =
       (fun () ->
         send_status_check ~repo_full_name ~commit ~state
           ~url:
-            (Printf.sprintf "https://gitlab.com/%s/pipelines/%d" repo_full_name
-               id)
+            (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+               gitlab_full_name id)
           ~context:"GitLab CI pipeline" ~description )
       |> Lwt.async
 
