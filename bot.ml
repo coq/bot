@@ -171,6 +171,9 @@ let add_pr_to_column pr_id column_id =
 
 let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
     =
+  Lwt_io.printf "Sending status check to %s (commit %s, state %s)\n"
+    repo_full_name commit state
+  >>= fun () ->
   let body =
     "{\"state\": \"" ^ state ^ "\",\"target_url\":\"" ^ url
     ^ "\", \"description\": \"" ^ description ^ "\", \"context\": \"" ^ context
@@ -182,9 +185,6 @@ let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
   in
   let uri =
     "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url )
     |> Uri.of_string
   in
   send_request ~body ~uri []
