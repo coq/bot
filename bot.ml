@@ -89,7 +89,8 @@ let extract_commit json =
 
 let print_response (resp, body) =
   let code = resp |> Response.status |> Code.code_of_status in
-  Stdio.printf "Response code: %d.\n" code ;
+  Lwt_io.printf "Response code: %d.\n" code
+  >>= fun () ->
   if code < 200 && code > 299 then
     resp |> Response.headers |> Header.to_string
     |> Lwt_io.printf "Headers: %s\n"
