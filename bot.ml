@@ -455,12 +455,17 @@ let trace_action ~repo_full_name trace =
     Ignore )
   else Warn
 
+let branch_or_pr branch_name =
+  if string_match ~regexp:"^pr-[0-9]*$" branch_name then "pull request"
+  else "branch"
+
 let job_action json =
   let open Yojson.Basic.Util in
   let build_status = json |> member "build_status" |> to_string in
   let build_id = json |> member "build_id" |> to_int in
   let build_name = json |> member "build_name" |> to_string in
   let commit = json |> extract_commit in
+  let branch = json |> member "ref" |> to_string in
   let gitlab_full_name =
     json |> member "project_name" |> to_string
     |> Str.global_replace (Str.regexp " ") ""
@@ -503,7 +508,7 @@ let job_action json =
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" gitlab_full_name
                build_id)
-          ~context:build_name
+          ~context:(f "GitLab CI job %s (%s)" build_name (branch_or_pr branch))
           ~description:(failure_reason ^ " on GitLab CI")
     in
     (fun () ->
@@ -573,6 +578,9 @@ let pipeline_action json =
   let state = pipeline_json |> member "status" |> to_string in
   let id = pipeline_json |> member "id" |> to_int in
   let commit = json |> extract_commit in
+  let branch =
+    json |> member "object_attributes" |> member "ref" |> to_string
+  in
   let gitlab_full_name =
     json |> member "project" |> member "path_with_namespace" |> to_string
   in
@@ -598,7 +606,8 @@ let pipeline_action json =
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
                gitlab_full_name id)
-          ~context:"GitLab CI pipeline" ~description )
+          ~context:(f "GitLab CI pipeline (%s)" (branch_or_pr branch))
+          ~description )
       |> Lwt.async
 
 let owner_team_map =
