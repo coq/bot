@@ -307,7 +307,7 @@ let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
       ~repo_full_name:
         (f "%s/%s" pr_info.issue.issue.owner pr_info.issue.issue.repo)
       ~commit:pr_info.head.sha ~state:"error" ~url:""
-      ~context:"GitLab CI pipeline"
+      ~context:"GitLab CI pipeline (pull request)"
       ~description:
         "Pipeline did not run on GitLab CI because PR has conflicts with base \
          branch."
