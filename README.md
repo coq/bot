@@ -209,9 +209,10 @@ The best way to get the dependencies is to run `nix-shell` (see the
 
 Alternatively, you can use `opam` to install the dependencies:
 `ocaml`, `findlib`, `dune`, and the libraries `base`, `cohttp`,
-`cohttp-lwt-unix`, `hex`, `nocrypto`, and `yojson`.  And clone
-https://github.com/Zimmi48/ppx_graphql into a subfolder of the
-`vendor/` sub-directory.
+`cohttp-lwt-unix`, `hex`, `menhir`, `nocrypto`, `ppx_metaquot`,
+`rresult`, and `yojson`.  Some additional dependencies are pinned as
+git submodules in the `vendor/` sub-directory.  You should run `git
+submodule update --init` to get them.
 
 Use the following command to build:
 

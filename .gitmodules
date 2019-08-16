@@ -1,0 +1,6 @@
+[submodule "vendor/ppx_graphql"]
+	path = vendor/ppx_graphql
+	url = git@github.com:Zimmi48/ppx_graphql
+[submodule "vendor/ocaml-graphql-server"]
+	path = vendor/ocaml-graphql-server
+	url = git@github.com:andreas/ocaml-graphql-server

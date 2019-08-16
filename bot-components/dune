@@ -2,8 +2,10 @@
  (name Bot_components)
  (public_name bot-components)
  (libraries base cohttp-lwt-unix hex nocrypto stdio str yojson)
- (preprocess (pps ppx_graphql))
- (preprocessor_deps (file schema.json)))
+ (preprocess
+  (pps ppx_graphql))
+ (preprocessor_deps
+  (file schema.json)))
 
 (rule
  (targets schema.json)
@@ -16,9 +18,14 @@
 
 (rule
  (targets .graphqlconfig)
- (deps (:input .graphqlconfig.in) .github-token)
+ (deps
+  (:input .graphqlconfig.in)
+  .github-token)
  (action
-  (with-stdout-to %{targets} (run sed "s/%%TOKEN%%/%{read:.github-token}/" %{input}))))
+  (with-stdout-to
+   %{targets}
+   (run sed "s/%%TOKEN%%/%{read:.github-token}/" %{input}))))
 
 (env
- (dev (flags :standard -w -3-9)))
+ (dev
+  (flags :standard -w -3-9)))

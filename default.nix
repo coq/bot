@@ -1,7 +1,7 @@
 { pkgs ?
   import (fetchTarball {
-    url = "https://github.com/Zimmi48/nixpkgs/archive/c40636e15dd690d25aec998b260e812e29227818.tar.gz";
-    sha256 = "12cy25cg4mzxqjrmkzqp786pyq2gskl7r2d42vb1ddwq4rcgidq9";
+    url = "https://github.com/NixOS/nixpkgs/archive/c0e56afddbcf6002e87a5ab0e8e17f381e3aa9bd.tar.gz";
+    sha256 = "1zg28j760qgjncqrf4wyb7ijzhnz0ljyvhvv87m578c7s84i851l";
   }) {}
 }:
 
@@ -20,14 +20,17 @@ stdenv.mkDerivation rec {
       merlin
       ocamlformat
       nodePackages.graphql-cli
-      # Libraries
+      # Direct dependencies
       base
       cohttp
       cohttp-lwt-unix
       hex
       nocrypto
-      ppx_graphql
       yojson
+      # Dependencies of vendored dependencies
+      menhir
+      ppx_metaquot
+      rresult
       # Publishing
       heroku
     ];
