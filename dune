@@ -1,6 +1,7 @@
 (executable
  (name bot)
  (public_name bot)
+ (package coq-bot)
  (libraries base bot-components cohttp-lwt-unix stdio yojson))
 
 (env
