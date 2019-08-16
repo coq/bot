@@ -158,19 +158,33 @@ To use the bot without deploying your own instance, follow these steps:
 
 ## Architecture ##
 
-The bot is being progressively refactored to an architecture based on
-the "If This, check this other thing, Then do That" concept (IFTTT).
-This means that some triggers ("If This") based on GitHub or GitLab
-webhooks can be listened to (cf. in particular
-`bot-components/GitHub_subscriptions.ml`), that some further queries
-("check this other thing") can be sent to gather more information
-(cf. in particular `bot-components/GitHub_queries.ml`), and that some
-actions ("Then do That") can be accomplished if the conditions are met
-(cf. in particular `bot-components/GitHub_mutations.ml`).
+The bot has grown according to the needs for automation in the Coq
+project, initially as a single file, and is now incrementally being
+rearchitectured around the idea of providing a library of base bot
+components that can be used in a trigger-action programming model.
 
-The terminology subscriptions / queries / mutations, is based on
-[GraphQL's terminology][graphql-terms] GraphQL requests are preferred
-to REST requests whenever possible.
+The most popular trigger-action programming platforms as of today are
+IFTTT and Zapier.  Interestingly both of them provide a GitHub
+integration, and Zapier provides a GitLab integration as well, but
+their integrations do not include sufficiently advanced triggers nor
+actions to perform the kind of things that this bot does.
+
+The bot components are of three types (the naming follows [GraphQL's
+terminology][graphql-terms] of the corresponding GraphQL requests,
+GraphQL requests are preferred to REST requests whenever possible):
+
+- **Subscriptions** are the events that the bot listens to (currently
+  GitHub and GitLab webhooks).  See for instance
+  `bot-components/GitHub_subscriptions.ml`.
+
+- **Queries** are the requests that are sent to gather additional
+  necessary information, and to decide whether the conditions to
+  perform an action are met.  See for instance
+  `bot-components/GitHub_queries.ml`.
+
+- **Mutations** are the state-changing actions that are performed by
+  the bot, in response to some event and some conditions being met.
+  See for instance `bot-components/GitHub_mutations.ml`.
 
 [graphql-terms]: https://graphql.github.io/graphql-spec/June2018/#sec-Language.Operations
 
@@ -178,9 +192,9 @@ When this architecture is sufficiently stable, the goal is to publish
 the `bot-components` folder as an independent library of building
 blocks to create a personalized bot in OCaml.  In the meantime, if you
 deploy your own instance, the `callback` function in the `bot.ml` file
-is the main entry point, when we can decide of your own business logic
-by choosing the subscriptions you listen to, and by triggering the
-relevant queries and mutations on demand.
+is the main entry point, where you can decide of your own business
+logic by choosing the subscriptions you listen to, and by triggering
+the relevant queries and mutations on demand.
 
 ## How to deploy a new instance ##
 
