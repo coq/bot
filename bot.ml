@@ -245,15 +245,14 @@ let get_pull_request_info pr_number =
     | _ -> None )
   | _ -> None
 
-let get_status_check ~repo_full_name ~commit ~build_name =
+let get_status_check ~repo_full_name ~commit ~context =
   generic_get
     (Printf.sprintf "repos/%s/commits/%s/statuses" repo_full_name commit)
     ~default:false (fun json ->
       let open Yojson.Basic.Util in
       json |> to_list
       |> List.exists ~f:(fun json ->
-             json |> member "context" |> to_string |> String.equal build_name
-         ) )
+             json |> member "context" |> to_string |> String.equal context ) )
 
 let get_cards_in_column column_id =
   generic_get
@@ -466,6 +465,7 @@ let job_action json =
   let build_name = json |> member "build_name" |> to_string in
   let commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
+  let context = f "GitLab CI job %s (%s)" build_name (branch_or_pr branch) in
   let gitlab_full_name =
     json |> member "project_name" |> to_string
     |> Str.global_replace (Str.regexp " ") ""
@@ -508,7 +508,7 @@ let job_action json =
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" gitlab_full_name
                build_id)
-          ~context:(f "GitLab CI job %s (%s)" build_name (branch_or_pr branch))
+          ~context
           ~description:(failure_reason ^ " on GitLab CI")
     in
     (fun () ->
@@ -536,7 +536,7 @@ let job_action json =
     |> Lwt.async
   else if String.equal build_status "success" then (
     (fun () ->
-      get_status_check ~repo_full_name ~commit ~build_name
+      get_status_check ~repo_full_name ~commit ~context
       >>= fun b ->
       if b then
         Lwt_io.printf
@@ -546,7 +546,7 @@ let job_action json =
               ~url:
                 (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
                    gitlab_full_name build_id)
-              ~context:build_name
+              ~context
               ~description:"Test succeeded on GitLab CI after being retried"
       else Lwt.return () )
     |> Lwt.async ;
