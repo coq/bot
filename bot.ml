@@ -429,7 +429,6 @@ let trace_action ~repo_full_name trace =
     Retry )
   else if
     test "ERROR: Downloading artifacts from coordinator... error"
-    && test "request canceled (Client.Timeout exceeded while reading body)"
     && test "FATAL: invalid argument"
   then (
     Stdio.printf "Artifact downloading failure. Retrying...\n" ;
