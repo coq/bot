@@ -444,7 +444,11 @@ let trace_action ~repo_full_name trace =
     Stdio.printf "Connectivity issue. Retrying...\n" ;
     Retry )
   else if test "fatal: reference is not a tree" then (
-    Stdio.printf "Normal failure: reference is not a tree.\n" ;
+    Stdio.printf "Normal failure: pull request was force-pushed.\n" ;
+    Ignore )
+  else if test "fatal: Remote branch pr-[0-9]* not found in upstream origin"
+  then (
+    Stdio.printf "Normal failure: pull request was closed.\n" ;
     Ignore )
   else if
     String.equal repo_full_name "coq/coq"
