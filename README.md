@@ -116,6 +116,8 @@ you are interested in hearing about it.
 
 ![backport management screenshot](screenshots/backport-management.png)
 
+![backport rejection screenshot](screenshots/reject-backport.png)
+
 ## How to use the **@coqbot** instance ##
 
 To use the bot without deploying your own instance, follow these steps:
