@@ -229,7 +229,7 @@ dune build
 ```
 
 This second solution requires that a file
-`bot-component/.github-token` be provided and contain a single line
+`bot-components/.github-token` be provided and contain a single line
 with a GitHub API personal token (with no specific permission).  It
 will use this token and the node package graphql-cli to update the
 GitHub schema stored in `bot-component/schema.json`, before building
