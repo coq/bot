@@ -20,6 +20,12 @@ let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
 
 let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
 
+let bot_name = try Sys.getenv "BOT_NAME" with Not_found -> "coqbot"
+
+let bot_email =
+  try Sys.getenv "BOT_EMAIL" with Not_found ->
+    f "%s@users.noreply.github.com" bot_name
+
 open Base
 
 let project_api_preview_header =
@@ -820,8 +826,9 @@ let callback _conn req body =
 let server =
   (fun () ->
     Lwt_io.printf "Initializing repository...\n"
-    <&> ( "git config --global user.email \"coqbot@users.noreply.github.com\""
-        |&& "git config --global user.name \"coqbot\"" |&& "git init --bare"
+    <&> ( "git init --bare"
+        |&& f "git config user.email \"%s\"" bot_email
+        |&& f "git config user.name \"%s\"" bot_name
         |> execute_cmd >|= ignore ) )
   |> Lwt.async ;
   let mode = `TCP (`Port port) in
