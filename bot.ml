@@ -720,13 +720,25 @@ let callback _conn req body =
       | Ok (_, GitHub_subscriptions.IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (fun () ->
-            GitHub_queries.get_issue_closer_info ~token:github_access_token
-              issue
-            >>= function
-            | Ok result ->
-                GitHub_mutations.reflect_pull_request_milestone
-                  ~token:github_access_token result
-            | Error err -> Lwt_io.print (f "Error: %s\n" err) )
+            (* Wait for some time before querying for the milestone of
+               the PR that closed the issue, because commits are not
+               immediately associated to just merged PRs (exponential
+               backoff strategy -- 1 second, 2 seconds, 4 seconds, 8
+               seconds, 16 seconds, and 32 seconds). *)
+            let rec wait_and_act time =
+              Lwt_unix.sleep time
+              >>= (fun () ->
+                    GitHub_queries.get_issue_closer_info
+                      ~token:github_access_token issue )
+              >>= function
+              | Ok result ->
+                  GitHub_mutations.reflect_pull_request_milestone
+                    ~token:github_access_token result
+              | Error err ->
+                  if Float.(time > 32.) then Lwt_io.print (f "Error: %s\n" err)
+                  else wait_and_act (time *. 2.)
+            in
+            wait_and_act 1. )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
