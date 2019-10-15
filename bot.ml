@@ -723,8 +723,8 @@ let callback _conn req body =
             (* Wait for some time before querying for the milestone of
                the PR that closed the issue, because commits are not
                immediately associated to just merged PRs (exponential
-               backoff strategy -- 1 second, 2 seconds, 4 seconds, 8
-               seconds, 16 seconds, and 32 seconds). *)
+               backoff strategy -- 1 second, 5 seconds, 25 seconds,
+               125 seconds). *)
             let rec wait_and_act time =
               Lwt_unix.sleep time
               >>= (fun () ->
@@ -735,8 +735,9 @@ let callback _conn req body =
                   GitHub_mutations.reflect_pull_request_milestone
                     ~token:github_access_token result
               | Error err ->
-                  if Float.(time > 32.) then Lwt_io.print (f "Error: %s\n" err)
-                  else wait_and_act (time *. 2.)
+                  if Float.(time > 200.) then
+                    Lwt_io.print (f "Error: %s\n" err)
+                  else wait_and_act (time *. 5.)
             in
             wait_and_act 1. )
           |> Lwt.async ;
