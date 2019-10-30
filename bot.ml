@@ -719,28 +719,34 @@ let callback _conn req body =
                 () )
       | Ok (_, GitHub_subscriptions.IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
-          (fun () ->
-            (* Wait for some time before querying for the milestone of
-               the PR that closed the issue, because commits are not
-               immediately associated to just merged PRs (exponential
-               backoff strategy -- 1 second, 5 seconds, 25 seconds,
-               125 seconds). *)
-            let rec wait_and_act time =
-              Lwt_unix.sleep time
-              >>= (fun () ->
-                    GitHub_queries.get_issue_closer_info
-                      ~token:github_access_token issue )
-              >>= function
-              | Ok result ->
-                  GitHub_mutations.reflect_pull_request_milestone
-                    ~token:github_access_token result
-              | Error err ->
-                  if Float.(time > 200.) then
-                    Lwt_io.print (f "Error: %s\n" err)
-                  else wait_and_act (time *. 5.)
-            in
-            wait_and_act 1. )
-          |> Lwt.async ;
+          (* We implement an exponential backoff strategy to try again
+            after 5, 25, and 125 seconds, if the issue was closed by a
+            commit not yet associated to a pull request. *)
+          let rec adjust_milestone sleep_time () =
+            GitHub_queries.get_issue_closer_info ~token:github_access_token
+              issue
+            >>= function
+            | Ok (GitHub_queries.ClosedByPullRequest result) ->
+                GitHub_mutations.reflect_pull_request_milestone
+                  ~token:github_access_token result
+            | Ok GitHub_queries.ClosedByCommit ->
+                (* May be worth trying again later. *)
+                if Float.(sleep_time > 200.) then
+                  Lwt_io.print
+                    "Closed by commit not associated to any pull request."
+                else
+                  Lwt_io.printf
+                    "Closed by commit not yet associated to any pull \
+                     request... Trying again in %f seconds."
+                    sleep_time
+                  >>= (fun () -> Lwt_unix.sleep sleep_time)
+                  >>= adjust_milestone (sleep_time *. 5.)
+            | Ok GitHub_queries.ClosedByOther ->
+                (* Not worth trying again *)
+                Lwt_io.print "Not closed by pull request or commit."
+            | Error err -> Lwt_io.print (f "Error: %s\n" err)
+          in
+          adjust_milestone 5. |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Issue %s/%s#%d was closed: checking its milestone."

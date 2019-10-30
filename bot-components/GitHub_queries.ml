@@ -252,19 +252,28 @@ let closer_info_of_pr pr =
   { milestone_id= pr#milestone |> Option.map ~f:(fun milestone -> milestone#id)
   ; pull_request_id= pr#id }
 
+type 'a closed_by =
+  | ClosedByPullRequest of 'a
+  | ClosedByCommit
+  (* Only used when commit is not associated to a PR *)
+  | ClosedByOther
+
 let closer_info_option_of_closer closer =
   match closer with
-  | `PullRequest pr -> Some (closer_info_of_pr pr)
-  | `Commit commit -> (
+  | None -> Ok ClosedByOther
+  | Some (`PullRequest pr) -> Ok (ClosedByPullRequest (closer_info_of_pr pr))
+  | Some (`Commit commit) -> (
     match commit#associatedPullRequests with
-    | None -> None
+    | None -> Ok ClosedByCommit
     | Some prs -> (
       match prs#nodes with
-      | Some [Some pr] -> Some (closer_info_of_pr pr)
-      | _ -> None ) )
+      | Some [Some pr] -> Ok (ClosedByPullRequest (closer_info_of_pr pr))
+      | Some (_ :: _) ->
+          Error "Closing commit associated to several pull requests."
+      | _ -> Error "Closer query response is not well-formed." ) )
 
 type issue_closer_info =
-  {issue_id: string; milestone_id: string option; closer: closer_info option}
+  {issue_id: string; milestone_id: string option; closer: closer_info}
 
 let issue_closer_info_of_resp ~owner ~repo ~number resp =
   match resp#repository with
@@ -275,12 +284,16 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
     | Some issue -> (
       match (issue#timelineItems)#nodes with
       | Some [Some (`ClosedEvent event)] ->
-          Ok
-            { issue_id= issue#id
-            ; milestone_id=
-                issue#milestone |> Option.map ~f:(fun milestone -> milestone#id)
-            ; closer=
-                event#closer |> Option.bind ~f:closer_info_option_of_closer }
+          event#closer |> closer_info_option_of_closer
+          |> Result.map ~f:(function
+               | ClosedByPullRequest closer_info ->
+                   ClosedByPullRequest
+                     { issue_id= issue#id
+                     ; milestone_id=
+                         issue#milestone
+                         |> Option.map ~f:(fun milestone -> milestone#id)
+                     ; closer= closer_info }
+               | (ClosedByCommit | ClosedByOther) as reason -> reason )
       | _ -> Error (f "No close event for issue %s/%s#%d." owner repo number) )
     )
 
