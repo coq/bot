@@ -227,30 +227,6 @@ let generic_get relative_uri ?(header_list = []) ~default json_handler =
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
   >|= handle_json json_handler default
 
-let get_pull_request_info pr_number =
-  GitHub_queries.pull_request_id_db_id_and_milestone ~token:github_access_token
-    ~owner:"coq" ~repo:"coq" ~number:pr_number ()
-  >|= function
-  | Ok result -> (
-    match result#repository with
-    | Some repo -> (
-      match repo#pullRequest with
-      | Some pr -> (
-        match (pr#databaseId, pr#milestone) with
-        | Some db_id, Some milestone -> (
-          match milestone#description with
-          | Some description -> (
-            match
-              GitHub_queries.Milestone.get_backport_info "coqbot" description
-            with
-            | Some bp_info -> Some (pr#id, db_id, bp_info)
-            | _ -> None )
-          | _ -> None )
-        | _ -> None )
-      | _ -> None )
-    | _ -> None )
-  | _ -> None
-
 let get_status_check ~repo_full_name ~commit ~context =
   generic_get
     (Printf.sprintf "repos/%s/commits/%s/statuses" repo_full_name commit)
@@ -331,7 +307,8 @@ let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
     Lwt.return ()
 
 let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
-  get_pull_request_info issue.number
+  GitHub_queries.get_pull_request_id_and_milestone ~token:github_access_token
+    ~owner:"coq" ~repo:"coq" ~number:issue.number
   >>= function
   | None -> Lwt_io.printf "Could not find backporting info for PR.\n"
   | Some (id, _, {request_inclusion_column; rejected_milestone})
@@ -359,7 +336,8 @@ let push_action json =
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
       >>= fun () ->
-      get_pull_request_info pr_number
+      GitHub_queries.get_pull_request_id_and_milestone
+        ~token:github_access_token ~owner:"coq" ~repo:"coq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
       | Some
@@ -723,13 +701,13 @@ let callback _conn req body =
             after 5, 25, and 125 seconds, if the issue was closed by a
             commit not yet associated to a pull request. *)
           let rec adjust_milestone sleep_time () =
-            GitHub_queries.get_issue_closer_info ~token:github_access_token
+            GitHub_queries_bis.get_issue_closer_info ~token:github_access_token
               issue
             >>= function
-            | Ok (GitHub_queries.ClosedByPullRequest result) ->
+            | Ok (GitHub_queries_bis.ClosedByPullRequest result) ->
                 GitHub_mutations.reflect_pull_request_milestone
                   ~token:github_access_token result
-            | Ok GitHub_queries.ClosedByCommit ->
+            | Ok GitHub_queries_bis.ClosedByCommit ->
                 (* May be worth trying again later. *)
                 if Float.(sleep_time > 200.) then
                   Lwt_io.print
@@ -741,7 +719,7 @@ let callback _conn req body =
                     sleep_time
                   >>= (fun () -> Lwt_unix.sleep sleep_time)
                   >>= adjust_milestone (sleep_time *. 5.)
-            | Ok GitHub_queries.ClosedByOther ->
+            | Ok GitHub_queries_bis.ClosedByOther ->
                 (* Not worth trying again *)
                 Lwt_io.print "Not closed by pull request or commit."
             | Error err -> Lwt_io.print (f "Error: %s\n" err)
@@ -788,7 +766,7 @@ let callback _conn req body =
                       match comment_info.pull_request with
                       | Some pr_info -> pull_request_updated pr_info ()
                       | None ->
-                          GitHub_queries.get_pull_request_info
+                          GitHub_queries.get_pull_request_refs
                             ~token:github_access_token comment_info.issue
                           >>= fun pr_info -> pull_request_updated pr_info () )
                     else

@@ -1,2 +1,3 @@
 # file containing secrets
 .github-token
+.graphql_ppx_cache/

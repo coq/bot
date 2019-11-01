@@ -29,7 +29,11 @@ stdenv.mkDerivation rec {
       yojson
       # Dependencies of vendored dependencies
       menhir
+      ocaml-migrate-parsetree
       ppx_metaquot
+      ppx_tools_versioned
+      reason
+      result
       rresult
       # Publishing
       heroku

@@ -14,7 +14,7 @@ let mv_card_to_column ~token
   let variables =
     [("card_id", `String card_id); ("column_id", `String column_id)]
   in
-  GitHub_queries.graphql_query ~token mutation variables
+  GitHub_queries.untyped_graphql_query ~token mutation variables
   >|= function
   | Ok _ -> ()
   | Error err -> print_endline (f "Error while moving project card: %s" err)
@@ -28,7 +28,7 @@ let post_comment ~token ~id ~message =
     \     }"
   in
   let variables = [("id", `String id); ("message", `String message)] in
-  GitHub_queries.graphql_query ~token mutation variables
+  GitHub_queries.untyped_graphql_query ~token mutation variables
   >|= function
   | Ok _ -> ()
   | Error err -> print_endline (f "Error while posting comment: %s" err)
@@ -44,13 +44,13 @@ let update_milestone ~token ~issue ~milestone =
   let variables =
     [("issue", `String issue); ("milestone", `String milestone)]
   in
-  GitHub_queries.graphql_query ~token mutation variables
+  GitHub_queries.untyped_graphql_query ~token mutation variables
   >|= function
   | Ok _ -> ()
   | Error err -> print_endline (f "Error while updating milestone: %s" err)
 
 let reflect_pull_request_milestone ~token
-    (issue_closer_info : GitHub_queries.issue_closer_info) =
+    (issue_closer_info : GitHub_queries_bis.issue_closer_info) =
   match issue_closer_info.closer.milestone_id with
   | None -> Lwt_io.printf "PR closed without a milestone: doing nothing.\n"
   | Some milestone -> (

@@ -4,3 +4,6 @@
 [submodule "vendor/ocaml-graphql-server"]
 	path = vendor/ocaml-graphql-server
 	url = git@github.com:andreas/ocaml-graphql-server
+[submodule "vendor/graphql_ppx_re"]
+	path = vendor/graphql_ppx_re
+	url = https://github.com/baransu/graphql_ppx_re
