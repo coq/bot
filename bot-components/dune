@@ -4,7 +4,7 @@
  (libraries base cohttp-lwt-unix hex nocrypto stdio str yojson)
  (preprocess
   (per_module
-   ((pps graphql_ppx) GitHub_queries)
+   ((pps graphql_ppx) GitHub_queries GitHub_mutations)
    ((pps ppx_graphql) GitHub_queries_bis)))
  (preprocessor_deps
   (file schema.json)))

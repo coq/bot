@@ -1,50 +1,55 @@
+module MoveCardToColumn =
+[%graphql
+{|
+  mutation moveCard($card_id:ID!,$column_id:ID!) {
+    moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module PostComment =
+[%graphql
+{|
+  mutation addComment($id:ID!,$message:String!) {
+    addComment(input:{subjectId:$id,body:$message}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module UpdateMilestone =
+[%graphql
+{|
+  mutation updateMilestone($issue: ID!, $milestone: ID!) {
+    updateIssue(input: {id: $issue, milestoneId: $milestone}) {
+      clientMutationId
+    }
+  }
+|}]
+
 open Base
 open Lwt
 open Utils
 
 let mv_card_to_column ~token
     ({card_id; column_id} : GitHub_queries.mv_card_to_column_input) =
-  let mutation =
-    "mutation moveCard($card_id:ID!,$column_id:ID!) {\n\
-    \       moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {\n\
-    \         clientMutationId\n\
-    \       }\n\
-    \     }"
-  in
-  let variables =
-    [("card_id", `String card_id); ("column_id", `String column_id)]
-  in
-  GitHub_queries.untyped_graphql_query ~token mutation variables
+  MoveCardToColumn.make ~card_id ~column_id ()
+  |> GitHub_queries.send_graphql_query ~token
   >|= function
   | Ok _ -> ()
   | Error err -> print_endline (f "Error while moving project card: %s" err)
 
 let post_comment ~token ~id ~message =
-  let mutation =
-    "mutation addComment($id:ID!,$message:String!) {\n\
-    \       addComment(input:{subjectId:$id,body:$message}) {\n\
-    \         clientMutationId\n\
-    \       }\n\
-    \     }"
-  in
-  let variables = [("id", `String id); ("message", `String message)] in
-  GitHub_queries.untyped_graphql_query ~token mutation variables
+  PostComment.make ~id ~message ()
+  |> GitHub_queries.send_graphql_query ~token
   >|= function
   | Ok _ -> ()
   | Error err -> print_endline (f "Error while posting comment: %s" err)
 
 let update_milestone ~token ~issue ~milestone =
-  let mutation =
-    " mutation updateMilestone($issue: ID!, $milestone: ID!) {\n\
-    \   updateIssue(input: {id: $issue, milestoneId: $milestone}) {\n\
-    \     clientMutationId\n\
-    \   }\n\
-    \ }\n"
-  in
-  let variables =
-    [("issue", `String issue); ("milestone", `String milestone)]
-  in
-  GitHub_queries.untyped_graphql_query ~token mutation variables
+  UpdateMilestone.make ~issue ~milestone ()
+  |> GitHub_queries.send_graphql_query ~token
   >|= function
   | Ok _ -> ()
   | Error err -> print_endline (f "Error while updating milestone: %s" err)
