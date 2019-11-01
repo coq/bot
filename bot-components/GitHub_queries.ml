@@ -267,6 +267,7 @@ let closer_info_option_of_closer closer =
     | None -> Ok ClosedByCommit
     | Some prs -> (
       match prs#nodes with
+      | Some [] -> Ok ClosedByCommit
       | Some [Some pr] -> Ok (ClosedByPullRequest (closer_info_of_pr pr))
       | Some (_ :: _) ->
           Error "Closing commit associated to several pull requests."
