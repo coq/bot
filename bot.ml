@@ -507,7 +507,10 @@ let job_action json =
       if String.equal failure_reason "runner_system_failure" then
         Lwt_io.printf "Runner failure reported by GitLab CI. Retrying...\n"
         <&> retry_job ~project_id ~build_id
-      else if String.equal failure_reason "stuck_or_timeout_failure" then
+      else if
+        String.equal failure_reason "stuck_or_timeout_failure"
+        || String.equal failure_reason "job_execution_timeout"
+      then
         Lwt_io.printf "Timeout reported by GitLab CI.\n"
         <&> send_status_check ()
       else if String.equal failure_reason "script_failure" then
