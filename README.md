@@ -210,30 +210,40 @@ The best way to get the dependencies is to run `nix-shell` (see the
 [Nix](https://nixos.org/nix/) documentation to learn more).
 
 Alternatively, you can use `opam` to install the dependencies:
-`ocaml`, `findlib`, `dune`, and the libraries `base`, `cohttp`,
-`cohttp-lwt-unix`, `hex`, `menhir`, `nocrypto`, `ppx_metaquot`,
-`rresult`, and `yojson`.  Some additional dependencies are pinned as
-git submodules in the `vendor/` sub-directory.  You should run `git
+`ocaml`, `reason` (dependency of one of the vendored dependencies),
+`findlib`, `dune`, and the libraries `base`, `cohttp`,
+`cohttp-lwt-unix`, `hex`, `menhir`, `nocrypto`,
+`ocaml-migrate-parsetree`, `ppx_metaquot`, `ppx_tools_versioned`,
+`result`, `rresult`, and `yojson` (some of them being indirect
+dependencies).  Some additional dependencies are pinned as git
+submodules in the `vendor/` sub-directory.  You should run `git
 submodule update --init` to get them.
 
 Use the following command to build:
 
 ```
+GRAPHQL_PPX_SCHEMA=$(pwd)/bot-components/schema.json dune build --ignore-promoted-rules
+```
+
+If you are in a `nix-shell`, `GRAPHQL_PPX_SCHEMA` is already set, so
+this is reduced to:
+
+```
 dune build --ignore-promoted-rules
 ```
 
-or
+If you want to update the GraphQL schema:
 
 ```
 dune build
 ```
 
-This second solution requires that a file
-`bot-components/.github-token` be provided and contain a single line
-with a GitHub API personal token (with no specific permission).  It
-will use this token and the node package graphql-cli to update the
-GitHub schema stored in `bot-component/schema.json`, before building
-the project.
+This call to `dune build` without the `--ignore-promoted-rules` option
+requires that a file `bot-components/.github-token` be provided and
+contain a single line with a GitHub API personal token (with no
+specific permission).  It will use this token and the node package
+graphql-cli to update the GitHub schema stored in
+`bot-component/schema.json`, before building the project.
 
 To run locally, use [ngrok](https://ngrok.io) to redirect a public URL
 to your local machine and set up the GitHub / GitLab webhooks

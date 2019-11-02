@@ -39,5 +39,8 @@ stdenv.mkDerivation rec {
       heroku
     ];
 
-  shellHook = "export OCAMLFORMAT_LOCATION=${ocamlformat}";
+  shellHook = ''
+    export OCAMLFORMAT_LOCATION=${ocamlformat}
+    export GRAPHQL_PPX_SCHEMA=$(pwd)/bot-components/schema.json
+  '';
 }
