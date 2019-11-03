@@ -5,7 +5,7 @@
  (preprocess
   (per_module
    ((pps graphql_ppx)
-    GitHub_queries
+    GitHub_GraphQL_queries
     GitHub_mutations)
    ((pps ppx_graphql)
     GitHub_queries_bis)))

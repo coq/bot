@@ -1,56 +1,7 @@
 (* Define GraphQL queries before opening Base *)
 
-module PullRequest_ID_and_Milestone =
-[%graphql
-{|
-  query prInfo($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner,name: $repo) {
-      pullRequest(number: $number) {
-        id
-        databaseId
-        milestone {
-          title
-          description
-        }
-      }
-    }
-  }
-|}]
-
-module TeamMembership =
-[%graphql
-{|
-  query teamMember($org: String!, $team: String!, $user: String!) {
-    organization(login:$org) {
-      team(slug:$team) {
-        members(query:$user, first:1) {
-          nodes { login }
-        }
-      }
-    }
-  }
-|}]
-
-module PullRequest_Refs =
-[%graphql
-{|
-  query pull_request_info($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name:$repo) {
-      pullRequest(number: $number) {
-        baseRefName
-        baseRefOid @bsDecoder(fn: "Yojson.Basic.to_string")
-        headRefName
-        headRefOid @bsDecoder(fn: "Yojson.Basic.to_string")
-        merged
-      }
-    }
-  }
-|}]
-
 open Base
-open Cohttp
-open Cohttp_lwt
-open Cohttp_lwt_unix
+open GitHub_GraphQL_queries
 open Lwt
 open Utils
 
@@ -76,41 +27,7 @@ let send_graphql_query ~token query =
     | Yojson.Basic.Util.Type_error (err, _) ->
         Error (f "Json type error: %s" err) )
 
-let untyped_graphql_query ~token query variables =
-  let body =
-    `Assoc [("query", `String query); ("variables", `Assoc variables)]
-    |> Yojson.pretty_to_string |> Body.of_string
-  in
-  let headers = Header.init_with "Authorization" ("token " ^ token) in
-  Client.post ~body ~headers (Uri.of_string "https://api.github.com/graphql")
-  >>= (fun (resp, body) ->
-        Body.to_string body
-        >|= fun body -> (resp |> Response.status |> Code.code_of_status, body)
-        )
-  >|= fun (code, body) ->
-  if code < 200 || code > 299 then
-    Error
-      (f "GraphQL request was not successful. Response code: %d.\n%s" code body)
-  else
-    try Ok (Yojson.Basic.from_string body) with Yojson.Json_error err ->
-      Error (f "Json error: %s while parsing:%s\n" err body)
-
-(* Types and fragments *)
-
 module Milestone = struct
-  type t = {title: string; description: string}
-
-  let fragment =
-    "fragment milestone on Milestone {\n\
-    \         title\n\
-    \         description\n\
-    \       }"
-
-  let from_json json =
-    let open Yojson.Basic.Util in
-    { title= json |> member "title" |> to_string
-    ; description= json |> member "description" |> to_string }
-
   type backport_info =
     { backport_to: string
     ; request_inclusion_column: int
@@ -144,95 +61,63 @@ module Milestone = struct
     else None
 end
 
-module ProjectColumn = struct
-  type t = {id: string; db_id: int}
+type project_card =
+  {id: string; column: project_column option; columns: project_column list}
 
-  let fragment =
-    "fragment projectColumn on ProjectColumn {\n\
-    \         id\n\
-    \         databaseId\n\
-    \       }"
-
-  let from_json json =
-    let open Yojson.Basic.Util in
-    { id= json |> member "id" |> to_string
-    ; db_id= json |> member "databaseId" |> to_int }
-end
-
-module ProjectCard = struct
-  type t = {id: string; column: ProjectColumn.t; columns: ProjectColumn.t list}
-
-  let fragment =
-    "fragment projectCard on ProjectCard {\n\
-    \         id\n\
-    \         column { ... projectColumn }\n\
-    \         project {\n\
-    \           columns(first:100) {\n\
-    \             nodes { ... projectColumn }\n\
-    \           }\n\
-    \         }\n\
-    \       }" ^ ProjectColumn.fragment
-
-  let from_json json =
-    let open Yojson.Basic.Util in
-    { id= json |> member "id" |> to_string
-    ; column= json |> member "column" |> ProjectColumn.from_json
-    ; columns=
-        json |> member "project" |> member "columns" |> member "nodes"
-        |> to_list
-        |> List.map ~f:ProjectColumn.from_json }
-end
-
-let pull_request_base_milestone_and_cards ~token owner repo number =
-  let query =
-    "query prInfo($owner: String!, $repo: String!, $number: Int!) {\n\
-    \       repository(owner: $owner,name: $repo) {\n\
-    \         pullRequest(number: $number) {\n\
-    \           milestone { ... milestone }\n\
-    \           projectCards(first:100) {\n\
-    \             nodes { ... projectCard }\n\
-    \           }\n\
-    \         }\n\
-    \       }\n\
-    \     }" ^ Milestone.fragment ^ ProjectCard.fragment
-  in
-  let variables =
-    [("owner", `String owner); ("repo", `String repo); ("number", `Int number)]
-  in
-  untyped_graphql_query ~token query variables
+let pull_request_milestone_and_cards ~token ~owner ~repo ~number =
+  PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
+  |> send_graphql_query ~token
   >|= function
-  | Ok json ->
-      let pr_json =
-        let open Yojson.Basic.Util in
-        json |> member "data" |> member "repository" |> member "pullRequest"
-      in
-      let cards =
-        let open Yojson.Basic.Util in
-        pr_json |> member "projectCards" |> member "nodes" |> to_list
-        |> List.map ~f:ProjectCard.from_json
-      in
-      let milestone =
-        let open Yojson.Basic.Util in
-        pr_json |> member "milestone" |> Milestone.from_json
-      in
-      Ok (cards, milestone)
+  | Ok result -> (
+    match result#repository with
+    | Some result -> (
+      match result#pullRequest with
+      | Some result ->
+          let cards =
+            match (result#projectCards)#nodes with
+            | None -> []
+            | Some cards ->
+                cards |> Array.to_list |> List.filter_opt
+                |> List.map ~f:(fun card ->
+                       { id= card#id
+                       ; column= card#column
+                       ; columns=
+                           ( match ((card#project)#columns)#nodes with
+                           | None -> []
+                           | Some columns ->
+                               columns |> Array.to_list |> List.filter_opt ) }
+                   )
+          in
+          Ok (cards, result#milestone)
+      | None ->
+          Error (f "Pull request %s/%s#%d does not exist." owner repo number) )
+    | None -> Error (f "Repository %s/%s does not exist." owner repo) )
   | Error err -> Error err
 
 type mv_card_to_column_input = {card_id: string; column_id: string}
 
 let backported_pr_info ~token number base_ref =
-  pull_request_base_milestone_and_cards ~token "coq" "coq" number
+  pull_request_milestone_and_cards ~token ~owner:"coq" ~repo:"coq" ~number
   >|= function
   | Ok (cards, milestone) ->
       let open Option in
-      Milestone.get_backport_info "coqbot" milestone.description
+      milestone
+      >>= fun milestone ->
+      milestone.description
+      >>= Milestone.get_backport_info "coqbot"
       >>= fun {backport_to; request_inclusion_column; backported_column} ->
       if String.equal ("refs/heads/" ^ backport_to) base_ref then
         List.find_map cards ~f:(fun card ->
-            if Int.equal request_inclusion_column card.column.db_id then
+            if
+              card.column
+              >>= (fun column -> column.databaseId)
+              |> Option.equal Int.equal (Some request_inclusion_column)
+            then
               List.find_map card.columns ~f:(fun column ->
-                  if Int.equal backported_column column.db_id then
-                    Some {card_id= card.id; column_id= column.id}
+                  if
+                    Option.equal Int.equal (Some backported_column)
+                      column.databaseId
+                  then Some {card_id= card.id; column_id= column.id}
                   else None )
             else None )
       else None
