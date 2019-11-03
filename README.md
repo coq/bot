@@ -152,6 +152,10 @@ To use the bot without deploying your own instance, follow these steps:
     [**@coqbot**](https://github.com/coqbot) as a collaborator (so
     that it can push status checks, and set labels).
 
+    Currently every invitation requires a manual validation, so there
+    may be some lag before **@coqbot** is able to push status checks
+    to your repository.
+
   - go to "Settings" / "Webhooks" and add one webhook with URL
     <https://coqbot.herokuapp.com/github> that will only be triggered
     at least by pull request events, and if you want to use the issue
