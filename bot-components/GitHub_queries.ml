@@ -128,24 +128,34 @@ let backported_pr_info ~token number base_ref =
 let get_pull_request_id_and_milestone ~token ~owner ~repo ~number =
   PullRequest_ID_and_Milestone.make ~owner ~repo ~number ()
   |> send_graphql_query ~token
-  >|= function
-  | Ok result -> (
-    match result#repository with
-    | Some repo -> (
-      match repo#pullRequest with
-      | Some pr -> (
-        match (pr#databaseId, pr#milestone) with
-        | Some db_id, Some milestone -> (
-          match milestone#description with
-          | Some description -> (
-            match Milestone.get_backport_info "coqbot" description with
-            | Some bp_info -> Some (pr#id, db_id, bp_info)
-            | _ -> None )
-          | _ -> None )
-        | _ -> None )
-      | _ -> None )
-    | _ -> None )
-  | _ -> None
+  >|= Result.bind ~f:(fun result ->
+          match result#repository with
+          | None -> Error (f "Repository %s/%s does not exist." owner repo)
+          | Some result -> (
+            match result#pullRequest with
+            | None ->
+                Error
+                  (f "Pull request %s/%s#%d does not exist." owner repo number)
+            | Some pr -> (
+              match (pr#databaseId, pr#milestone) with
+              | None, _ ->
+                  Error
+                    (f "Pull request %s/%s#%d does not have a database ID."
+                       owner repo number)
+              | _, None ->
+                  Error
+                    (f "Pull request %s/%s#%d does not have a milestone." owner
+                       repo number)
+              | Some db_id, Some milestone ->
+                  Ok
+                    ( match milestone#description with
+                    | Some description -> (
+                      match
+                        Milestone.get_backport_info "coqbot" description
+                      with
+                      | Some bp_info -> Some (pr#id, db_id, bp_info)
+                      | _ -> None )
+                    | _ -> None ) ) ) )
 
 let team_membership_of_resp ~org ~team ~user resp =
   match resp#organization with

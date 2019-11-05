@@ -310,8 +310,9 @@ let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
   GitHub_queries.get_pull_request_id_and_milestone ~token:github_access_token
     ~owner:"coq" ~repo:"coq" ~number:issue.number
   >>= function
-  | None -> Lwt_io.printf "Could not find backporting info for PR.\n"
-  | Some (id, _, {request_inclusion_column; rejected_milestone})
+  | Error err -> Lwt_io.printf "Error: %s\n" err
+  | Ok None -> Lwt_io.printf "Could not find backporting info for PR.\n"
+  | Ok (Some (id, _, {request_inclusion_column; rejected_milestone}))
     when Int.equal request_inclusion_column column_id ->
       Lwt_io.printf
         "This was a request inclusion column: PR was rejected.\n\
@@ -340,9 +341,11 @@ let push_action json =
         ~token:github_access_token ~owner:"coq" ~repo:"coq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
-      | Some
-          (_, pr_id, {backport_to; request_inclusion_column; backported_column})
-        ->
+      | Ok
+          (Some
+            ( _
+            , pr_id
+            , {backport_to; request_inclusion_column; backported_column} )) ->
           if "refs/heads/" ^ backport_to |> String.equal base_ref then
             Lwt_io.printf
               "PR was merged into the backportig branch directly.\n"
@@ -350,7 +353,8 @@ let push_action json =
           else
             Lwt_io.printf "Backporting to %s was requested.\n" backport_to
             >>= fun () -> add_pr_to_column pr_id request_inclusion_column
-      | None -> Lwt_io.printf "Did not get any backporting info.\n"
+      | Ok None -> Lwt_io.printf "Did not get any backporting info.\n"
+      | Error err -> Lwt_io.printf "Error: %s\n" err
     else if string_match ~regexp:"Backport PR #\\([0-9]*\\):" commit_msg then
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
@@ -714,17 +718,17 @@ let callback _conn req body =
                 (* May be worth trying again later. *)
                 if Float.(sleep_time > 200.) then
                   Lwt_io.print
-                    "Closed by commit not associated to any pull request."
+                    "Closed by commit not associated to any pull request.\n"
                 else
                   Lwt_io.printf
                     "Closed by commit not yet associated to any pull \
-                     request... Trying again in %f seconds."
+                     request... Trying again in %f seconds.\n"
                     sleep_time
                   >>= (fun () -> Lwt_unix.sleep sleep_time)
                   >>= adjust_milestone (sleep_time *. 5.)
             | Ok GitHub_queries_bis.ClosedByOther ->
                 (* Not worth trying again *)
-                Lwt_io.print "Not closed by pull request or commit."
+                Lwt_io.print "Not closed by pull request or commit.\n"
             | Error err -> Lwt_io.print (f "Error: %s\n" err)
           in
           adjust_milestone 5. |> Lwt.async ;
