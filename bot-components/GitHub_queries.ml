@@ -18,11 +18,16 @@ let send_graphql_query ~token query =
   Cohttp_lwt_unix.Client.post ~headers ~body:(`String serialized_body) uri
   >>= fun (rsp, body) ->
   Cohttp_lwt.Body.to_string body
-  >|= fun body' ->
+  >|= fun body ->
   match Cohttp.Code.(code_of_status rsp.status |> is_success) with
-  | false -> Error body'
+  | false -> Error body
   | true -> (
-    try Ok (Yojson.Basic.from_string body' |> query#parse) with
+    try
+      Ok
+        ( Yojson.Basic.from_string body
+        |> Yojson.Basic.Util.member "data"
+        |> query#parse )
+    with
     | Yojson.Json_error err -> Error (f "Json error: %s" err)
     | Yojson.Basic.Util.Type_error (err, _) ->
         Error (f "Json type error: %s" err) )
