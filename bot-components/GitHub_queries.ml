@@ -1,7 +1,7 @@
 (* Define GraphQL queries before opening Base *)
 
 open Base
-open GitHub_GraphQL_queries
+open GitHub_GraphQL
 open Lwt
 open Utils
 
@@ -213,3 +213,63 @@ let get_pull_request_refs ~token
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_info failed with %s" err )
   >|= Result.bind ~f:(pull_request_info_of_resp issue)
+
+type closer_info = {pull_request_id: string; milestone_id: string option}
+
+let closer_info_of_pr pr =
+  { milestone_id= pr#milestone |> Option.map ~f:(fun milestone -> milestone#id)
+  ; pull_request_id= pr#id }
+
+type 'a closed_by =
+  | ClosedByPullRequest of 'a
+  | ClosedByCommit
+  (* Only used when commit is not associated to a PR *)
+  | ClosedByOther
+
+let closer_info_option_of_closer closer =
+  match closer with
+  | None | Some `Nonexhaustive -> Ok ClosedByOther
+  | Some (`PullRequest pr) -> Ok (ClosedByPullRequest (closer_info_of_pr pr))
+  | Some (`Commit commit) -> (
+    match commit#associatedPullRequests with
+    | None -> Ok ClosedByCommit
+    | Some prs -> (
+      match prs#nodes with
+      | Some [||] -> Ok ClosedByCommit
+      | Some [|Some pr|] -> Ok (ClosedByPullRequest (closer_info_of_pr pr))
+      | Some [|None|] -> Error "Closer query response is not well-formed."
+      | Some _ -> Error "Closing commit associated to several pull requests."
+      | _ -> Error "Closer query response is not well-formed." ) )
+
+type issue_closer_info =
+  {issue_id: string; milestone_id: string option; closer: closer_info}
+
+let issue_closer_info_of_resp ~owner ~repo ~number resp =
+  match resp#repository with
+  | None -> Error (f "Unknown repository %s/%s." owner repo)
+  | Some repository -> (
+    match repository#issue with
+    | None -> Error (f "Unknown issue %s/%s#%d." owner repo number)
+    | Some issue -> (
+      match (issue#timelineItems)#nodes with
+      | Some [|Some (`ClosedEvent event)|] ->
+          event#closer |> closer_info_option_of_closer
+          |> Result.map ~f:(function
+               | ClosedByPullRequest closer_info ->
+                   ClosedByPullRequest
+                     { issue_id= issue#id
+                     ; milestone_id=
+                         issue#milestone
+                         |> Option.map ~f:(fun milestone -> milestone#id)
+                     ; closer= closer_info }
+               | (ClosedByCommit | ClosedByOther) as reason -> reason )
+      | _ -> Error (f "No close event for issue %s/%s#%d." owner repo number) )
+    )
+
+let get_issue_closer_info ~token
+    ({owner; repo; number} : GitHub_subscriptions.issue) =
+  Issue_Milestone.make ~owner ~repo ~number ()
+  |> send_graphql_query ~token
+  >|= Result.map_error ~f:(fun err ->
+          f "Query issue_milestone failed with %s" err )
+  >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)

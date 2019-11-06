@@ -3,12 +3,7 @@
  (public_name bot-components)
  (libraries base cohttp-lwt-unix hex nocrypto stdio str yojson)
  (preprocess
-  (per_module
-   ((pps graphql_ppx)
-    GitHub_GraphQL_queries
-    GitHub_mutations)
-   ((pps ppx_graphql)
-    GitHub_queries_bis)))
+  (pps graphql_ppx))
  (preprocessor_deps
   (file schema.json)))
 

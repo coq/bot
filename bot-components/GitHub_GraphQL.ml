@@ -1,3 +1,5 @@
+(* Queries *)
+
 type milestone = {title: string; description: string option}
 
 type project_column = {id: string; databaseId: int option}
@@ -81,7 +83,6 @@ module PullRequest_Refs =
   }
 |}]
 
-(* Not supported.
 module Issue_Milestone =
 [%graphql
 {|
@@ -92,10 +93,8 @@ module Issue_Milestone =
         milestone { id }
         timelineItems(itemTypes:[CLOSED_EVENT],last:1) {
           nodes {
-            __typename
             ... on ClosedEvent {
               closer {
-                __typename
                 ... on PullRequest {
                   id
                   milestone { id }
@@ -116,4 +115,35 @@ module Issue_Milestone =
     }
   }
 |}]
-*)
+
+(* Mutations *)
+
+module MoveCardToColumn =
+[%graphql
+{|
+  mutation moveCard($card_id:ID!,$column_id:ID!) {
+    moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module PostComment =
+[%graphql
+{|
+  mutation addComment($id:ID!,$message:String!) {
+    addComment(input:{subjectId:$id,body:$message}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module UpdateMilestone =
+[%graphql
+{|
+  mutation updateMilestone($issue: ID!, $milestone: ID!) {
+    updateIssue(input: {id: $issue, milestoneId: $milestone}) {
+      clientMutationId
+    }
+  }
+|}]

@@ -1,34 +1,5 @@
-module MoveCardToColumn =
-[%graphql
-{|
-  mutation moveCard($card_id:ID!,$column_id:ID!) {
-    moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
-      clientMutationId
-    }
-  }
-|}]
-
-module PostComment =
-[%graphql
-{|
-  mutation addComment($id:ID!,$message:String!) {
-    addComment(input:{subjectId:$id,body:$message}) {
-      clientMutationId
-    }
-  }
-|}]
-
-module UpdateMilestone =
-[%graphql
-{|
-  mutation updateMilestone($issue: ID!, $milestone: ID!) {
-    updateIssue(input: {id: $issue, milestoneId: $milestone}) {
-      clientMutationId
-    }
-  }
-|}]
-
 open Base
+open GitHub_GraphQL
 open Lwt
 open Utils
 
@@ -55,7 +26,7 @@ let update_milestone ~token ~issue ~milestone =
   | Error err -> print_endline (f "Error while updating milestone: %s" err)
 
 let reflect_pull_request_milestone ~token
-    (issue_closer_info : GitHub_queries_bis.issue_closer_info) =
+    (issue_closer_info : GitHub_queries.issue_closer_info) =
   match issue_closer_info.closer.milestone_id with
   | None -> Lwt_io.printf "PR closed without a milestone: doing nothing.\n"
   | Some milestone -> (
