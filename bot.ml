@@ -312,8 +312,9 @@ let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
   >>= function
   | Error err -> Lwt_io.printf "Error: %s\n" err
   | Ok None -> Lwt_io.printf "Could not find backporting info for PR.\n"
-  | Ok (Some (id, _, {request_inclusion_column; rejected_milestone}))
-    when Int.equal request_inclusion_column column_id ->
+  | Ok (Some (id, _, {backport_info; rejected_milestone}))
+    when List.exists backport_info ~f:(fun {request_inclusion_column} ->
+             Int.equal request_inclusion_column column_id ) ->
       Lwt_io.printf
         "This was a request inclusion column: PR was rejected.\n\
          Change of milestone requested to: %s\n"
@@ -341,18 +342,22 @@ let push_action json =
         ~token:github_access_token ~owner:"coq" ~repo:"coq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
-      | Ok
-          (Some
-            ( _
-            , pr_id
-            , {backport_to; request_inclusion_column; backported_column} )) ->
-          if "refs/heads/" ^ backport_to |> String.equal base_ref then
-            Lwt_io.printf
-              "PR was merged into the backportig branch directly.\n"
-            >>= fun () -> add_pr_to_column pr_id backported_column
-          else
-            Lwt_io.printf "Backporting to %s was requested.\n" backport_to
-            >>= fun () -> add_pr_to_column pr_id request_inclusion_column
+      | Ok (Some (_, pr_id, {backport_info})) ->
+          backport_info
+          |> Lwt_list.iter_p
+               (fun { GitHub_queries.backport_to
+                    ; request_inclusion_column
+                    ; backported_column }
+               ->
+                 if "refs/heads/" ^ backport_to |> String.equal base_ref then
+                   Lwt_io.printf
+                     "PR was merged into the backportig branch directly.\n"
+                   >>= fun () -> add_pr_to_column pr_id backported_column
+                 else
+                   Lwt_io.printf "Backporting to %s was requested.\n"
+                     backport_to
+                   >>= fun () ->
+                   add_pr_to_column pr_id request_inclusion_column )
       | Ok None -> Lwt_io.printf "Did not get any backporting info.\n"
       | Error err -> Lwt_io.printf "Error: %s\n" err
     else if string_match ~regexp:"Backport PR #\\([0-9]*\\):" commit_msg then

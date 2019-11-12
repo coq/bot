@@ -32,39 +32,65 @@ let send_graphql_query ~token query =
     | Yojson.Basic.Util.Type_error (err, _) ->
         Error (f "Json type error: %s" err) )
 
-module Milestone = struct
-  type backport_info =
-    { backport_to: string
-    ; request_inclusion_column: int
-    ; backported_column: int
-    ; rejected_milestone: string }
+type backport_info =
+  {backport_to: string; request_inclusion_column: int; backported_column: int}
 
-  let get_backport_info bot_name description =
-    let project_column_regexp =
-      "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
+type full_backport_info =
+  {backport_info: backport_info list; rejected_milestone: string}
+
+let get_backport_info bot_name description =
+  let project_column_regexp =
+    "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
+  in
+  let regexp =
+    bot_name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
+    ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
+    ^ "; move rejected PRs to: "
+    ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
+  in
+  if string_match ~regexp description then
+    let backport_to = Str.matched_group 1 description in
+    let request_inclusion_column =
+      Str.matched_group 2 description |> Int.of_string
     in
-    let regexp =
-      bot_name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
+    let backported_column = Str.matched_group 3 description |> Int.of_string in
+    let rejected_milestone = Str.matched_group 4 description in
+    Some
+      { backport_info=
+          [{backport_to; request_inclusion_column; backported_column}]
+      ; rejected_milestone }
+  else
+    let begin_regexp = bot_name ^ ": \\(.*\\)$" in
+    let backport_info_unit =
+      "backport to \\([^ ]*\\) (request inclusion column: "
       ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
-      ^ "; move rejected PRs to: "
+      ^ "); \\(.*\\)$"
+    in
+    let end_regexp =
+      "move rejected PRs to: "
       ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
     in
-    if string_match ~regexp description then
-      let backport_to = Str.matched_group 1 description in
-      let request_inclusion_column =
-        Str.matched_group 2 description |> Int.of_string
-      in
-      let backported_column =
-        Str.matched_group 3 description |> Int.of_string
-      in
-      let rejected_milestone = Str.matched_group 4 description in
-      Some
-        { backport_to
-        ; request_inclusion_column
-        ; backported_column
-        ; rejected_milestone }
+    let rec aux string =
+      if string_match ~regexp:backport_info_unit string then
+        let backport_to = Str.matched_group 1 string in
+        let request_inclusion_column =
+          Str.matched_group 2 string |> Int.of_string
+        in
+        let backported_column = Str.matched_group 3 string |> Int.of_string in
+        Str.matched_group 4 string |> aux
+        |> Option.map ~f:(fun {backport_info; rejected_milestone} ->
+               { backport_info=
+                   {backport_to; request_inclusion_column; backported_column}
+                   :: backport_info
+               ; rejected_milestone } )
+      else if string_match ~regexp end_regexp then
+        let rejected_milestone = Str.matched_group 1 description in
+        Some {backport_info= []; rejected_milestone}
+      else None
+    in
+    if string_match ~regexp:begin_regexp description then
+      Str.matched_group 1 description |> aux
     else None
-end
 
 type project_card =
   {id: string; column: project_column option; columns: project_column list}
@@ -108,24 +134,25 @@ let backported_pr_info ~token number base_ref =
       let open Option in
       milestone
       >>= fun milestone ->
-      milestone.description
-      >>= Milestone.get_backport_info "coqbot"
-      >>= fun {backport_to; request_inclusion_column; backported_column} ->
-      if String.equal ("refs/heads/" ^ backport_to) base_ref then
-        List.find_map cards ~f:(fun card ->
-            if
-              card.column
-              >>= (fun column -> column.databaseId)
-              |> Option.equal Int.equal (Some request_inclusion_column)
-            then
-              List.find_map card.columns ~f:(fun column ->
-                  if
-                    Option.equal Int.equal (Some backported_column)
-                      column.databaseId
-                  then Some {card_id= card.id; column_id= column.id}
-                  else None )
-            else None )
-      else None
+      milestone.description >>= get_backport_info "coqbot"
+      >>= (fun full_backport_info ->
+            full_backport_info.backport_info
+            |> List.find ~f:(fun {backport_to} ->
+                   String.equal ("refs/heads/" ^ backport_to) base_ref ) )
+      >>= fun {request_inclusion_column; backported_column} ->
+      List.find_map cards ~f:(fun card ->
+          if
+            card.column
+            >>= (fun column -> column.databaseId)
+            |> Option.equal Int.equal (Some request_inclusion_column)
+          then
+            List.find_map card.columns ~f:(fun column ->
+                if
+                  Option.equal Int.equal (Some backported_column)
+                    column.databaseId
+                then Some {card_id= card.id; column_id= column.id}
+                else None )
+          else None )
   | Error err ->
       Stdio.printf "Error in backported_pr_info: %s\n" err ;
       None
@@ -155,9 +182,7 @@ let get_pull_request_id_and_milestone ~token ~owner ~repo ~number =
                   Ok
                     ( match milestone#description with
                     | Some description -> (
-                      match
-                        Milestone.get_backport_info "coqbot" description
-                      with
+                      match get_backport_info "coqbot" description with
                       | Some bp_info -> Some (pr#id, db_id, bp_info)
                       | _ -> None )
                     | _ -> None ) ) ) )
