@@ -67,8 +67,8 @@ let get_backport_info bot_name description =
       ^ "); \\(.*\\)$"
     in
     let end_regexp =
-      "move rejected PRs to: "
-      ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
+      "move rejected PRs to: \
+       https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)"
     in
     let rec aux string =
       if string_match ~regexp:backport_info_unit string then
@@ -83,8 +83,8 @@ let get_backport_info bot_name description =
                    {backport_to; request_inclusion_column; backported_column}
                    :: backport_info
                ; rejected_milestone } )
-      else if string_match ~regexp end_regexp then
-        let rejected_milestone = Str.matched_group 1 description in
+      else if string_match ~regexp:end_regexp string then
+        let rejected_milestone = Str.matched_group 1 string in
         Some {backport_info= []; rejected_milestone}
       else None
     in
