@@ -334,7 +334,7 @@ let push_action json =
   let base_ref = json |> member "ref" |> to_string in
   let commit_action commit =
     let commit_msg = commit |> member "message" |> to_string in
-    if string_match ~regexp:"Merge PR #\\([0-9]*\\):" commit_msg then
+    if string_match ~regexp:"^Merge PR #\\([0-9]*\\):" commit_msg then
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
       >>= fun () ->
@@ -360,7 +360,7 @@ let push_action json =
                    add_pr_to_column pr_id request_inclusion_column )
       | Ok None -> Lwt_io.printf "Did not get any backporting info.\n"
       | Error err -> Lwt_io.printf "Error: %s\n" err
-    else if string_match ~regexp:"Backport PR #\\([0-9]*\\):" commit_msg then
+    else if string_match ~regexp:"^Backport PR #\\([0-9]*\\):" commit_msg then
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
       >>= fun () ->
