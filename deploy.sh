@@ -2,15 +2,9 @@
 
 set -e
 
-if [ -f bot.exe ]; then
-    echo "Cannot overwrite bot.exe"
-    exit 1
-fi
-cp _build/default/bot.exe .
 if [ -f bot_rsa ]; then
     tar czf bot.tar.gz bot.exe make_ancestor.sh Procfile bot_rsa
 else
     tar czf bot.tar.gz bot.exe make_ancestor.sh Procfile
 fi
-rm bot.exe
 heroku builds:create --source-tar bot.tar.gz "$@"

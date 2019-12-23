@@ -2,6 +2,7 @@
  (name bot)
  (public_name bot)
  (package coq-bot)
+ (promote (until-clean))
  (libraries base bot-components cohttp-lwt-unix stdio yojson))
 
 (env
