@@ -271,7 +271,7 @@ If you've built inside `nix-shell`, a first step before deploying is
 to patch the binary to make it work on standard Linux platforms:
 
 ```
-patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 _build/default/bot.exe
+patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 bot.exe
 ```
 
 Then:
