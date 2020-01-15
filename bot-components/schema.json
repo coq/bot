@@ -3398,7 +3398,7 @@
             },
             {
               "name": "resourcePath",
-              "description": "The HTTP path for this actor.",
+              "description": "The HTTP path for this user.",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -3430,7 +3430,7 @@
             },
             {
               "name": "url",
-              "description": "The HTTP URL for this actor.",
+              "description": "The HTTP URL for this user.",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -18693,6 +18693,22 @@
                 "kind": "OBJECT",
                 "name": "Ref",
                 "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "deleteBranchOnMerge",
+              "description": "Whether or not branches are automatically deleted when merged in this repository.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -97547,6 +97563,12 @@
             {
               "name": "OUTDATED",
               "description": "An outdated piece of content",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "DUPLICATE",
+              "description": "A duplicated piece of content",
               "isDeprecated": false,
               "deprecationReason": null
             },
