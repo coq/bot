@@ -518,6 +518,9 @@ let job_action json =
         Lwt_io.printf "Timeout reported by GitLab CI.\n"
         <&> send_status_check ()
       else if String.equal failure_reason "script_failure" then
+        Lwt_io.printf "Script failure reported by GitLab CI.\n"
+        <&> send_status_check ()
+        (*
         Lwt_io.printf
           "GitLab CI reports a script failure but it could be something else. \
            Checking the trace...\n"
@@ -528,6 +531,7 @@ let job_action json =
         | Warn -> Lwt_io.printf "Actual failure.\n" <&> send_status_check ()
         | Retry -> retry_job ~project_id ~build_id
         | Ignore -> Lwt.return ()
+        *)
       else Lwt_io.printf "Unusual error.\n" <&> send_status_check () )
     |> Lwt.async
   else if String.equal build_status "success" then (
