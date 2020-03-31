@@ -1484,6 +1484,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "StatusCheckRollup",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "Tree",
               "ofType": null
             },
@@ -1714,7 +1719,17 @@
             },
             {
               "kind": "OBJECT",
+              "name": "ConnectedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "ConvertedNoteToIssueEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "DisconnectedEvent",
               "ofType": null
             },
             {
@@ -1755,6 +1770,11 @@
             {
               "kind": "OBJECT",
               "name": "TransferredEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "UnmarkedAsDuplicateEvent",
               "ofType": null
             },
             {
@@ -2125,6 +2145,11 @@
             {
               "kind": "OBJECT",
               "name": "EnterpriseServerUserAccountsUpload",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "IpAllowListEntry",
               "ofType": null
             },
             {
@@ -2547,6 +2572,22 @@
                 "ofType": {
                   "kind": "SCALAR",
                   "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "slug",
+              "description": "The URL-friendly identifier for the enterprise.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
                   "ofType": null
                 }
               },
@@ -4492,7 +4533,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -4959,7 +5000,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -9211,7 +9252,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -9858,7 +9899,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -10612,7 +10653,7 @@
                 },
                 {
                   "name": "affiliations",
-                  "description": "Affiliation options for repositories returned from the connection",
+                  "description": "Affiliation options for repositories returned from the connection. If none specified, the results will include repositories for which the current viewer is an owner or collaborator, or member.",
                   "type": {
                     "kind": "LIST",
                     "name": null,
@@ -10622,7 +10663,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR, ORGANIZATION_MEMBER]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -15809,6 +15850,38 @@
               "deprecationReason": null
             },
             {
+              "name": "checksResourcePath",
+              "description": "The HTTP path for the checks of this pull request.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "checksUrl",
+              "description": "The HTTP URL for the checks of this pull request.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "closed",
               "description": "`true` if the pull request is closed",
               "args": [],
@@ -16205,6 +16278,22 @@
             {
               "name": "isCrossRepository",
               "description": "The head and base repositories are different.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "isDraft",
+              "description": "Identifies if the pull request is a draft.",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -16746,6 +16835,18 @@
                   "name": "URI",
                   "ofType": null
                 }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "reviewDecision",
+              "description": "The current status of this pull request with respect to code review.",
+              "args": [],
+              "type": {
+                "kind": "ENUM",
+                "name": "PullRequestReviewDecision",
+                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -18947,7 +19048,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -20280,6 +20381,16 @@
               "description": "Fetch a list of refs from the repository",
               "args": [
                 {
+                  "name": "query",
+                  "description": "Filters refs with query on name",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
                   "name": "after",
                   "description": "Returns the elements in the list that come after the specified cursor.",
                   "type": {
@@ -20847,6 +20958,63 @@
                 "ofType": {
                   "kind": "OBJECT",
                   "name": "StargazerConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "submodules",
+              "description": "Returns a list of all submodules in this repository parsed from the .gitmodules file as of the default branch's HEAD commit.",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "SubmoduleConnection",
                   "ofType": null
                 }
               },
@@ -22496,7 +22664,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -22611,7 +22779,7 @@
                       "ofType": null
                     }
                   },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
+                  "defaultValue": null
                 },
                 {
                   "name": "ownerAffiliations",
@@ -23290,6 +23458,16 @@
               "name": "matchingRefs",
               "description": "Repository refs that are protected by this rule",
               "args": [
+                {
+                  "name": "query",
+                  "description": "Filters refs with query on name",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
                 {
                   "name": "after",
                   "description": "Returns the elements in the list that come after the specified cursor.",
@@ -30855,6 +31033,75 @@
               "deprecationReason": null
             },
             {
+              "name": "statusCheckRollup",
+              "description": "Check and Status rollup information for this commit.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "StatusCheckRollup",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "submodules",
+              "description": "Returns a list of all submodules in this repository as of this Commit parsed from the .gitmodules file.",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "SubmoduleConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "tarballUrl",
               "description": "Returns a URL to download a tarball archive for a repository.\nNote: For private repositories, these links are temporary and expire after five minutes.",
               "args": [],
@@ -31530,7 +31777,7 @@
             },
             {
               "name": "environment",
-              "description": "The environment to which this deployment was made.",
+              "description": "The latest environment to which this deployment was made.",
               "args": [],
               "type": {
                 "kind": "SCALAR",
@@ -31557,12 +31804,36 @@
               "deprecationReason": null
             },
             {
+              "name": "latestEnvironment",
+              "description": "The latest environment to which this deployment was made.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "latestStatus",
               "description": "The latest status of this deployment.",
               "args": [],
               "type": {
                 "kind": "OBJECT",
                 "name": "DeploymentStatus",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "originalEnvironment",
+              "description": "The original environment to which this deployment was made.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -32873,6 +33144,451 @@
         },
         {
           "kind": "OBJECT",
+          "name": "StatusCheckRollup",
+          "description": "Represents the rollup for both the check runs and status for a commit.",
+          "fields": [
+            {
+              "name": "commit",
+              "description": "The commit the status and check runs are attached to.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Commit",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "contexts",
+              "description": "A list of status contexts and check runs for this commit.",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "StatusCheckRollupContextConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "state",
+              "description": "The combined status for the commit.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "StatusState",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "StatusCheckRollupContextConnection",
+          "description": "The connection type for StatusCheckRollupContext.",
+          "fields": [
+            {
+              "name": "edges",
+              "description": "A list of edges.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "StatusCheckRollupContextEdge",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "nodes",
+              "description": "A list of nodes.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "StatusCheckRollupContext",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pageInfo",
+              "description": "Information to aid in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PageInfo",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalCount",
+              "description": "Identifies the total count of items in the connection.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "StatusCheckRollupContextEdge",
+          "description": "An edge in a connection.",
+          "fields": [
+            {
+              "name": "cursor",
+              "description": "A cursor for use in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "node",
+              "description": "The item at the end of the edge.",
+              "args": [],
+              "type": {
+                "kind": "UNION",
+                "name": "StatusCheckRollupContext",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "UNION",
+          "name": "StatusCheckRollupContext",
+          "description": "Types that can be inside a StatusCheckRollup context.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": [
+            {
+              "kind": "OBJECT",
+              "name": "StatusContext",
+              "ofType": null
+            }
+          ]
+        },
+        {
+          "kind": "OBJECT",
+          "name": "SubmoduleConnection",
+          "description": "The connection type for Submodule.",
+          "fields": [
+            {
+              "name": "edges",
+              "description": "A list of edges.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "SubmoduleEdge",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "nodes",
+              "description": "A list of nodes.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "Submodule",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pageInfo",
+              "description": "Information to aid in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PageInfo",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalCount",
+              "description": "Identifies the total count of items in the connection.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "SubmoduleEdge",
+          "description": "An edge in a connection.",
+          "fields": [
+            {
+              "name": "cursor",
+              "description": "A cursor for use in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "node",
+              "description": "The item at the end of the edge.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Submodule",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "Submodule",
+          "description": "A pointer to a repository at a specific revision embedded inside another repository.",
+          "fields": [
+            {
+              "name": "branch",
+              "description": "The branch of the upstream submodule for tracking updates",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "gitUrl",
+              "description": "The git URL of the submodule repository",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "name",
+              "description": "The name of the submodule in .gitmodules",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "path",
+              "description": "The path in the superproject that this submodule is located in",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "subprojectCommitOid",
+              "description": "The commit revision of the subproject repository being tracked by the submodule",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "GitObjectID",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
           "name": "Tree",
           "description": "Represents a Git tree.",
           "fields": [
@@ -33086,6 +33802,18 @@
                   "name": "Repository",
                   "ofType": null
                 }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "submodule",
+              "description": "If the TreeEntry is for a directory occupied by a submodule project, this returns the corresponding submodule",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Submodule",
+                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -35730,6 +36458,18 @@
               "deprecationReason": null
             },
             {
+              "name": "permalink",
+              "description": "The permalink for the advisory",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "URI",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "publishedAt",
               "description": "When the advisory was published",
               "args": [],
@@ -37637,22 +38377,22 @@
             },
             {
               "kind": "OBJECT",
-              "name": "OrganizationsHovercardContext",
-              "ofType": null
-            },
-            {
-              "kind": "OBJECT",
               "name": "OrganizationTeamsHovercardContext",
               "ofType": null
             },
             {
               "kind": "OBJECT",
-              "name": "ViewerHovercardContext",
+              "name": "OrganizationsHovercardContext",
               "ofType": null
             },
             {
               "kind": "OBJECT",
               "name": "ReviewStatusHovercardContext",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "ViewerHovercardContext",
               "ofType": null
             }
           ]
@@ -37680,6 +38420,35 @@
             {
               "name": "UNKNOWN",
               "description": "The mergeability of the pull request is still being calculated.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "PullRequestReviewDecision",
+          "description": "The review status of a pull request.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "CHANGES_REQUESTED",
+              "description": "Changes have been requested on the pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "APPROVED",
+              "description": "The pull request has received an approving review.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "REVIEW_REQUIRED",
+              "description": "A review is required before the pull request can be merged.",
               "isDeprecated": false,
               "deprecationReason": null
             }
@@ -43837,6 +44606,12 @@
               "deprecationReason": null
             },
             {
+              "name": "CONNECTED_EVENT",
+              "description": "Represents a 'connected' event on a given issue or pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "CONVERTED_NOTE_TO_ISSUE_EVENT",
               "description": "Represents a 'converted_note_to_issue' event on a given issue or pull request.",
               "isDeprecated": false,
@@ -43845,6 +44620,12 @@
             {
               "name": "DEMILESTONED_EVENT",
               "description": "Represents a 'demilestoned' event on a given issue or pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "DISCONNECTED_EVENT",
+              "description": "Represents a 'disconnected' event on a given issue or pull request.",
               "isDeprecated": false,
               "deprecationReason": null
             },
@@ -43947,6 +44728,12 @@
             {
               "name": "USER_BLOCKED_EVENT",
               "description": "Represents a 'user_blocked' event on a given user.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "UNMARKED_AS_DUPLICATE_EVENT",
+              "description": "Represents an 'unmarked_as_duplicate' event on a given issue or pull request.",
               "isDeprecated": false,
               "deprecationReason": null
             },
@@ -44168,6 +44955,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "ConnectedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "ConvertedNoteToIssueEvent",
               "ofType": null
             },
@@ -44189,6 +44981,11 @@
             {
               "kind": "OBJECT",
               "name": "DeploymentEnvironmentChangedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "DisconnectedEvent",
               "ofType": null
             },
             {
@@ -44339,6 +45136,11 @@
             {
               "kind": "OBJECT",
               "name": "UnlockedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "UnmarkedAsDuplicateEvent",
               "ofType": null
             },
             {
@@ -44579,6 +45381,115 @@
         },
         {
           "kind": "OBJECT",
+          "name": "ConnectedEvent",
+          "description": "Represents a 'connected' event on a given issue or pull request.",
+          "fields": [
+            {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "isCrossRepository",
+              "description": "Reference originated in a different repository.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "source",
+              "description": "Issue or pull request that made the reference.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "ReferencedSubject",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "subject",
+              "description": "Issue or pull request which was connected.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "ReferencedSubject",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
           "name": "ConvertedNoteToIssueEvent",
           "description": "Represents a 'converted_note_to_issue' event on a given issue or pull request.",
           "fields": [
@@ -44632,6 +45543,115 @@
                 "ofType": {
                   "kind": "SCALAR",
                   "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "DisconnectedEvent",
+          "description": "Represents a 'disconnected' event on a given issue or pull request.",
+          "fields": [
+            {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "isCrossRepository",
+              "description": "Reference originated in a different repository.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "source",
+              "description": "Issue or pull request from which the issue was disconnected.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "ReferencedSubject",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "subject",
+              "description": "Issue or pull request which was disconnected.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "ReferencedSubject",
                   "ofType": null
                 }
               },
@@ -45438,6 +46458,67 @@
         },
         {
           "kind": "OBJECT",
+          "name": "UnmarkedAsDuplicateEvent",
+          "description": "Represents an 'unmarked_as_duplicate' event on a given issue or pull request.",
+          "fields": [
+            {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
           "name": "UnpinnedEvent",
           "description": "Represents an 'unpinned' event on a given issue or pull request.",
           "fields": [
@@ -45778,6 +46859,12 @@
               "deprecationReason": null
             },
             {
+              "name": "CONNECTED_EVENT",
+              "description": "Represents a 'connected' event on a given issue or pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "CONVERTED_NOTE_TO_ISSUE_EVENT",
               "description": "Represents a 'converted_note_to_issue' event on a given issue or pull request.",
               "isDeprecated": false,
@@ -45786,6 +46873,12 @@
             {
               "name": "DEMILESTONED_EVENT",
               "description": "Represents a 'demilestoned' event on a given issue or pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "DISCONNECTED_EVENT",
+              "description": "Represents a 'disconnected' event on a given issue or pull request.",
               "isDeprecated": false,
               "deprecationReason": null
             },
@@ -45888,6 +46981,12 @@
             {
               "name": "USER_BLOCKED_EVENT",
               "description": "Represents a 'user_blocked' event on a given user.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "UNMARKED_AS_DUPLICATE_EVENT",
+              "description": "Represents an 'unmarked_as_duplicate' event on a given issue or pull request.",
               "isDeprecated": false,
               "deprecationReason": null
             },
@@ -46099,6 +47198,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "ConnectedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "ConvertedNoteToIssueEvent",
               "ofType": null
             },
@@ -46110,6 +47214,11 @@
             {
               "kind": "OBJECT",
               "name": "DemilestonedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "DisconnectedEvent",
               "ofType": null
             },
             {
@@ -46195,6 +47304,11 @@
             {
               "kind": "OBJECT",
               "name": "UnlockedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "UnmarkedAsDuplicateEvent",
               "ofType": null
             },
             {
@@ -76101,6 +77215,89 @@
               "deprecationReason": null
             },
             {
+              "name": "ipAllowListEnabledSetting",
+              "description": "The setting value for whether the enterprise has an IP allow list enabled.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "IpAllowListEnabledSettingValue",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ipAllowListEntries",
+              "description": "The IP addresses that are allowed to access resources owned by the enterprise.",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "orderBy",
+                  "description": "Ordering options for IP allow list entries returned.",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "IpAllowListEntryOrder",
+                    "ofType": null
+                  },
+                  "defaultValue": "{field: ALLOW_LIST_VALUE, direction: ASC}"
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "IpAllowListEntryConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "isUpdatingDefaultRepositoryPermission",
               "description": "Whether or not the default repository permission is currently being updated.",
               "args": [],
@@ -79336,6 +80533,351 @@
             }
           ],
           "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "IpAllowListEnabledSettingValue",
+          "description": "The possible values for the IP allow list enabled setting.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "ENABLED",
+              "description": "The setting is enabled for the owner.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "DISABLED",
+              "description": "The setting is disabled for the owner.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "IpAllowListEntryOrder",
+          "description": "Ordering options for IP allow list entry connections.",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "field",
+              "description": "The field to order IP allow list entries by.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "IpAllowListEntryOrderField",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "direction",
+              "description": "The ordering direction.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "OrderDirection",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "IpAllowListEntryOrderField",
+          "description": "Properties by which IP allow list entry connections can be ordered.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "CREATED_AT",
+              "description": "Order IP allow list entries by creation time.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ALLOW_LIST_VALUE",
+              "description": "Order IP allow list entries by the allow list value.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "IpAllowListEntryConnection",
+          "description": "The connection type for IpAllowListEntry.",
+          "fields": [
+            {
+              "name": "edges",
+              "description": "A list of edges.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "IpAllowListEntryEdge",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "nodes",
+              "description": "A list of nodes.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "IpAllowListEntry",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pageInfo",
+              "description": "Information to aid in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PageInfo",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalCount",
+              "description": "Identifies the total count of items in the connection.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "IpAllowListEntryEdge",
+          "description": "An edge in a connection.",
+          "fields": [
+            {
+              "name": "cursor",
+              "description": "A cursor for use in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "node",
+              "description": "The item at the end of the edge.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "IpAllowListEntry",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "IpAllowListEntry",
+          "description": "An IP address or range of addresses that is allowed to access an owner's resources.",
+          "fields": [
+            {
+              "name": "allowListValue",
+              "description": "A single IP address or range of IP addresses in CIDR notation.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "isActive",
+              "description": "Whether the entry is currently active.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "name",
+              "description": "The name of the IP allow list entry.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "owner",
+              "description": "The owner of the IP allow list entry.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "IpAllowListOwner",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "updatedAt",
+              "description": "Identifies the date and time when the object was last updated.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "UNION",
+          "name": "IpAllowListOwner",
+          "description": "Types that can own an IP allow list.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": [
+            {
+              "kind": "OBJECT",
+              "name": "Enterprise",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "Organization",
+              "ofType": null
+            }
+          ]
         },
         {
           "kind": "ENUM",
@@ -83587,6 +85129,33 @@
               "deprecationReason": null
             },
             {
+              "name": "createIpAllowListEntry",
+              "description": "Creates a new IP allow list entry.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "CreateIpAllowListEntryInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "CreateIpAllowListEntryPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "createIssue",
               "description": "Creates a new issue.",
               "args": [
@@ -83824,6 +85393,60 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "DeleteBranchProtectionRulePayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "deleteDeployment",
+              "description": "Deletes a deployment.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "DeleteDeploymentInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "DeleteDeploymentPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "deleteIpAllowListEntry",
+              "description": "Deletes an IP allow list entry.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "DeleteIpAllowListEntryInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "DeleteIpAllowListEntryPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -84235,6 +85858,33 @@
               "deprecationReason": null
             },
             {
+              "name": "markPullRequestReadyForReview",
+              "description": "Marks a pull request ready for review.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "MarkPullRequestReadyForReviewInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "MarkPullRequestReadyForReviewPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "mergeBranch",
               "description": "Merge a head into a branch.",
               "args": [
@@ -84418,6 +86068,33 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "RemoveEnterpriseAdminPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "removeEnterpriseIdentityProvider",
+              "description": "Removes the identity provider from an enterprise",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "RemoveEnterpriseIdentityProviderInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "RemoveEnterpriseIdentityProviderPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -84661,6 +86338,33 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "ResolveReviewThreadPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "setEnterpriseIdentityProvider",
+              "description": "Creates or updates the identity provider for an enterprise.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "SetEnterpriseIdentityProviderInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "SetEnterpriseIdentityProviderPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -85363,6 +87067,60 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "UpdateEnterpriseTwoFactorAuthenticationRequiredSettingPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "updateIpAllowListEnabledSetting",
+              "description": "Sets whether an IP allow list is enabled on an owner.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "UpdateIpAllowListEnabledSettingInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "UpdateIpAllowListEnabledSettingPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "updateIpAllowListEntry",
+              "description": "Updates an IP allow list entry.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "UpdateIpAllowListEntryInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "UpdateIpAllowListEntryPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -86629,16 +88387,22 @@
           "fields": null,
           "inputFields": [
             {
+              "name": "pullRequestId",
+              "description": "The node ID of the pull request reviewing",
+              "type": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
               "name": "pullRequestReviewId",
               "description": "The Node ID of the review to modify.",
               "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
               },
               "defaultValue": null
             },
@@ -88148,6 +89912,114 @@
         },
         {
           "kind": "INPUT_OBJECT",
+          "name": "CreateIpAllowListEntryInput",
+          "description": "Autogenerated input type of CreateIpAllowListEntry",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "ownerId",
+              "description": "The ID of the owner for which to create the new IP allow list entry.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "allowListValue",
+              "description": "An IP address or range of addresses in CIDR notation.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "name",
+              "description": "An optional name for the IP allow list entry.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "isActive",
+              "description": "Whether the IP allow list entry is active when an IP allow list is enabled.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "CreateIpAllowListEntryPayload",
+          "description": "Autogenerated return type of CreateIpAllowListEntry",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ipAllowListEntry",
+              "description": "The IP allow list entry that was created.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "IpAllowListEntry",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
           "name": "CreateIssueInput",
           "description": "Autogenerated input type of CreateIssue",
           "fields": null,
@@ -88542,6 +90414,16 @@
                 "ofType": null
               },
               "defaultValue": "true"
+            },
+            {
+              "name": "draft",
+              "description": "Indicates whether this pull request should be a draft.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": "false"
             },
             {
               "name": "clientMutationId",
@@ -89217,6 +91099,134 @@
               "type": {
                 "kind": "SCALAR",
                 "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "DeleteDeploymentInput",
+          "description": "Autogenerated input type of DeleteDeployment",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "id",
+              "description": "The Node ID of the deployment to be deleted.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "DeleteDeploymentPayload",
+          "description": "Autogenerated return type of DeleteDeployment",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "DeleteIpAllowListEntryInput",
+          "description": "Autogenerated input type of DeleteIpAllowListEntry",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "ipAllowListEntryId",
+              "description": "The ID of the IP allow list entry to delete.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "DeleteIpAllowListEntryPayload",
+          "description": "Autogenerated return type of DeleteIpAllowListEntry",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ipAllowListEntry",
+              "description": "The IP allow list entry that was deleted.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "IpAllowListEntry",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -90348,6 +92358,76 @@
         },
         {
           "kind": "INPUT_OBJECT",
+          "name": "MarkPullRequestReadyForReviewInput",
+          "description": "Autogenerated input type of MarkPullRequestReadyForReview",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "pullRequestId",
+              "description": "ID of the pull request to be marked as ready for review.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "MarkPullRequestReadyForReviewPayload",
+          "description": "Autogenerated return type of MarkPullRequestReadyForReview",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pullRequest",
+              "description": "The pull request that is ready for review.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "PullRequest",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
           "name": "MergeBranchInput",
           "description": "Autogenerated input type of MergeBranch",
           "fields": null,
@@ -91063,6 +93143,76 @@
         },
         {
           "kind": "INPUT_OBJECT",
+          "name": "RemoveEnterpriseIdentityProviderInput",
+          "description": "Autogenerated input type of RemoveEnterpriseIdentityProvider",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "enterpriseId",
+              "description": "The ID of the enterprise from which to remove the identity provider.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "RemoveEnterpriseIdentityProviderPayload",
+          "description": "Autogenerated return type of RemoveEnterpriseIdentityProvider",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "identityProvider",
+              "description": "The identity provider that was removed from the enterprise.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "EnterpriseIdentityProvider",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
           "name": "RemoveEnterpriseOrganizationInput",
           "description": "Autogenerated input type of RemoveEnterpriseOrganization",
           "fields": null,
@@ -91738,6 +93888,18 @@
           "description": "Autogenerated return type of RequestReviews",
           "fields": [
             {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "clientMutationId",
               "description": "A unique identifier for the client performing the mutation.",
               "args": [],
@@ -91851,13 +94013,13 @@
         },
         {
           "kind": "INPUT_OBJECT",
-          "name": "SubmitPullRequestReviewInput",
-          "description": "Autogenerated input type of SubmitPullRequestReview",
+          "name": "SetEnterpriseIdentityProviderInput",
+          "description": "Autogenerated input type of SetEnterpriseIdentityProvider",
           "fields": null,
           "inputFields": [
             {
-              "name": "pullRequestReviewId",
-              "description": "The Pull Request Review ID to submit.",
+              "name": "enterpriseId",
+              "description": "The ID of the enterprise on which to set an identity provider.",
               "type": {
                 "kind": "NON_NULL",
                 "name": null,
@@ -91866,6 +94028,148 @@
                   "name": "ID",
                   "ofType": null
                 }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "ssoUrl",
+              "description": "The URL endpoint for the identity provider's SAML SSO.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "issuer",
+              "description": "The Issuer Entity ID for the SAML identity provider",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "idpCertificate",
+              "description": "The x509 certificate used by the identity provider to sign assertions and responses.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "signatureMethod",
+              "description": "The signature algorithm used to sign SAML requests for the identity provider.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "SamlSignatureAlgorithm",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "digestMethod",
+              "description": "The digest algorithm used to sign SAML requests for the identity provider.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "SamlDigestAlgorithm",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "SetEnterpriseIdentityProviderPayload",
+          "description": "Autogenerated return type of SetEnterpriseIdentityProvider",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "identityProvider",
+              "description": "The identity provider for the enterprise.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "EnterpriseIdentityProvider",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "SubmitPullRequestReviewInput",
+          "description": "Autogenerated input type of SubmitPullRequestReview",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "pullRequestId",
+              "description": "The Pull Request ID to submit any pending reviews.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "pullRequestReviewId",
+              "description": "The Pull Request Review ID to submit.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "ID",
+                "ofType": null
               },
               "defaultValue": null
             },
@@ -94454,6 +96758,198 @@
         },
         {
           "kind": "INPUT_OBJECT",
+          "name": "UpdateIpAllowListEnabledSettingInput",
+          "description": "Autogenerated input type of UpdateIpAllowListEnabledSetting",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "ownerId",
+              "description": "The ID of the owner on which to set the IP allow list enabled setting.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "settingValue",
+              "description": "The value for the IP allow list enabled setting.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "IpAllowListEnabledSettingValue",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "UpdateIpAllowListEnabledSettingPayload",
+          "description": "Autogenerated return type of UpdateIpAllowListEnabledSetting",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "owner",
+              "description": "The IP allow list owner on which the setting was updated.",
+              "args": [],
+              "type": {
+                "kind": "UNION",
+                "name": "IpAllowListOwner",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "UpdateIpAllowListEntryInput",
+          "description": "Autogenerated input type of UpdateIpAllowListEntry",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "ipAllowListEntryId",
+              "description": "The ID of the IP allow list entry to update.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "allowListValue",
+              "description": "An IP address or range of addresses in CIDR notation.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "name",
+              "description": "An optional name for the IP allow list entry.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "isActive",
+              "description": "Whether the IP allow list entry is active when an IP allow list is enabled.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "UpdateIpAllowListEntryPayload",
+          "description": "Autogenerated return type of UpdateIpAllowListEntry",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ipAllowListEntry",
+              "description": "The IP allow list entry that was updated.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "IpAllowListEntry",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
           "name": "UpdateIssueInput",
           "description": "Autogenerated input type of UpdateIssue",
           "fields": null,
@@ -96992,77 +99488,13 @@
           "possibleTypes": null
         },
         {
-          "kind": "ENUM",
-          "name": "IssuePubSubTopic",
-          "description": "The possible PubSub channels for an issue.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "UPDATED",
-              "description": "The channel ID for observing issue updates.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "MARKASREAD",
-              "description": "The channel ID for marking an issue as read.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "TIMELINE",
-              "description": "The channel ID for updating items on the issue timeline.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "STATE",
-              "description": "The channel ID for observing issue state updates.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "OauthApplicationRevokeTokensAuditEntryState",
-          "description": "The state of an OAuth Application when its tokens were revoked.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "ACTIVE",
-              "description": "The OAuth Application was active and allowed to have OAuth Accesses.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "SUSPENDED",
-              "description": "The OAuth Application was suspended from generating OAuth Accesses due to abuse or security concerns.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "PENDING_DELETION",
-              "description": "The OAuth Application was in the process of being deleted.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
           "kind": "OBJECT",
-          "name": "RepositoryInvitationEdge",
-          "description": "An edge in a connection.",
+          "name": "GenericHovercardContext",
+          "description": "A generic hovercard context with a message and icon",
           "fields": [
             {
-              "name": "cursor",
-              "description": "A cursor for use in pagination.",
+              "name": "message",
+              "description": "A string describing this context",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -97077,100 +99509,17 @@
               "deprecationReason": null
             },
             {
-              "name": "node",
-              "description": "The item at the end of the edge.",
-              "args": [],
-              "type": {
-                "kind": "OBJECT",
-                "name": "RepositoryInvitation",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "RepositoryInvitation",
-          "description": "An invitation for a user to be added to a repository.",
-          "fields": [
-            {
-              "name": "id",
-              "description": null,
+              "name": "octicon",
+              "description": "An octicon to accompany this context",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
                 "name": null,
                 "ofType": {
                   "kind": "SCALAR",
-                  "name": "ID",
+                  "name": "String",
                   "ofType": null
                 }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "invitee",
-              "description": "The user who received the invitation.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "User",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "inviter",
-              "description": "The user who created the invitation.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "User",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "permission",
-              "description": "The permission granted on this repository by this invitation.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "RepositoryPermission",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "repository",
-              "description": "The Repository the user is invited to.",
-              "args": [],
-              "type": {
-                "kind": "INTERFACE",
-                "name": "RepositoryInfo",
-                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -97180,967 +99529,10 @@
           "interfaces": [
             {
               "kind": "INTERFACE",
-              "name": "Node",
+              "name": "HovercardContext",
               "ofType": null
             }
           ],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "PullRequestPubSubTopic",
-          "description": "The possible PubSub channels for a pull request.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "UPDATED",
-              "description": "The channel ID for observing pull request updates.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "MARKASREAD",
-              "description": "The channel ID for marking an pull request as read.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "HEAD_REF",
-              "description": "The channel ID for observing head ref updates.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "TIMELINE",
-              "description": "The channel ID for updating items on the pull request timeline.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "STATE",
-              "description": "The channel ID for observing pull request state updates.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "RepositoryCollaboratorAffiliation",
-          "description": "The affiliation type between collaborator and repository.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "ALL",
-              "description": "All collaborators of the repository.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "OUTSIDE",
-              "description": "All outside collaborators of an organization-owned repository.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "IssueOrPullRequestEdge",
-          "description": "An edge in a connection.",
-          "fields": [
-            {
-              "name": "cursor",
-              "description": "A cursor for use in pagination.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "node",
-              "description": "The item at the end of the edge.",
-              "args": [],
-              "type": {
-                "kind": "UNION",
-                "name": "IssueOrPullRequest",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "EnterpriseEdge",
-          "description": "An edge in a connection.",
-          "fields": [
-            {
-              "name": "cursor",
-              "description": "A cursor for use in pagination.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "node",
-              "description": "The item at the end of the edge.",
-              "args": [],
-              "type": {
-                "kind": "OBJECT",
-                "name": "Enterprise",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "EnterpriseOrder",
-          "description": "Ordering options for enterprises.",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "field",
-              "description": "The field to order enterprises by.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "EnterpriseOrderField",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "direction",
-              "description": "The ordering direction.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "OrderDirection",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "EnterpriseOrderField",
-          "description": "Properties by which enterprise connections can be ordered.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "NAME",
-              "description": "Order enterprises by name",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "EnterpriseMembershipType",
-          "description": "The possible values we have for filtering Platform::Objects::User#enterprises.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "ALL",
-              "description": "Returns all enterprises in which the user is a member, admin, or billing manager.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "ADMIN",
-              "description": "Returns all enterprises in which the user is an admin.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "BILLING_MANAGER",
-              "description": "Returns all enterprises in which the user is a billing manager.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "ORG_MEMBERSHIP",
-              "description": "Returns all enterprises in which the user is a member of an org that is owned by the enterprise.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "AppEdge",
-          "description": "An edge in a connection.",
-          "fields": [
-            {
-              "name": "cursor",
-              "description": "A cursor for use in pagination.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "node",
-              "description": "The item at the end of the edge.",
-              "args": [],
-              "type": {
-                "kind": "OBJECT",
-                "name": "App",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "UNION",
-          "name": "CollectionItemContent",
-          "description": "Types that can be inside Collection Items.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": [
-            {
-              "kind": "OBJECT",
-              "name": "Organization",
-              "ofType": null
-            },
-            {
-              "kind": "OBJECT",
-              "name": "Repository",
-              "ofType": null
-            },
-            {
-              "kind": "OBJECT",
-              "name": "User",
-              "ofType": null
-            }
-          ]
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "MinimizeCommentInput",
-          "description": "Autogenerated input type of MinimizeComment",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "subjectId",
-              "description": "The Node ID of the subject to modify.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "classifier",
-              "description": "The classification of comment",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "ReportedContentClassifiers",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "clientMutationId",
-              "description": "A unique identifier for the client performing the mutation.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "ReportedContentClassifiers",
-          "description": "The reasons a piece of content can be reported or minimized.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "SPAM",
-              "description": "A spammy piece of content",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "ABUSE",
-              "description": "An abusive or harassing piece of content",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "OFF_TOPIC",
-              "description": "An irrelevant piece of content",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "OUTDATED",
-              "description": "An outdated piece of content",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "DUPLICATE",
-              "description": "A duplicated piece of content",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "RESOLVED",
-              "description": "The content has been resolved",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "UnminimizeCommentInput",
-          "description": "Autogenerated input type of UnminimizeComment",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "subjectId",
-              "description": "The Node ID of the subject to modify.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "clientMutationId",
-              "description": "A unique identifier for the client performing the mutation.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "ImportProjectInput",
-          "description": "Autogenerated input type of ImportProject",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "ownerName",
-              "description": "The name of the Organization or User to create the Project under.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "name",
-              "description": "The name of Project.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "body",
-              "description": "The description of Project.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "public",
-              "description": "Whether the Project is public or not.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "Boolean",
-                "ofType": null
-              },
-              "defaultValue": "false"
-            },
-            {
-              "name": "columnImports",
-              "description": "A list of columns containing issues and pull requests.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "LIST",
-                  "name": null,
-                  "ofType": {
-                    "kind": "NON_NULL",
-                    "name": null,
-                    "ofType": {
-                      "kind": "INPUT_OBJECT",
-                      "name": "ProjectColumnImport",
-                      "ofType": null
-                    }
-                  }
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "clientMutationId",
-              "description": "A unique identifier for the client performing the mutation.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "ProjectColumnImport",
-          "description": "A project column and a list of its issues and PRs.",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "columnName",
-              "description": "The name of the column.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "position",
-              "description": "The position of the column, starting from 0.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "issues",
-              "description": "A list of issues and pull requests in the column.",
-              "type": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "NON_NULL",
-                  "name": null,
-                  "ofType": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "ProjectCardImport",
-                    "ofType": null
-                  }
-                }
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "ProjectCardImport",
-          "description": "An issue or PR and its owning repository to be used in a project card.",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "repository",
-              "description": "Repository name with owner (owner/repository).",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "number",
-              "description": "The issue or pull request number.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "PinIssueInput",
-          "description": "Autogenerated input type of PinIssue",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "issueId",
-              "description": "The ID of the issue to be pinned",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "clientMutationId",
-              "description": "A unique identifier for the client performing the mutation.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "UnpinIssueInput",
-          "description": "Autogenerated input type of UnpinIssue",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "issueId",
-              "description": "The ID of the issue to be unpinned",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "clientMutationId",
-              "description": "A unique identifier for the client performing the mutation.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "RegistryPackageFileState",
-          "description": "The possible states of a registry package file.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "NEW",
-              "description": "Package file doesn't have a blob backing it.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "UPLOADED",
-              "description": "All Package file contents have been uploaded.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "DeletePackageVersionInput",
-          "description": "Autogenerated input type of DeletePackageVersion",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "packageVersionId",
-              "description": "The ID of the package version to be deleted.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "clientMutationId",
-              "description": "A unique identifier for the client performing the mutation.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "ContentAttachment",
-          "description": "A content attachment",
-          "fields": [
-            {
-              "name": "body",
-              "description": "The body text of the content attachment. This parameter supports markdown.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "contentReference",
-              "description": "The content reference that the content attachment is attached to.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "ContentReference",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "databaseId",
-              "description": "Identifies the primary key from the database.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "id",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "title",
-              "description": "The title of the content attachment.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "ContentReference",
-          "description": "A content reference",
-          "fields": [
-            {
-              "name": "databaseId",
-              "description": "Identifies the primary key from the database.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "id",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "reference",
-              "description": "The reference of the content reference.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "CreateContentAttachmentInput",
-          "description": "Autogenerated input type of CreateContentAttachment",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "contentReferenceId",
-              "description": "The node ID of the content_reference.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "title",
-              "description": "The title of the content attachment.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "body",
-              "description": "The body of the content attachment, which may contain markdown.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "clientMutationId",
-              "description": "A unique identifier for the client performing the mutation.",
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
           "enumValues": null,
           "possibleTypes": null
         },
@@ -98275,6 +99667,436 @@
             {
               "kind": "INTERFACE",
               "name": "GitSignature",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "OrganizationTeamsHovercardContext",
+          "description": "An organization teams hovercard context",
+          "fields": [
+            {
+              "name": "message",
+              "description": "A string describing this context",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "octicon",
+              "description": "An octicon to accompany this context",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "relevantTeams",
+              "description": "Teams in this organization the user is a member of that are relevant",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "TeamConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "teamsResourcePath",
+              "description": "The path for the full team list for this user",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "teamsUrl",
+              "description": "The URL for the full team list for this user",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalTeamCount",
+              "description": "The total number of teams the user is on in the organization",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "HovercardContext",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "OrganizationsHovercardContext",
+          "description": "An organization list hovercard context",
+          "fields": [
+            {
+              "name": "message",
+              "description": "A string describing this context",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "octicon",
+              "description": "An octicon to accompany this context",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "relevantOrganizations",
+              "description": "Organizations this user is a member of that are relevant",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "OrganizationConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalOrganizationCount",
+              "description": "The total number of organizations this user is in",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "HovercardContext",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "RepositoryInvitation",
+          "description": "An invitation for a user to be added to a repository.",
+          "fields": [
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "invitee",
+              "description": "The user who received the invitation.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "User",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "inviter",
+              "description": "The user who created the invitation.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "User",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "permission",
+              "description": "The permission granted on this repository by this invitation.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "RepositoryPermission",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "repository",
+              "description": "The Repository the user is invited to.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "RepositoryInfo",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "ReviewStatusHovercardContext",
+          "description": "A hovercard context with a message describing the current code review state of the pull\nrequest.\n",
+          "fields": [
+            {
+              "name": "message",
+              "description": "A string describing this context",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "octicon",
+              "description": "An octicon to accompany this context",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "reviewDecision",
+              "description": "The current status of the pull request with respect to code review.",
+              "args": [],
+              "type": {
+                "kind": "ENUM",
+                "name": "PullRequestReviewDecision",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "HovercardContext",
               "ofType": null
             }
           ],
@@ -98707,331 +100529,6 @@
         },
         {
           "kind": "OBJECT",
-          "name": "GenericHovercardContext",
-          "description": "A generic hovercard context with a message and icon",
-          "fields": [
-            {
-              "name": "message",
-              "description": "A string describing this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "octicon",
-              "description": "An octicon to accompany this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [
-            {
-              "kind": "INTERFACE",
-              "name": "HovercardContext",
-              "ofType": null
-            }
-          ],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "OrganizationsHovercardContext",
-          "description": "An organization list hovercard context",
-          "fields": [
-            {
-              "name": "message",
-              "description": "A string describing this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "octicon",
-              "description": "An octicon to accompany this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "relevantOrganizations",
-              "description": "Organizations this user is a member of that are relevant",
-              "args": [
-                {
-                  "name": "after",
-                  "description": "Returns the elements in the list that come after the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "before",
-                  "description": "Returns the elements in the list that come before the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "first",
-                  "description": "Returns the first _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "last",
-                  "description": "Returns the last _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                }
-              ],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "OrganizationConnection",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "totalOrganizationCount",
-              "description": "The total number of organizations this user is in",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [
-            {
-              "kind": "INTERFACE",
-              "name": "HovercardContext",
-              "ofType": null
-            }
-          ],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "OrganizationTeamsHovercardContext",
-          "description": "An organization teams hovercard context",
-          "fields": [
-            {
-              "name": "message",
-              "description": "A string describing this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "octicon",
-              "description": "An octicon to accompany this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "relevantTeams",
-              "description": "Teams in this organization the user is a member of that are relevant",
-              "args": [
-                {
-                  "name": "after",
-                  "description": "Returns the elements in the list that come after the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "before",
-                  "description": "Returns the elements in the list that come before the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "first",
-                  "description": "Returns the first _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "last",
-                  "description": "Returns the last _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                }
-              ],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "TeamConnection",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "teamsResourcePath",
-              "description": "The path for the full team list for this user",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "URI",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "teamsUrl",
-              "description": "The URL for the full team list for this user",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "URI",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "totalTeamCount",
-              "description": "The total number of teams the user is on in the organization",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [
-            {
-              "kind": "INTERFACE",
-              "name": "HovercardContext",
-              "ofType": null
-            }
-          ],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
           "name": "ViewerHovercardContext",
           "description": "A hovercard context with a message describing how the viewer is related.",
           "fields": [
@@ -99077,55 +100574,6 @@
                 "ofType": {
                   "kind": "OBJECT",
                   "name": "User",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [
-            {
-              "kind": "INTERFACE",
-              "name": "HovercardContext",
-              "ofType": null
-            }
-          ],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "ReviewStatusHovercardContext",
-          "description": "A hovercard context with a message describing the current code review state of the pull\nrequest.\n",
-          "fields": [
-            {
-              "name": "message",
-              "description": "A string describing this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "octicon",
-              "description": "An octicon to accompany this context",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
                   "ofType": null
                 }
               },
