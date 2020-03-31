@@ -464,14 +464,9 @@ let job_action json =
   let commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
   let context = f "GitLab CI job %s (%s)" build_name (branch_or_pr branch) in
-  let gitlab_full_name =
+  let repo_full_name =
     json |> member "project_name" |> to_string
     |> Str.global_replace (Str.regexp " ") ""
-  in
-  let repo_full_name =
-    if String.equal gitlab_full_name "near-protocol/nearcore" then
-      "nearprotocol/nearcore"
-    else gitlab_full_name
   in
   let send_url (kind, url) =
     (fun () ->
@@ -487,7 +482,7 @@ let job_action json =
         >>= fun () ->
         send_status_check ~repo_full_name ~commit ~state:"failure"
           ~url:
-            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" gitlab_full_name
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
           ~context
           ~description:(description_base ^ ": not found.") )
@@ -504,7 +499,7 @@ let job_action json =
         >>= fun () ->
         send_status_check ~repo_full_name ~commit ~state:"failure"
           ~url:
-            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" gitlab_full_name
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
           ~context
           ~description:(failure_reason ^ " on GitLab CI")
@@ -546,7 +541,7 @@ let job_action json =
         <&> send_status_check ~repo_full_name ~commit ~state:"success"
               ~url:
                 (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                   gitlab_full_name build_id)
+                   repo_full_name build_id)
               ~context
               ~description:"Test succeeded on GitLab CI after being retried"
       else Lwt.return () )
