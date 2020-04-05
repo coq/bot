@@ -26,7 +26,7 @@ stdenv.mkDerivation rec {
     [ # Compiler and dev tools
       ocaml
       findlib
-      dune
+      dune_2
       utop
       ncurses
       merlin
