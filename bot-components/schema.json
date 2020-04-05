@@ -10366,26 +10366,6 @@
               "description": "Repositories the user has starred.",
               "args": [
                 {
-                  "name": "ownedByViewer",
-                  "description": "Filters starred repositories to only return repositories owned by the viewer.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "orderBy",
-                  "description": "Order for connection",
-                  "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "StarOrder",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
                   "name": "after",
                   "description": "Returns the elements in the list that come after the specified cursor.",
                   "type": {
@@ -10421,6 +10401,26 @@
                   "type": {
                     "kind": "SCALAR",
                     "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "ownedByViewer",
+                  "description": "Filters starred repositories to only return repositories owned by the viewer.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Boolean",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "orderBy",
+                  "description": "Order for connection",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "StarOrder",
                     "ofType": null
                   },
                   "defaultValue": null
@@ -30255,6 +30255,11 @@
             },
             {
               "kind": "INTERFACE",
+              "name": "Minimizable",
+              "ofType": null
+            },
+            {
+              "kind": "INTERFACE",
               "name": "Updatable",
               "ofType": null
             },
@@ -30276,6 +30281,82 @@
           ],
           "enumValues": null,
           "possibleTypes": null
+        },
+        {
+          "kind": "INTERFACE",
+          "name": "Minimizable",
+          "description": "Entities that can be minimized.",
+          "fields": [
+            {
+              "name": "isMinimized",
+              "description": "Returns whether or not a comment has been minimized.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "minimizedReason",
+              "description": "Returns why the comment was minimized.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "viewerCanMinimize",
+              "description": "Check if the current viewer can minimize this object.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": [
+            {
+              "kind": "OBJECT",
+              "name": "CommitComment",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "IssueComment",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "PullRequestReviewComment",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "GistComment",
+              "ofType": null
+            }
+          ]
         },
         {
           "kind": "OBJECT",
@@ -30903,6 +30984,18 @@
                   "name": "GitObjectID",
                   "ofType": null
                 }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "onBehalfOf",
+              "description": "The organization this commit was made on behalf of.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "Organization",
+                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -37882,6 +37975,11 @@
             },
             {
               "kind": "INTERFACE",
+              "name": "Minimizable",
+              "ofType": null
+            },
+            {
+              "kind": "INTERFACE",
               "name": "Updatable",
               "ofType": null
             },
@@ -39029,6 +39127,22 @@
               "deprecationReason": null
             },
             {
+              "name": "diffSide",
+              "description": "The side of the diff on which this thread was placed.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "DiffSide",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "id",
               "description": null,
               "args": [],
@@ -39056,6 +39170,42 @@
                   "name": "Boolean",
                   "ofType": null
                 }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "line",
+              "description": "The line in the file to which this thread refers",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "originalLine",
+              "description": "The original line in the file to which this thread refers.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "originalStartLine",
+              "description": "The original start line in the file to which this thread refers (multi-line only).",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -39099,6 +39249,30 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "User",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "startDiffSide",
+              "description": "The side of the diff that the first line of the thread starts on (multi-line only)",
+              "args": [],
+              "type": {
+                "kind": "ENUM",
+                "name": "DiffSide",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "startLine",
+              "description": "The start line in the file to which this thread refers (multi-line only)",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -39993,6 +40167,11 @@
             },
             {
               "kind": "INTERFACE",
+              "name": "Minimizable",
+              "ofType": null
+            },
+            {
+              "kind": "INTERFACE",
               "name": "Updatable",
               "ofType": null
             },
@@ -40780,6 +40959,29 @@
             {
               "name": "SUBMITTED",
               "description": "A comment that is part of a submitted review",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "DiffSide",
+          "description": "The possible sides of a diff.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "LEFT",
+              "description": "The left side of the diff.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "RIGHT",
+              "description": "The right side of the diff.",
               "isDeprecated": false,
               "deprecationReason": null
             }
@@ -48950,6 +49152,11 @@
             {
               "kind": "INTERFACE",
               "name": "Deletable",
+              "ofType": null
+            },
+            {
+              "kind": "INTERFACE",
+              "name": "Minimizable",
               "ofType": null
             },
             {
@@ -84778,6 +84985,33 @@
               "deprecationReason": null
             },
             {
+              "name": "addPullRequestReviewThread",
+              "description": "Adds a new thread to a pending Pull Request Review.",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "AddPullRequestReviewThreadInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "AddPullRequestReviewThreadPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "addReaction",
               "description": "Adds a reaction to a subject.",
               "args": [
@@ -85939,6 +86173,33 @@
               "deprecationReason": null
             },
             {
+              "name": "minimizeComment",
+              "description": "Minimizes a comment on an Issue, Commit, Pull Request, or Gist",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "MinimizeCommentInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "MinimizeCommentPayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "moveProjectCard",
               "description": "Moves a project card to another place.",
               "args": [
@@ -86554,6 +86815,33 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "UnmarkIssueAsDuplicatePayload",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "unminimizeComment",
+              "description": "Unminimizes a comment on an Issue, Commit, Pull Request, or Gist",
+              "args": [
+                {
+                  "name": "input",
+                  "description": null,
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "INPUT_OBJECT",
+                      "name": "UnminimizeCommentInput",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "OBJECT",
+                "name": "UnminimizeCommentPayload",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -88231,6 +88519,20 @@
               "defaultValue": null
             },
             {
+              "name": "threads",
+              "description": "The review line comment threads.",
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "DraftPullRequestReviewThread",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
               "name": "clientMutationId",
               "description": "A unique identifier for the client performing the mutation.",
               "type": {
@@ -88313,6 +88615,89 @@
                 }
               },
               "defaultValue": null
+            },
+            {
+              "name": "body",
+              "description": "Body of the comment to leave.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "DraftPullRequestReviewThread",
+          "description": "Specifies a review comment thread to be left with a Pull Request Review.",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "path",
+              "description": "Path to the file being commented on.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "line",
+              "description": "The line of the blob to which the thread refers. The end of the line range for multi-line comments.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "side",
+              "description": "The side of the diff on which the line resides. For multi-line comments, this is the side for the end of the line range.",
+              "type": {
+                "kind": "ENUM",
+                "name": "DiffSide",
+                "ofType": null
+              },
+              "defaultValue": "RIGHT"
+            },
+            {
+              "name": "startLine",
+              "description": "The first line of the range to which the comment refers.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "startSide",
+              "description": "The side of the diff on which the start line resides.",
+              "type": {
+                "kind": "ENUM",
+                "name": "DiffSide",
+                "ofType": null
+              },
+              "defaultValue": "RIGHT"
             },
             {
               "name": "body",
@@ -88511,6 +88896,148 @@
               "type": {
                 "kind": "OBJECT",
                 "name": "PullRequestReviewCommentEdge",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "AddPullRequestReviewThreadInput",
+          "description": "Autogenerated input type of AddPullRequestReviewThread",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "path",
+              "description": "Path to the file being commented on.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "body",
+              "description": "Body of the thread's first comment.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "pullRequestReviewId",
+              "description": "The Node ID of the review to modify.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "line",
+              "description": "The line of the blob to which the thread refers. The end of the line range for multi-line comments.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "side",
+              "description": "The side of the diff on which the line resides. For multi-line comments, this is the side for the end of the line range.",
+              "type": {
+                "kind": "ENUM",
+                "name": "DiffSide",
+                "ofType": null
+              },
+              "defaultValue": "RIGHT"
+            },
+            {
+              "name": "startLine",
+              "description": "The first line of the range to which the comment refers.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "startSide",
+              "description": "The side of the diff on which the start line resides.",
+              "type": {
+                "kind": "ENUM",
+                "name": "DiffSide",
+                "ofType": null
+              },
+              "defaultValue": "RIGHT"
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "AddPullRequestReviewThreadPayload",
+          "description": "Autogenerated return type of AddPullRequestReviewThread",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "thread",
+              "description": "The newly created thread.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "PullRequestReviewThread",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -92687,6 +93214,137 @@
         },
         {
           "kind": "INPUT_OBJECT",
+          "name": "MinimizeCommentInput",
+          "description": "Autogenerated input type of MinimizeComment",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "subjectId",
+              "description": "The Node ID of the subject to modify.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "classifier",
+              "description": "The classification of comment",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "ReportedContentClassifiers",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "ReportedContentClassifiers",
+          "description": "The reasons a piece of content can be reported or minimized.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "SPAM",
+              "description": "A spammy piece of content",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ABUSE",
+              "description": "An abusive or harassing piece of content",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "OFF_TOPIC",
+              "description": "An irrelevant piece of content",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "OUTDATED",
+              "description": "An outdated piece of content",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "DUPLICATE",
+              "description": "A duplicated piece of content",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "RESOLVED",
+              "description": "The content has been resolved",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "MinimizeCommentPayload",
+          "description": "Autogenerated return type of MinimizeComment",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "minimizedComment",
+              "description": "The comment that was minimized.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Minimizable",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
           "name": "MoveProjectCardInput",
           "description": "Autogenerated input type of MoveProjectCard",
           "fields": null,
@@ -94722,6 +95380,76 @@
               "type": {
                 "kind": "UNION",
                 "name": "IssueOrPullRequest",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "UnminimizeCommentInput",
+          "description": "Autogenerated input type of UnminimizeComment",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "subjectId",
+              "description": "The Node ID of the subject to modify.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "UnminimizeCommentPayload",
+          "description": "Autogenerated return type of UnminimizeComment",
+          "fields": [
+            {
+              "name": "clientMutationId",
+              "description": "A unique identifier for the client performing the mutation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "unminimizedComment",
+              "description": "The comment that was unminimized.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Minimizable",
                 "ofType": null
               },
               "isDeprecated": false,
