@@ -1,8 +1,20 @@
 { pkgs ?
   import (fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/c0e56afddbcf6002e87a5ab0e8e17f381e3aa9bd.tar.gz";
-    sha256 = "1zg28j760qgjncqrf4wyb7ijzhnz0ljyvhvv87m578c7s84i851l";
-  }) {}
+    url = "https://github.com/NixOS/nixpkgs/archive/fa7445532900f2555435076c1e7dce0684daa01a.tar.gz";
+    sha256 = "1hbf7kmbxmd19hj3kz9lglnyi4g20jjychmlhcz4bx1limfv3c3r";
+  }) {
+    overlays = [
+      (self: super:
+        let openssl = super.openssl_1_0_2; in {
+        ocamlPackages =
+          super.ocaml-ng.ocamlPackages_4_06.overrideScope' (self: super: {
+            ssl = super.ssl.override {
+              inherit openssl;
+            };
+          });
+      })
+    ];
+  }
 }:
 
 with pkgs;
@@ -18,7 +30,7 @@ stdenv.mkDerivation rec {
       utop
       ncurses
       merlin
-      ocamlformat
+      #ocamlformat
       nodePackages.graphql-cli
       # Direct dependencies
       base
@@ -37,8 +49,8 @@ stdenv.mkDerivation rec {
       heroku
     ];
 
+  # export OCAMLFORMAT_LOCATION=${ocamlformat}
   shellHook = ''
-    export OCAMLFORMAT_LOCATION=${ocamlformat}
     export GRAPHQL_PPX_SCHEMA=$(pwd)/bot-components/schema.json
   '';
 }
