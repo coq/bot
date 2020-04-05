@@ -7,7 +7,7 @@
       (self: super:
         let openssl = super.openssl_1_0_2; in {
         ocamlPackages =
-          super.ocaml-ng.ocamlPackages_4_06.overrideScope' (self: super: {
+          super.ocaml-ng.ocamlPackages_4_09.overrideScope' (self: super: {
             ssl = super.ssl.override {
               inherit openssl;
             };
@@ -30,7 +30,7 @@ stdenv.mkDerivation rec {
       utop
       ncurses
       merlin
-      #ocamlformat
+      ocamlformat
       nodePackages.graphql-cli
       # Direct dependencies
       base
@@ -49,8 +49,8 @@ stdenv.mkDerivation rec {
       heroku
     ];
 
-  # export OCAMLFORMAT_LOCATION=${ocamlformat}
   shellHook = ''
+    export OCAMLFORMAT_LOCATION=${ocamlformat}
     export GRAPHQL_PPX_SCHEMA=$(pwd)/bot-components/schema.json
   '';
 }
