@@ -20,7 +20,8 @@ let send_graphql_query ~token query =
   Cohttp_lwt.Body.to_string body
   >|= fun body ->
   match Cohttp.Code.(code_of_status rsp.status |> is_success) with
-  | false -> Error body
+  | false ->
+      Error body
   | true -> (
     try
       Ok
@@ -28,7 +29,8 @@ let send_graphql_query ~token query =
         |> Yojson.Basic.Util.member "data"
         |> query#parse )
     with
-    | Yojson.Json_error err -> Error (f "Json error: %s" err)
+    | Yojson.Json_error err ->
+        Error (f "Json error: %s" err)
     | Yojson.Basic.Util.Type_error (err, _) ->
         Error (f "Json type error: %s" err) )
 
@@ -82,7 +84,7 @@ let get_backport_info bot_name description =
                { backport_info=
                    {backport_to; request_inclusion_column; backported_column}
                    :: backport_info
-               ; rejected_milestone } )
+               ; rejected_milestone })
       else if string_match ~regexp:end_regexp string then
         let rejected_milestone = Str.matched_group 1 string in
         Some {backport_info= []; rejected_milestone}
@@ -105,25 +107,28 @@ let pull_request_milestone_and_cards ~token ~owner ~repo ~number =
       match result#pullRequest with
       | Some result ->
           let cards =
-            match (result#projectCards)#nodes with
-            | None -> []
+            match result#projectCards#nodes with
+            | None ->
+                []
             | Some cards ->
                 cards |> Array.to_list |> List.filter_opt
                 |> List.map ~f:(fun card ->
                        { id= card#id
                        ; column= card#column
                        ; columns=
-                           ( match ((card#project)#columns)#nodes with
-                           | None -> []
+                           ( match card#project#columns#nodes with
+                           | None ->
+                               []
                            | Some columns ->
-                               columns |> Array.to_list |> List.filter_opt ) }
-                   )
+                               columns |> Array.to_list |> List.filter_opt ) })
           in
           Ok (cards, result#milestone)
       | None ->
           Error (f "Pull request %s/%s#%d does not exist." owner repo number) )
-    | None -> Error (f "Repository %s/%s does not exist." owner repo) )
-  | Error err -> Error err
+    | None ->
+        Error (f "Repository %s/%s does not exist." owner repo) )
+  | Error err ->
+      Error err
 
 type mv_card_to_column_input = {card_id: string; column_id: string}
 
@@ -138,7 +143,7 @@ let backported_pr_info ~token number base_ref =
       >>= (fun full_backport_info ->
             full_backport_info.backport_info
             |> List.find ~f:(fun {backport_to} ->
-                   String.equal ("refs/heads/" ^ backport_to) base_ref ) )
+                   String.equal ("refs/heads/" ^ backport_to) base_ref))
       >>= fun {request_inclusion_column; backported_column} ->
       List.find_map cards ~f:(fun card ->
           if
@@ -151,8 +156,8 @@ let backported_pr_info ~token number base_ref =
                   Option.equal Int.equal (Some backported_column)
                     column.databaseId
                 then Some {card_id= card.id; column_id= column.id}
-                else None )
-          else None )
+                else None)
+          else None)
   | Error err ->
       Stdio.printf "Error in backported_pr_info: %s\n" err ;
       None
@@ -162,7 +167,8 @@ let get_pull_request_id_and_milestone ~token ~owner ~repo ~number =
   |> send_graphql_query ~token
   >|= Result.bind ~f:(fun result ->
           match result#repository with
-          | None -> Error (f "Repository %s/%s does not exist." owner repo)
+          | None ->
+              Error (f "Repository %s/%s does not exist." owner repo)
           | Some result -> (
             match result#pullRequest with
             | None ->
@@ -183,31 +189,39 @@ let get_pull_request_id_and_milestone ~token ~owner ~repo ~number =
                     ( match milestone#description with
                     | Some description -> (
                       match get_backport_info "coqbot" description with
-                      | Some bp_info -> Some (pr#id, db_id, bp_info)
-                      | _ -> None )
-                    | _ -> None ) ) ) )
+                      | Some bp_info ->
+                          Some (pr#id, db_id, bp_info)
+                      | _ ->
+                          None )
+                    | _ ->
+                        None ) ) ))
 
 let team_membership_of_resp ~org ~team ~user resp =
   match resp#organization with
-  | None -> Error (f "Organization %s does not exist." org)
+  | None ->
+      Error (f "Organization %s does not exist." org)
   | Some resp -> (
     match resp#team with
-    | None -> Error (f "Team @%s/%s does not exist." org team)
+    | None ->
+        Error (f "Team @%s/%s does not exist." org team)
     | Some resp -> (
-      match (resp#members)#nodes with
+      match resp#members#nodes with
       | Some members
         when members
              |> Array.exists ~f:(function
-                  | Some member when String.equal member#login user -> true
-                  | _ -> false ) ->
+                  | Some member when String.equal member#login user ->
+                      true
+                  | _ ->
+                      false) ->
           Ok true
-      | _ -> Ok false ) )
+      | _ ->
+          Ok false ) )
 
 let get_team_membership ~token ~org ~team ~user =
   TeamMembership.make ~org ~team ~user ()
   |> send_graphql_query ~token
   >|= Result.map_error ~f:(fun err ->
-          f "Query get_team_membership failed with %s" err )
+          f "Query get_team_membership failed with %s" err)
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
 
 let pull_request_info_of_resp
@@ -215,10 +229,12 @@ let pull_request_info_of_resp
     resp : (GitHub_subscriptions.pull_request_info, string) Result.t =
   let repo_url = f "https://github.com/%s/%s" owner repo in
   match resp#repository with
-  | None -> Error (f "Unknown repository %s/%s." owner repo)
+  | None ->
+      Error (f "Unknown repository %s/%s." owner repo)
   | Some repository -> (
     match repository#pullRequest with
-    | None -> Error (f "Unknown pull request %s/%s#%d." owner repo number)
+    | None ->
+        Error (f "Unknown pull request %s/%s#%d." owner repo number)
     | Some pull_request ->
         Ok
           { issue
@@ -236,7 +252,7 @@ let get_pull_request_refs ~token
   PullRequest_Refs.make ~owner ~repo ~number ()
   |> send_graphql_query ~token
   >|= Result.map_error ~f:(fun err ->
-          f "Query pull_request_info failed with %s" err )
+          f "Query pull_request_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_info_of_resp issue)
 
 type closer_info = {pull_request_id: string; milestone_id: string option}
@@ -253,30 +269,40 @@ type 'a closed_by =
 
 let closer_info_option_of_closer closer =
   match closer with
-  | None | Some `Nonexhaustive -> Ok ClosedByOther
-  | Some (`PullRequest pr) -> Ok (ClosedByPullRequest (closer_info_of_pr pr))
+  | None | Some `Nonexhaustive ->
+      Ok ClosedByOther
+  | Some (`PullRequest pr) ->
+      Ok (ClosedByPullRequest (closer_info_of_pr pr))
   | Some (`Commit commit) -> (
     match commit#associatedPullRequests with
-    | None -> Ok ClosedByCommit
+    | None ->
+        Ok ClosedByCommit
     | Some prs -> (
       match prs#nodes with
-      | Some [||] -> Ok ClosedByCommit
-      | Some [|Some pr|] -> Ok (ClosedByPullRequest (closer_info_of_pr pr))
-      | Some [|None|] -> Error "Closer query response is not well-formed."
-      | Some _ -> Error "Closing commit associated to several pull requests."
-      | _ -> Error "Closer query response is not well-formed." ) )
+      | Some [||] ->
+          Ok ClosedByCommit
+      | Some [|Some pr|] ->
+          Ok (ClosedByPullRequest (closer_info_of_pr pr))
+      | Some [|None|] ->
+          Error "Closer query response is not well-formed."
+      | Some _ ->
+          Error "Closing commit associated to several pull requests."
+      | _ ->
+          Error "Closer query response is not well-formed." ) )
 
 type issue_closer_info =
   {issue_id: string; milestone_id: string option; closer: closer_info}
 
 let issue_closer_info_of_resp ~owner ~repo ~number resp =
   match resp#repository with
-  | None -> Error (f "Unknown repository %s/%s." owner repo)
+  | None ->
+      Error (f "Unknown repository %s/%s." owner repo)
   | Some repository -> (
     match repository#issue with
-    | None -> Error (f "Unknown issue %s/%s#%d." owner repo number)
+    | None ->
+        Error (f "Unknown issue %s/%s#%d." owner repo number)
     | Some issue -> (
-      match (issue#timelineItems)#nodes with
+      match issue#timelineItems#nodes with
       | Some [|Some (`ClosedEvent event)|] ->
           event#closer |> closer_info_option_of_closer
           |> Result.map ~f:(function
@@ -287,14 +313,15 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
                          issue#milestone
                          |> Option.map ~f:(fun milestone -> milestone#id)
                      ; closer= closer_info }
-               | (ClosedByCommit | ClosedByOther) as reason -> reason )
-      | _ -> Error (f "No close event for issue %s/%s#%d." owner repo number) )
-    )
+               | (ClosedByCommit | ClosedByOther) as reason ->
+                   reason)
+      | _ ->
+          Error (f "No close event for issue %s/%s#%d." owner repo number) ) )
 
 let get_issue_closer_info ~token
     ({owner; repo; number} : GitHub_subscriptions.issue) =
   Issue_Milestone.make ~owner ~repo ~number ()
   |> send_graphql_query ~token
   >|= Result.map_error ~f:(fun err ->
-          f "Query issue_milestone failed with %s" err )
+          f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)

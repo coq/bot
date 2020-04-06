@@ -23,8 +23,8 @@ let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
 let bot_name = try Sys.getenv "BOT_NAME" with Not_found -> "coqbot"
 
 let bot_email =
-  try Sys.getenv "BOT_EMAIL" with Not_found ->
-    f "%s@users.noreply.github.com" bot_name
+  try Sys.getenv "BOT_EMAIL"
+  with Not_found -> f "%s@users.noreply.github.com" bot_name
 
 open Base
 
@@ -56,8 +56,8 @@ let git_fetch ?(force = true)
     (if force then "+" else "")
     remote_ref.name local_branch_name
 
-let git_push ?(force = true)
-    (remote_ref : GitHub_subscriptions.remote_ref_info) local_ref =
+let git_push ?(force = true) (remote_ref : GitHub_subscriptions.remote_ref_info)
+    local_ref =
   f "git push %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then " +" else " ")
     local_ref remote_ref.name
@@ -69,8 +69,10 @@ let git_make_ancestor ~base head =
   |> Lwt_unix.system
   >|= fun status ->
   match status with
-  | Unix.WEXITED 0 -> Ok true (* merge successful *)
-  | Unix.WEXITED 10 -> Ok false (* merge unsuccessful *)
+  | Unix.WEXITED 0 ->
+      Ok true (* merge successful *)
+  | Unix.WEXITED 10 ->
+      Ok false (* merge unsuccessful *)
   | Unix.WEXITED code ->
       Error (f "git_make_ancestor script exited with status %d." code)
   | Unix.WSIGNALED signal ->
@@ -89,8 +91,10 @@ let extract_commit json =
        reference of the commit, while in the case of pipeline hooks only id
        is present and represents the sha. *)
     ( match commit_json |> member "sha" with
-    | `Null -> commit_json |> member "id"
-    | sha -> sha )
+    | `Null ->
+        commit_json |> member "id"
+    | sha ->
+        sha )
     |> to_string
 
 let print_response (resp, body) =
@@ -121,7 +125,7 @@ let add_rebase_label (issue : GitHub_subscriptions.issue) =
       issue.repo issue.number
     |> (fun url ->
          Stdio.printf "URL: %s\n" url ;
-         url )
+         url)
     |> Uri.of_string
   in
   send_request ~body ~uri []
@@ -133,7 +137,7 @@ let remove_rebase_label (issue : GitHub_subscriptions.issue) =
       issue.owner issue.repo issue.number
     |> (fun url ->
          Stdio.printf "URL: %s\n" url ;
-         url )
+         url)
     |> Uri.of_string
   in
   Lwt_io.printf "Sending delete request.\n"
@@ -146,7 +150,7 @@ let update_milestone new_milestone (issue : GitHub_subscriptions.issue) =
       issue.number
     |> (fun url ->
          Stdio.printf "URL: %s\n" url ;
-         url )
+         url)
     |> Uri.of_string
   in
   let body =
@@ -163,7 +167,7 @@ let add_pr_to_column pr_id column_id =
     ^ ", \"content_type\": \"PullRequest\"}"
     |> (fun body ->
          Stdio.printf "Body:\n%s\n" body ;
-         body )
+         body)
     |> Cohttp_lwt.Body.of_string
   in
   let uri =
@@ -171,7 +175,7 @@ let add_pr_to_column pr_id column_id =
     ^ "/cards"
     |> (fun url ->
          Stdio.printf "URL: %s\n" url ;
-         url )
+         url)
     |> Uri.of_string
   in
   send_request ~body ~uri project_api_preview_header
@@ -187,7 +191,7 @@ let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
     ^ "\"}"
     |> (fun body ->
          Stdio.printf "Body:\n %s\n" body ;
-         body )
+         body)
     |> Cohttp_lwt.Body.of_string
   in
   let uri =
@@ -202,7 +206,7 @@ let retry_job ~project_id ~build_id =
     ^ Int.to_string build_id ^ "/retry"
     |> (fun url ->
          Stdio.printf "URL: %s\n" url ;
-         url )
+         url)
     |> Uri.of_string
   in
   send_request ~body:Cohttp_lwt.Body.empty ~uri gitlab_header
@@ -234,7 +238,7 @@ let get_status_check ~repo_full_name ~commit ~context =
       let open Yojson.Basic.Util in
       json |> to_list
       |> List.exists ~f:(fun json ->
-             json |> member "context" |> to_string |> String.equal context ) )
+             json |> member "context" |> to_string |> String.equal context))
 
 let get_cards_in_column column_id =
   generic_get
@@ -253,14 +257,13 @@ let get_cards_in_column column_id =
              if string_match ~regexp content_url then
                let pr_number = Str.matched_group 1 content_url in
                Some (pr_number, card_id)
-             else None ) )
+             else None))
 
 let gitlab_ref (issue : GitHub_subscriptions.issue) :
     GitHub_subscriptions.remote_ref_info =
   {name= f "pr-%d" issue.number; repo_url= gitlab_repo issue.owner issue.repo}
 
-let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) ()
-    =
+let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) () =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
@@ -310,11 +313,13 @@ let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
   GitHub_queries.get_pull_request_id_and_milestone ~token:github_access_token
     ~owner:"coq" ~repo:"coq" ~number:issue.number
   >>= function
-  | Error err -> Lwt_io.printf "Error: %s\n" err
-  | Ok None -> Lwt_io.printf "Could not find backporting info for PR.\n"
+  | Error err ->
+      Lwt_io.printf "Error: %s\n" err
+  | Ok None ->
+      Lwt_io.printf "Could not find backporting info for PR.\n"
   | Ok (Some (id, _, {backport_info; rejected_milestone}))
     when List.exists backport_info ~f:(fun {request_inclusion_column} ->
-             Int.equal request_inclusion_column column_id ) ->
+             Int.equal request_inclusion_column column_id) ->
       Lwt_io.printf
         "This was a request inclusion column: PR was rejected.\n\
          Change of milestone requested to: %s\n"
@@ -326,7 +331,8 @@ let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
               "This PR was postponed. Please update accordingly the milestone \
                of any issue that this fixes as this cannot be done \
                automatically."
-  | _ -> Lwt_io.printf "This was not a request inclusion column: ignoring.\n"
+  | _ ->
+      Lwt_io.printf "This was not a request inclusion column: ignoring.\n"
 
 let push_action json =
   Stdio.printf "Merge and backport commit messages:\n" ;
@@ -348,7 +354,7 @@ let push_action json =
                (fun { GitHub_queries.backport_to
                     ; request_inclusion_column
                     ; backported_column }
-               ->
+                    ->
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
                    Lwt_io.printf
                      "PR was merged into the backportig branch directly.\n"
@@ -356,10 +362,11 @@ let push_action json =
                  else
                    Lwt_io.printf "Backporting to %s was requested.\n"
                      backport_to
-                   >>= fun () ->
-                   add_pr_to_column pr_id request_inclusion_column )
-      | Ok None -> Lwt_io.printf "Did not get any backporting info.\n"
-      | Error err -> Lwt_io.printf "Error: %s\n" err
+                   >>= fun () -> add_pr_to_column pr_id request_inclusion_column)
+      | Ok None ->
+          Lwt_io.printf "Did not get any backporting info.\n"
+      | Error err ->
+          Lwt_io.printf "Error: %s\n" err
     else if string_match ~regexp:"^Backport PR #\\([0-9]*\\):" commit_msg then
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
@@ -376,7 +383,7 @@ let push_action json =
     else Lwt.return ()
   in
   (fun () ->
-    json |> member "commits" |> to_list |> Lwt_list.iter_s commit_action )
+    json |> member "commits" |> to_list |> Lwt_list.iter_s commit_action)
   |> Lwt.async
 
 let get_build_trace ~project_id ~build_id =
@@ -475,8 +482,8 @@ let job_action json =
       url |> Uri.of_string |> Client.get
       >>= fun (resp, _) ->
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-        send_status_check ~repo_full_name ~commit ~state:"success" ~url
-          ~context ~description:(description_base ^ ".")
+        send_status_check ~repo_full_name ~commit ~state:"success" ~url ~context
+          ~description:(description_base ^ ".")
       else
         Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
         >>= fun () ->
@@ -485,7 +492,7 @@ let job_action json =
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
           ~context
-          ~description:(description_base ^ ": not found.") )
+          ~description:(description_base ^ ": not found."))
     |> Lwt.async
   in
   if String.equal build_status "failed" then
@@ -532,7 +539,7 @@ let job_action json =
         | Retry -> retry_job ~project_id ~build_id
         | Ignore -> Lwt.return ()
         *)
-      else Lwt_io.printf "Unusual error.\n" <&> send_status_check () )
+      else Lwt_io.printf "Unusual error.\n" <&> send_status_check ())
     |> Lwt.async
   else if String.equal build_status "success" then (
     (fun () ->
@@ -544,11 +551,11 @@ let job_action json =
            override it.\n"
         <&> send_status_check ~repo_full_name ~commit ~state:"success"
               ~url:
-                (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                   repo_full_name build_id)
+                (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+                   build_id)
               ~context
               ~description:"Test succeeded on GitLab CI after being retried"
-      else Lwt.return () )
+      else Lwt.return ())
     |> Lwt.async ;
     if String.equal build_name "doc:refman" then (
       Stdio.printf
@@ -590,16 +597,23 @@ let pipeline_action json =
     else gitlab_full_name
   in
   match state with
-  | "skipped" -> ()
+  | "skipped" ->
+      ()
   | _ ->
       let state, description =
         match state with
-        | "success" -> ("success", "Pipeline completed on GitLab CI")
-        | "pending" -> ("pending", "Pipeline is pending on GitLab CI")
-        | "running" -> ("pending", "Pipeline is running on GitLab CI")
-        | "failed" -> ("failure", "Pipeline completed with errors on GitLab CI")
-        | "cancelled" -> ("error", "Pipeline was cancelled on GitLab CI")
-        | _ -> ("error", "Unknown pipeline status: " ^ state)
+        | "success" ->
+            ("success", "Pipeline completed on GitLab CI")
+        | "pending" ->
+            ("pending", "Pipeline is pending on GitLab CI")
+        | "running" ->
+            ("pending", "Pipeline is running on GitLab CI")
+        | "failed" ->
+            ("failure", "Pipeline completed with errors on GitLab CI")
+        | "cancelled" ->
+            ("error", "Pipeline was cancelled on GitLab CI")
+        | _ ->
+            ("error", "Unknown pipeline status: " ^ state)
       in
       (fun () ->
         send_status_check ~repo_full_name ~commit ~state
@@ -607,7 +621,7 @@ let pipeline_action json =
             (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
                gitlab_full_name id)
           ~context:(f "GitLab CI pipeline (%s)" (branch_or_pr branch))
-          ~description )
+          ~description)
       |> Lwt.async
 
 let owner_team_map =
@@ -625,9 +639,12 @@ let callback _conn req body =
     Server.respond_string ~status:`OK ~body:"" ()
   in
   match Uri.path (Request.uri req) with
-  | "/job" -> handle_request job_action
-  | "/pipeline" -> handle_request pipeline_action
-  | "/push" -> handle_request push_action
+  | "/job" ->
+      handle_request job_action
+  | "/pipeline" ->
+      handle_request pipeline_action
+  | "/push" ->
+      handle_request push_action
   | "/pull_request" | "/github" -> (
       body
       >>= fun body ->
@@ -660,15 +677,16 @@ let callback _conn req body =
                   ~message:
                     (f
                        "Hello, thanks for your pull request!\n\
-                        In the future, we strongly recommend that you *do \
-                        not* use %s as the name of your branch when \
-                        submitting a pull request.\n\
+                        In the future, we strongly recommend that you *do not* \
+                        use %s as the name of your branch when submitting a \
+                        pull request.\n\
                         By the way, you may be interested in reading [our \
                         contributing \
                         guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
-                       pr_info.base.branch.name) )
+                       pr_info.base.branch.name))
               |> Lwt.async
-          | _ -> () ) ;
+          | _ ->
+              () ) ;
           match Map.find owner_team_map pr_info.issue.issue.owner with
           | Some team when signed ->
               (fun () ->
@@ -681,9 +699,9 @@ let callback _conn req body =
                         pull_request_updated pr_info () )
                       else
                         Lwt_io.print "Unauthorized user: doing nothing.\n"
-                        |> Lwt_result.ok )
+                        |> Lwt_result.ok)
                 |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                       Lwt_io.printf "Error: %s\n" err ) )
+                       Lwt_io.printf "Error: %s\n" err))
               |> Lwt.async ;
               Server.respond_string ~status:`OK
                 ~body:
@@ -709,8 +727,8 @@ let callback _conn req body =
       | Ok (_, GitHub_subscriptions.IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (* We implement an exponential backoff strategy to try again
-            after 5, 25, and 125 seconds, if the issue was closed by a
-            commit not yet associated to a pull request. *)
+             after 5, 25, and 125 seconds, if the issue was closed by a
+             commit not yet associated to a pull request. *)
           let rec adjust_milestone sleep_time () =
             GitHub_queries.get_issue_closer_info ~token:github_access_token
               issue
@@ -733,7 +751,8 @@ let callback _conn req body =
             | Ok GitHub_queries.ClosedByOther ->
                 (* Not worth trying again *)
                 Lwt_io.print "Not closed by pull request or commit.\n"
-            | Error err -> Lwt_io.print (f "Error: %s\n" err)
+            | Error err ->
+                Lwt_io.print (f "Error: %s\n" err)
           in
           adjust_milestone 5. |> Lwt.async ;
           Server.respond_string ~status:`OK
@@ -757,13 +776,13 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
       | Ok
-          ( _
-          , GitHub_subscriptions.CommentCreated {issue= {pull_request= false}}
-          ) ->
+          (_, GitHub_subscriptions.CommentCreated {issue= {pull_request= false}})
+        ->
           Server.respond_string ~status:`OK
             ~body:"Issue comment: nothing to do." ()
       | Ok (signed, GitHub_subscriptions.CommentCreated comment_info)
-        when string_match ~regexp:"@coqbot: [Rr]un CI now" comment_info.body -> (
+        when string_match ~regexp:"@coqbot: [Rr]un CI now" comment_info.body
+        -> (
         match Map.find owner_team_map comment_info.issue.issue.owner with
         | Some team when signed ->
             (fun () ->
@@ -775,16 +794,17 @@ let callback _conn req body =
                     if is_member then (
                       Stdio.printf "Authorized user: pushing to GitLab.\n" ;
                       match comment_info.pull_request with
-                      | Some pr_info -> pull_request_updated pr_info ()
+                      | Some pr_info ->
+                          pull_request_updated pr_info ()
                       | None ->
                           GitHub_queries.get_pull_request_refs
                             ~token:github_access_token comment_info.issue
                           >>= fun pr_info -> pull_request_updated pr_info () )
                     else
                       Lwt_io.print "Unauthorized user: doing nothing.\n"
-                      |> Lwt_result.ok )
+                      |> Lwt_result.ok)
               |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                     Lwt_io.printf "Error: %s\n" err ) )
+                     Lwt_io.printf "Error: %s\n" err))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
@@ -809,27 +829,25 @@ let callback _conn req body =
         when string_match ~regexp:"@coqbot: [Mm]erge now" comment_info.body ->
           (* Should be restricted to coq *)
           Server.respond_string ~status:`OK
-            ~body:
-              (f "Received a request to merge the PR: not implemented yet.")
+            ~body:(f "Received a request to merge the PR: not implemented yet.")
             ()
       | Ok (_, GitHub_subscriptions.CommentCreated _) ->
           Server.respond_string ~status:`OK
             ~body:
               (f
-                 "Pull request comment doesn't contain any request to \
-                  @coqbot: nothing to do.")
+                 "Pull request comment doesn't contain any request to @coqbot: \
+                  nothing to do.")
             ()
       | Ok (_, GitHub_subscriptions.NoOp s) ->
-          Server.respond_string ~status:`OK
-            ~body:(f "No action taken: %s" s)
-            ()
+          Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
       | Ok _ ->
           Server.respond_string ~status:`OK
             ~body:"No action taken: event or action is not yet supported." ()
       | Error s ->
           Server.respond_string ~status:(Code.status_of_code 400)
             ~body:(f "Error: %s" s) () )
-  | _ -> Server.respond_not_found ()
+  | _ ->
+      Server.respond_not_found ()
 
 let server =
   (fun () ->
@@ -837,14 +855,13 @@ let server =
     <&> ( "git init --bare"
         |&& f "git config user.email \"%s\"" bot_email
         |&& f "git config user.name \"%s\"" bot_name
-        |> execute_cmd >|= ignore ) )
+        |> execute_cmd >|= ignore ))
   |> Lwt.async ;
   let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
 
 let () =
   Lwt.async_exception_hook :=
-    fun exn ->
-      Stdio.printf "Error: Unhandled exception: %s" (Exn.to_string exn)
+    fun exn -> Stdio.printf "Error: Unhandled exception: %s" (Exn.to_string exn)
 
 let () = Lwt_main.run server

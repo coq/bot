@@ -46,8 +46,10 @@ type msg =
 let issue_info_of_json ?issue_json json =
   let issue_json =
     match issue_json with
-    | None -> json |> member "issue"
-    | Some issue_json -> issue_json
+    | None ->
+        json |> member "issue"
+    | Some issue_json ->
+        issue_json
   in
   let repo_json = json |> member "repository" in
   { issue=
@@ -86,34 +88,41 @@ let project_card_of_json json =
     "https://api.github.com/repos/\\([^/]*\\)/\\([^/]*\\)/issues/\\([0-9]*\\)"
   in
   match card_json |> member "content_url" with
-  | `Null -> Ok {issue= None; column_id}
+  | `Null ->
+      Ok {issue= None; column_id}
   | `String content_url when string_match ~regexp content_url ->
       let owner = Str.matched_group 1 content_url in
       let repo = Str.matched_group 2 content_url in
       let number = Str.matched_group 3 content_url |> Int.of_string in
       Ok {issue= Some {owner; repo; number}; column_id}
-  | `String _ -> Error "Could not parse content_url field."
-  | _ -> Error "content_url field has unexpected type."
+  | `String _ ->
+      Error "Could not parse content_url field."
+  | _ ->
+      Error "content_url field has unexpected type."
 
 let comment_info_of_json ?(review_comment = false) json =
   let comment_json =
-    if review_comment then json |> member "review"
-    else json |> member "comment"
+    if review_comment then json |> member "review" else json |> member "comment"
   in
   let pull_request =
     if review_comment then Some (pull_request_info_of_json json) else None
   in
   { body=
       ( match comment_json |> member "body" with
-      | `String body -> body
-      | `Null (* body of review comments can be null *) -> ""
-      | _ -> raise (Yojson.Json_error "Unexpected type for field \"body\".") )
+      | `String body ->
+          body
+      | `Null (* body of review comments can be null *) ->
+          ""
+      | _ ->
+          raise (Yojson.Json_error "Unexpected type for field \"body\".") )
   ; author= comment_json |> member "user" |> member "login" |> to_string
   ; pull_request
   ; issue=
       ( match pull_request with
-      | Some pr_info -> pr_info.issue
-      | None -> issue_info_of_json json ) }
+      | Some pr_info ->
+          pr_info.issue
+      | None ->
+          issue_info_of_json json ) }
 
 let github_action ~event ~action json =
   match (event, action) with
@@ -122,8 +131,7 @@ let github_action ~event ~action json =
         (PullRequestUpdated (PullRequestOpened, pull_request_info_of_json json))
   | "pull_request", "reopened" ->
       Ok
-        (PullRequestUpdated
-           (PullRequestReopened, pull_request_info_of_json json))
+        (PullRequestUpdated (PullRequestReopened, pull_request_info_of_json json))
   | "pull_request", "synchronize" ->
       Ok
         (PullRequestUpdated
@@ -131,7 +139,8 @@ let github_action ~event ~action json =
   | "pull_request", "closed" ->
       Ok
         (PullRequestUpdated (PullRequestClosed, pull_request_info_of_json json))
-  | "issues", "closed" -> Ok (IssueClosed (issue_info_of_json json))
+  | "issues", "closed" ->
+      Ok (IssueClosed (issue_info_of_json json))
   | "project_card", "deleted" ->
       json |> project_card_of_json
       |> Result.map ~f:(fun card -> RemovedFromProject card)
@@ -139,24 +148,31 @@ let github_action ~event ~action json =
       Ok (CommentCreated (comment_info_of_json json))
   | "pull_request_review", "submitted" ->
       Ok (CommentCreated (comment_info_of_json json ~review_comment:true))
-  | _ -> Ok (NoOp "Unhandled GitHub action.")
+  | _ ->
+      Ok (NoOp "Unhandled GitHub action.")
 
 let github_event ~event json =
   match event with
-  | "pull_request" | "issues" | "project_card" | "issue_comment"
-   |"pull_request_review" ->
+  | "pull_request"
+  | "issues"
+  | "project_card"
+  | "issue_comment"
+  | "pull_request_review" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
   | "create" -> (
       let ref_info =
-        { repo_url=
-            json |> member "repository" |> member "html_url" |> to_string
+        { repo_url= json |> member "repository" |> member "html_url" |> to_string
         ; name= json |> member "ref" |> to_string }
       in
       match json |> member "ref_type" |> to_string with
-      | "branch" -> Ok (BranchCreated ref_info)
-      | "tag" -> Ok (TagCreated ref_info)
-      | ref_type -> Error (f "Unexpected ref_type: %s" ref_type) )
-  | _ -> Ok (NoOp "Unhandled GitHub event.")
+      | "branch" ->
+          Ok (BranchCreated ref_info)
+      | "tag" ->
+          Ok (TagCreated ref_info)
+      | ref_type ->
+          Error (f "Unexpected ref_type: %s" ref_type) )
+  | _ ->
+      Ok (NoOp "Unhandled GitHub event.")
 
 let receive_github ~secret headers body =
   let open Result in
@@ -171,7 +187,8 @@ let receive_github ~secret headers body =
            as recommended by GitHub *)
       if String.equal signature expected then return true
       else fail "Webhook signed but with wrong signature."
-  | None -> return false )
+  | None ->
+      return false )
   >>= fun signed ->
   match Header.get headers "X-GitHub-Event" with
   | Some event -> (
@@ -179,6 +196,9 @@ let receive_github ~secret headers body =
       let json = Yojson.Basic.from_string body in
       github_event ~event json |> Result.map ~f:(fun r -> (signed, r))
     with
-    | Yojson.Json_error err -> Error (f "Json error: %s" err)
-    | Type_error (err, _) -> Error (f "Json type error: %s" err) )
-  | None -> Error "Not a GitHub webhook."
+    | Yojson.Json_error err ->
+        Error (f "Json error: %s" err)
+    | Type_error (err, _) ->
+        Error (f "Json type error: %s" err) )
+  | None ->
+      Error "Not a GitHub webhook."
