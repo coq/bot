@@ -1709,6 +1709,16 @@
             },
             {
               "kind": "OBJECT",
+              "name": "AutomaticBaseChangeFailedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "AutomaticBaseChangeSucceededEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "BaseRefChangedEvent",
               "ofType": null
             },
@@ -1720,6 +1730,11 @@
             {
               "kind": "OBJECT",
               "name": "ConnectedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "ConvertToDraftEvent",
               "ofType": null
             },
             {
@@ -2119,6 +2134,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "IpAllowListEntry",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "OrganizationIdentityProvider",
               "ofType": null
             },
@@ -2149,17 +2169,17 @@
             },
             {
               "kind": "OBJECT",
-              "name": "IpAllowListEntry",
-              "ofType": null
-            },
-            {
-              "kind": "OBJECT",
               "name": "EnterpriseRepositoryInfo",
               "ofType": null
             },
             {
               "kind": "OBJECT",
               "name": "EnterpriseAdministratorInvitation",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "RepositoryInvitation",
               "ofType": null
             },
             {
@@ -2180,11 +2200,6 @@
             {
               "kind": "OBJECT",
               "name": "Blob",
-              "ofType": null
-            },
-            {
-              "kind": "OBJECT",
-              "name": "RepositoryInvitation",
               "ofType": null
             },
             {
@@ -4035,6 +4050,89 @@
               "deprecationReason": null
             },
             {
+              "name": "ipAllowListEnabledSetting",
+              "description": "The setting value for whether the organization has an IP allow list enabled.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "IpAllowListEnabledSettingValue",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ipAllowListEntries",
+              "description": "The IP addresses that are allowed to access resources owned by the organization.",
+              "args": [
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "orderBy",
+                  "description": "Ordering options for IP allow list entries returned.",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "IpAllowListEntryOrder",
+                    "ofType": null
+                  },
+                  "defaultValue": "{field: ALLOW_LIST_VALUE, direction: ASC}"
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "IpAllowListEntryConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "isVerified",
               "description": "Whether the organization has verified its profile email and website.",
               "args": [],
@@ -4496,121 +4594,6 @@
               },
               "isDeprecated": false,
               "deprecationReason": null
-            },
-            {
-              "name": "pinnedRepositories",
-              "description": "A list of repositories this user has pinned to their profile",
-              "args": [
-                {
-                  "name": "privacy",
-                  "description": "If non-null, filters repositories according to privacy",
-                  "type": {
-                    "kind": "ENUM",
-                    "name": "RepositoryPrivacy",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "orderBy",
-                  "description": "Ordering options for repositories returned from the connection",
-                  "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "RepositoryOrder",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "affiliations",
-                  "description": "Array of viewer's affiliation options for repositories returned from the connection. For example, OWNER will include only repositories that the current viewer owns.",
-                  "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "RepositoryAffiliation",
-                      "ofType": null
-                    }
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "ownerAffiliations",
-                  "description": "Array of owner's affiliation options for repositories returned from the connection. For example, OWNER will include only repositories that the organization or user being viewed owns.",
-                  "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "RepositoryAffiliation",
-                      "ofType": null
-                    }
-                  },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
-                },
-                {
-                  "name": "isLocked",
-                  "description": "If non-null, filters repositories according to whether they have been locked",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "after",
-                  "description": "Returns the elements in the list that come after the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "before",
-                  "description": "Returns the elements in the list that come before the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "first",
-                  "description": "Returns the first _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "last",
-                  "description": "Returns the last _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                }
-              ],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "RepositoryConnection",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "project",
@@ -8037,6 +8020,11 @@
             },
             {
               "kind": "OBJECT",
+              "name": "ConvertToDraftEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "ReadyForReviewEvent",
               "ofType": null
             },
@@ -8994,6 +8982,45 @@
               "deprecationReason": null
             },
             {
+              "name": "organizationVerifiedDomainEmails",
+              "description": "Verified email addresses that match verified domains for a specified organization the user is a member of.",
+              "args": [
+                {
+                  "name": "login",
+                  "description": "The login of the organization to match verified domains from.",
+                  "type": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "String",
+                      "ofType": null
+                    }
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "SCALAR",
+                      "name": "String",
+                      "ofType": null
+                    }
+                  }
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "organizations",
               "description": "A list of organizations the user belongs to.",
               "args": [
@@ -9215,121 +9242,6 @@
               },
               "isDeprecated": false,
               "deprecationReason": null
-            },
-            {
-              "name": "pinnedRepositories",
-              "description": "A list of repositories this user has pinned to their profile",
-              "args": [
-                {
-                  "name": "privacy",
-                  "description": "If non-null, filters repositories according to privacy",
-                  "type": {
-                    "kind": "ENUM",
-                    "name": "RepositoryPrivacy",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "orderBy",
-                  "description": "Ordering options for repositories returned from the connection",
-                  "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "RepositoryOrder",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "affiliations",
-                  "description": "Array of viewer's affiliation options for repositories returned from the connection. For example, OWNER will include only repositories that the current viewer owns.",
-                  "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "RepositoryAffiliation",
-                      "ofType": null
-                    }
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "ownerAffiliations",
-                  "description": "Array of owner's affiliation options for repositories returned from the connection. For example, OWNER will include only repositories that the organization or user being viewed owns.",
-                  "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "RepositoryAffiliation",
-                      "ofType": null
-                    }
-                  },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
-                },
-                {
-                  "name": "isLocked",
-                  "description": "If non-null, filters repositories according to whether they have been locked",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "after",
-                  "description": "Returns the elements in the list that come after the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "before",
-                  "description": "Returns the elements in the list that come before the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "first",
-                  "description": "Returns the first _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "last",
-                  "description": "Returns the last _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                }
-              ],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "RepositoryConnection",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "project",
@@ -13188,7 +13100,7 @@
                 }
               },
               "isDeprecated": true,
-              "deprecationReason": "`timeline` will be removed Use Issue.timelineItems instead. Removal on 2019-10-01 UTC."
+              "deprecationReason": "`timeline` will be removed Use Issue.timelineItems instead. Removal on 2020-10-01 UTC."
             },
             {
               "name": "timelineItems",
@@ -17143,7 +17055,7 @@
                 }
               },
               "isDeprecated": true,
-              "deprecationReason": "`timeline` will be removed Use PullRequest.timelineItems instead. Removal on 2019-10-01 UTC."
+              "deprecationReason": "`timeline` will be removed Use PullRequest.timelineItems instead. Removal on 2020-10-01 UTC."
             },
             {
               "name": "timelineItems",
@@ -22627,121 +22539,6 @@
               },
               "isDeprecated": false,
               "deprecationReason": null
-            },
-            {
-              "name": "pinnedRepositories",
-              "description": "A list of repositories this user has pinned to their profile",
-              "args": [
-                {
-                  "name": "privacy",
-                  "description": "If non-null, filters repositories according to privacy",
-                  "type": {
-                    "kind": "ENUM",
-                    "name": "RepositoryPrivacy",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "orderBy",
-                  "description": "Ordering options for repositories returned from the connection",
-                  "type": {
-                    "kind": "INPUT_OBJECT",
-                    "name": "RepositoryOrder",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "affiliations",
-                  "description": "Array of viewer's affiliation options for repositories returned from the connection. For example, OWNER will include only repositories that the current viewer owns.",
-                  "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "RepositoryAffiliation",
-                      "ofType": null
-                    }
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "ownerAffiliations",
-                  "description": "Array of owner's affiliation options for repositories returned from the connection. For example, OWNER will include only repositories that the organization or user being viewed owns.",
-                  "type": {
-                    "kind": "LIST",
-                    "name": null,
-                    "ofType": {
-                      "kind": "ENUM",
-                      "name": "RepositoryAffiliation",
-                      "ofType": null
-                    }
-                  },
-                  "defaultValue": "[OWNER, COLLABORATOR]"
-                },
-                {
-                  "name": "isLocked",
-                  "description": "If non-null, filters repositories according to whether they have been locked",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Boolean",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "after",
-                  "description": "Returns the elements in the list that come after the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "before",
-                  "description": "Returns the elements in the list that come before the specified cursor.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "String",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "first",
-                  "description": "Returns the first _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                },
-                {
-                  "name": "last",
-                  "description": "Returns the last _n_ elements from the list.",
-                  "type": {
-                    "kind": "SCALAR",
-                    "name": "Int",
-                    "ofType": null
-                  },
-                  "defaultValue": null
-                }
-              ],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "RepositoryConnection",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "pinnedRepositories will be removed Use ProfileOwner.pinnedItems instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "repositories",
@@ -28990,7 +28787,7 @@
             },
             {
               "name": "permission",
-              "description": "The permission level the team has on the repository",
+              "description": "The permission level the team has on the repository\n\n**Upcoming Change on 2020-10-01 UTC**\n**Description:** Type for `permission` will change from `RepositoryPermission!` to `String`.\n**Reason:** This field may return additional values\n",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -29386,7 +29183,7 @@
             },
             {
               "name": "permission",
-              "description": "The permission the user has on the repository.",
+              "description": "The permission the user has on the repository.\n\n**Upcoming Change on 2020-10-01 UTC**\n**Description:** Type for `permission` will change from `RepositoryPermission!` to `String`.\n**Reason:** This field may return additional values\n",
               "args": [],
               "type": {
                 "kind": "NON_NULL",
@@ -31837,9 +31634,13 @@
               "description": "Identifies the actor who triggered the deployment.",
               "args": [],
               "type": {
-                "kind": "INTERFACE",
-                "name": "Actor",
-                "ofType": null
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "INTERFACE",
+                  "name": "Actor",
+                  "ofType": null
+                }
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -32103,9 +31904,13 @@
               "description": "Identifies the actor who triggered the deployment.",
               "args": [],
               "type": {
-                "kind": "INTERFACE",
-                "name": "Actor",
-                "ofType": null
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "INTERFACE",
+                  "name": "Actor",
+                  "ofType": null
+                }
               },
               "isDeprecated": false,
               "deprecationReason": null
@@ -36205,22 +36010,6 @@
           "description": "A alert for a repository with an affected vulnerability.",
           "fields": [
             {
-              "name": "affectedRange",
-              "description": "The affected version",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "advisory specific fields are being removed from repositoryVulnerabilityAlert objects Use `securityVulnerability.vulnerableVersionRange` instead. Removal on 2019-10-01 UTC."
-            },
-            {
               "name": "createdAt",
               "description": "When was the alert created?",
               "args": [],
@@ -36273,46 +36062,6 @@
               "deprecationReason": null
             },
             {
-              "name": "externalIdentifier",
-              "description": "The external identifier for the vulnerability",
-              "args": [],
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "isDeprecated": true,
-              "deprecationReason": "advisory specific fields are being removed from repositoryVulnerabilityAlert objects Use `securityAdvisory.identifiers` instead. Removal on 2019-10-01 UTC."
-            },
-            {
-              "name": "externalReference",
-              "description": "The external reference for the vulnerability",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "advisory specific fields are being removed from repositoryVulnerabilityAlert objects Use `securityAdvisory.references` instead. Removal on 2019-10-01 UTC."
-            },
-            {
-              "name": "fixedIn",
-              "description": "The fixed version",
-              "args": [],
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "isDeprecated": true,
-              "deprecationReason": "advisory specific fields are being removed from repositoryVulnerabilityAlert objects Use `securityVulnerability.firstPatchedVersion` instead. Removal on 2019-10-01 UTC."
-            },
-            {
               "name": "id",
               "description": null,
               "args": [],
@@ -36327,22 +36076,6 @@
               },
               "isDeprecated": false,
               "deprecationReason": null
-            },
-            {
-              "name": "packageName",
-              "description": "The affected package",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "advisory specific fields are being removed from repositoryVulnerabilityAlert objects Use `securityVulnerability.package` instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "repository",
@@ -44700,6 +44433,18 @@
               "deprecationReason": null
             },
             {
+              "name": "AUTOMATIC_BASE_CHANGE_FAILED_EVENT",
+              "description": "Represents a 'automatic_base_change_failed' event on a given pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "AUTOMATIC_BASE_CHANGE_SUCCEEDED_EVENT",
+              "description": "Represents a 'automatic_base_change_succeeded' event on a given pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "BASE_REF_CHANGED_EVENT",
               "description": "Represents a 'base_ref_changed' event on a given issue or pull request.",
               "isDeprecated": false,
@@ -44768,6 +44513,12 @@
             {
               "name": "READY_FOR_REVIEW_EVENT",
               "description": "Represents a 'ready_for_review' event on a given pull request.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "CONVERT_TO_DRAFT_EVENT",
+              "description": "Represents a 'convert_to_draft' event on a given pull request.",
               "isDeprecated": false,
               "deprecationReason": null
             },
@@ -45137,6 +44888,16 @@
             },
             {
               "kind": "OBJECT",
+              "name": "AutomaticBaseChangeFailedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "AutomaticBaseChangeSucceededEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
               "name": "BaseRefChangedEvent",
               "ofType": null
             },
@@ -45158,6 +44919,11 @@
             {
               "kind": "OBJECT",
               "name": "ConnectedEvent",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "ConvertToDraftEvent",
               "ofType": null
             },
             {
@@ -45437,6 +45203,224 @@
         },
         {
           "kind": "OBJECT",
+          "name": "AutomaticBaseChangeFailedEvent",
+          "description": "Represents a 'automatic_base_change_failed' event on a given pull request.",
+          "fields": [
+            {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "newBase",
+              "description": "The new base for this PR",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "oldBase",
+              "description": "The old base for this PR",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pullRequest",
+              "description": "PullRequest referenced by event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PullRequest",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "AutomaticBaseChangeSucceededEvent",
+          "description": "Represents a 'automatic_base_change_succeeded' event on a given pull request.",
+          "fields": [
+            {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "newBase",
+              "description": "The new base for this PR",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "oldBase",
+              "description": "The old base for this PR",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pullRequest",
+              "description": "PullRequest referenced by event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PullRequest",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
           "name": "BaseRefChangedEvent",
           "description": "Represents a 'base_ref_changed' event on a given issue or pull request.",
           "fields": [
@@ -45684,6 +45668,120 @@
             {
               "kind": "INTERFACE",
               "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "ConvertToDraftEvent",
+          "description": "Represents a 'convert_to_draft' event on a given pull request.",
+          "fields": [
+            {
+              "name": "actor",
+              "description": "Identifies the actor who performed the event.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "Actor",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pullRequest",
+              "description": "PullRequest referenced by event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PullRequest",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "resourcePath",
+              "description": "The HTTP path for this convert to draft event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "url",
+              "description": "The HTTP URL for this convert to draft event.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "URI",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            },
+            {
+              "kind": "INTERFACE",
+              "name": "UniformResourceLocatable",
               "ofType": null
             }
           ],
@@ -50541,11 +50639,23 @@
             },
             {
               "name": "sponsor",
-              "description": "The entity that is sponsoring. Returns null if the sponsorship is private",
+              "description": "The user that is sponsoring. Returns null if the sponsorship is private or if sponsor is not a user.",
               "args": [],
               "type": {
                 "kind": "OBJECT",
                 "name": "User",
+                "ofType": null
+              },
+              "isDeprecated": true,
+              "deprecationReason": "`Sponsorship.sponsor` will be removed. Use `Sponsorship.sponsorEntity` instead. Removal on 2020-10-01 UTC."
+            },
+            {
+              "name": "sponsorEntity",
+              "description": "The user or organization that is sponsoring. Returns null if the sponsorship is private.",
+              "args": [],
+              "type": {
+                "kind": "UNION",
+                "name": "Sponsor",
                 "ofType": null
               },
               "isDeprecated": false,
@@ -50613,6 +50723,27 @@
             }
           ],
           "possibleTypes": null
+        },
+        {
+          "kind": "UNION",
+          "name": "Sponsor",
+          "description": "Entites that can sponsor others via GitHub Sponsors",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": [
+            {
+              "kind": "OBJECT",
+              "name": "Organization",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "User",
+              "ofType": null
+            }
+          ]
         },
         {
           "kind": "OBJECT",
@@ -50910,7 +51041,7 @@
                     "name": "ContributionOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: OCCURRED_AT, direction: DESC}"
+                  "defaultValue": "{direction: DESC}"
                 }
               ],
               "type": {
@@ -51124,7 +51255,7 @@
                     "name": "ContributionOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: OCCURRED_AT, direction: DESC}"
+                  "defaultValue": "{direction: DESC}"
                 }
               ],
               "type": {
@@ -51246,7 +51377,7 @@
                     "name": "ContributionOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: OCCURRED_AT, direction: DESC}"
+                  "defaultValue": "{direction: DESC}"
                 }
               ],
               "type": {
@@ -51358,7 +51489,7 @@
                     "name": "ContributionOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: OCCURRED_AT, direction: DESC}"
+                  "defaultValue": "{direction: DESC}"
                 }
               ],
               "type": {
@@ -53056,16 +53187,6 @@
           "fields": null,
           "inputFields": [
             {
-              "name": "field",
-              "description": "The field by which to order contributions.\n\n**Upcoming Change on 2019-10-01 UTC**\n**Description:** `field` will be removed. Only one order field is supported.\n**Reason:** `field` will be removed.\n",
-              "type": {
-                "kind": "ENUM",
-                "name": "ContributionOrderField",
-                "ofType": null
-              },
-              "defaultValue": null
-            },
-            {
               "name": "direction",
               "description": "The ordering direction.",
               "type": {
@@ -53082,23 +53203,6 @@
           ],
           "interfaces": null,
           "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "ContributionOrderField",
-          "description": "Properties by which contribution connections can be ordered.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "OCCURRED_AT",
-              "description": "Order contributions by when they were made.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
           "possibleTypes": null
         },
         {
@@ -53272,7 +53376,7 @@
                     "name": "ContributionOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: OCCURRED_AT, direction: DESC}"
+                  "defaultValue": "{direction: DESC}"
                 }
               ],
               "type": {
@@ -53577,7 +53681,7 @@
                     "name": "ContributionOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: OCCURRED_AT, direction: DESC}"
+                  "defaultValue": "{direction: DESC}"
                 }
               ],
               "type": {
@@ -53930,7 +54034,7 @@
                     "name": "ContributionOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: OCCURRED_AT, direction: DESC}"
+                  "defaultValue": "{direction: DESC}"
                 }
               ],
               "type": {
@@ -64279,6 +64383,12 @@
             {
               "name": "SAML_SSO_ENFORCEMENT_REQUIRES_EXTERNAL_IDENTITY",
               "description": "SAML SSO enforcement requires an external identity",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "USER_ACCOUNT_DELETED",
+              "description": "User account has been deleted",
               "isDeprecated": false,
               "deprecationReason": null
             }
@@ -76322,6 +76432,351 @@
           "possibleTypes": null
         },
         {
+          "kind": "ENUM",
+          "name": "IpAllowListEnabledSettingValue",
+          "description": "The possible values for the IP allow list enabled setting.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "ENABLED",
+              "description": "The setting is enabled for the owner.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "DISABLED",
+              "description": "The setting is disabled for the owner.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "INPUT_OBJECT",
+          "name": "IpAllowListEntryOrder",
+          "description": "Ordering options for IP allow list entry connections.",
+          "fields": null,
+          "inputFields": [
+            {
+              "name": "field",
+              "description": "The field to order IP allow list entries by.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "IpAllowListEntryOrderField",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            },
+            {
+              "name": "direction",
+              "description": "The ordering direction.",
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "OrderDirection",
+                  "ofType": null
+                }
+              },
+              "defaultValue": null
+            }
+          ],
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "ENUM",
+          "name": "IpAllowListEntryOrderField",
+          "description": "Properties by which IP allow list entry connections can be ordered.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": [
+            {
+              "name": "CREATED_AT",
+              "description": "Order IP allow list entries by creation time.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "ALLOW_LIST_VALUE",
+              "description": "Order IP allow list entries by the allow list value.",
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "IpAllowListEntryConnection",
+          "description": "The connection type for IpAllowListEntry.",
+          "fields": [
+            {
+              "name": "edges",
+              "description": "A list of edges.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "IpAllowListEntryEdge",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "nodes",
+              "description": "A list of nodes.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "IpAllowListEntry",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pageInfo",
+              "description": "Information to aid in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PageInfo",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalCount",
+              "description": "Identifies the total count of items in the connection.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "IpAllowListEntryEdge",
+          "description": "An edge in a connection.",
+          "fields": [
+            {
+              "name": "cursor",
+              "description": "A cursor for use in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "node",
+              "description": "The item at the end of the edge.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "IpAllowListEntry",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "IpAllowListEntry",
+          "description": "An IP address or range of addresses that is allowed to access an owner's resources.",
+          "fields": [
+            {
+              "name": "allowListValue",
+              "description": "A single IP address or range of IP addresses in CIDR notation.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "createdAt",
+              "description": "Identifies the date and time when the object was created.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "isActive",
+              "description": "Whether the entry is currently active.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "name",
+              "description": "The name of the IP allow list entry.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "owner",
+              "description": "The owner of the IP allow list entry.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "UNION",
+                  "name": "IpAllowListOwner",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "updatedAt",
+              "description": "Identifies the date and time when the object was last updated.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "DateTime",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "UNION",
+          "name": "IpAllowListOwner",
+          "description": "Types that can own an IP allow list.",
+          "fields": null,
+          "inputFields": null,
+          "interfaces": null,
+          "enumValues": null,
+          "possibleTypes": [
+            {
+              "kind": "OBJECT",
+              "name": "Enterprise",
+              "ofType": null
+            },
+            {
+              "kind": "OBJECT",
+              "name": "Organization",
+              "ofType": null
+            }
+          ]
+        },
+        {
           "kind": "OBJECT",
           "name": "OrganizationMemberConnection",
           "description": "The connection type for User.",
@@ -78561,6 +79016,83 @@
               "deprecationReason": null
             },
             {
+              "name": "pendingCollaboratorInvitations",
+              "description": "A list of pending collaborator invitations across the repositories in the enterprise.",
+              "args": [
+                {
+                  "name": "query",
+                  "description": "The search string to look for.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "orderBy",
+                  "description": "Ordering options for pending repository collaborator invitations returned from the connection.",
+                  "type": {
+                    "kind": "INPUT_OBJECT",
+                    "name": "RepositoryInvitationOrder",
+                    "ofType": null
+                  },
+                  "defaultValue": "{field: CREATED_AT, direction: DESC}"
+                },
+                {
+                  "name": "after",
+                  "description": "Returns the elements in the list that come after the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "before",
+                  "description": "Returns the elements in the list that come before the specified cursor.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "first",
+                  "description": "Returns the first _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                },
+                {
+                  "name": "last",
+                  "description": "Returns the last _n_ elements from the list.",
+                  "type": {
+                    "kind": "SCALAR",
+                    "name": "Int",
+                    "ofType": null
+                  },
+                  "defaultValue": null
+                }
+              ],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "RepositoryInvitationConnection",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
               "name": "pendingCollaborators",
               "description": "A list of pending collaborators across the repositories in the enterprise.",
               "args": [
@@ -78582,7 +79114,7 @@
                     "name": "RepositoryInvitationOrder",
                     "ofType": null
                   },
-                  "defaultValue": "{field: INVITEE_LOGIN, direction: ASC}"
+                  "defaultValue": "{field: CREATED_AT, direction: DESC}"
                 },
                 {
                   "name": "after",
@@ -78634,8 +79166,8 @@
                   "ofType": null
                 }
               },
-              "isDeprecated": false,
-              "deprecationReason": null
+              "isDeprecated": true,
+              "deprecationReason": "Repository invitations can now be associated with an email, not only an invitee. Use the `pendingCollaboratorInvitations` field instead. Removal on 2020-10-01 UTC."
             },
             {
               "name": "pendingMemberInvitations",
@@ -80759,351 +81291,6 @@
         },
         {
           "kind": "ENUM",
-          "name": "IpAllowListEnabledSettingValue",
-          "description": "The possible values for the IP allow list enabled setting.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "ENABLED",
-              "description": "The setting is enabled for the owner.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "DISABLED",
-              "description": "The setting is disabled for the owner.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "INPUT_OBJECT",
-          "name": "IpAllowListEntryOrder",
-          "description": "Ordering options for IP allow list entry connections.",
-          "fields": null,
-          "inputFields": [
-            {
-              "name": "field",
-              "description": "The field to order IP allow list entries by.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "IpAllowListEntryOrderField",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            },
-            {
-              "name": "direction",
-              "description": "The ordering direction.",
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "OrderDirection",
-                  "ofType": null
-                }
-              },
-              "defaultValue": null
-            }
-          ],
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "ENUM",
-          "name": "IpAllowListEntryOrderField",
-          "description": "Properties by which IP allow list entry connections can be ordered.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": [
-            {
-              "name": "CREATED_AT",
-              "description": "Order IP allow list entries by creation time.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "ALLOW_LIST_VALUE",
-              "description": "Order IP allow list entries by the allow list value.",
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "IpAllowListEntryConnection",
-          "description": "The connection type for IpAllowListEntry.",
-          "fields": [
-            {
-              "name": "edges",
-              "description": "A list of edges.",
-              "args": [],
-              "type": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "IpAllowListEntryEdge",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "nodes",
-              "description": "A list of nodes.",
-              "args": [],
-              "type": {
-                "kind": "LIST",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "IpAllowListEntry",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "pageInfo",
-              "description": "Information to aid in pagination.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "PageInfo",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "totalCount",
-              "description": "Identifies the total count of items in the connection.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Int",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "IpAllowListEntryEdge",
-          "description": "An edge in a connection.",
-          "fields": [
-            {
-              "name": "cursor",
-              "description": "A cursor for use in pagination.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "node",
-              "description": "The item at the end of the edge.",
-              "args": [],
-              "type": {
-                "kind": "OBJECT",
-                "name": "IpAllowListEntry",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "IpAllowListEntry",
-          "description": "An IP address or range of addresses that is allowed to access an owner's resources.",
-          "fields": [
-            {
-              "name": "allowListValue",
-              "description": "A single IP address or range of IP addresses in CIDR notation.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "String",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "createdAt",
-              "description": "Identifies the date and time when the object was created.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "DateTime",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "id",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "isActive",
-              "description": "Whether the entry is currently active.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "name",
-              "description": "The name of the IP allow list entry.",
-              "args": [],
-              "type": {
-                "kind": "SCALAR",
-                "name": "String",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "owner",
-              "description": "The owner of the IP allow list entry.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "UNION",
-                  "name": "IpAllowListOwner",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "updatedAt",
-              "description": "Identifies the date and time when the object was last updated.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "DateTime",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [
-            {
-              "kind": "INTERFACE",
-              "name": "Node",
-              "ofType": null
-            }
-          ],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "UNION",
-          "name": "IpAllowListOwner",
-          "description": "Types that can own an IP allow list.",
-          "fields": null,
-          "inputFields": null,
-          "interfaces": null,
-          "enumValues": null,
-          "possibleTypes": [
-            {
-              "kind": "OBJECT",
-              "name": "Enterprise",
-              "ofType": null
-            },
-            {
-              "kind": "OBJECT",
-              "name": "Organization",
-              "ofType": null
-            }
-          ]
-        },
-        {
-          "kind": "ENUM",
           "name": "EnterpriseMembersCanCreateRepositoriesSettingValue",
           "description": "The possible values for the enterprise members can create repositories setting.",
           "fields": null,
@@ -81959,10 +82146,225 @@
             {
               "name": "INVITEE_LOGIN",
               "description": "Order repository invitations by invitee login",
+              "isDeprecated": true,
+              "deprecationReason": "`INVITEE_LOGIN` is no longer a valid field value. Repository invitations can now be associated with an email, not only an invitee. Removal on 2020-10-01 UTC."
+            }
+          ],
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "RepositoryInvitationConnection",
+          "description": "The connection type for RepositoryInvitation.",
+          "fields": [
+            {
+              "name": "edges",
+              "description": "A list of edges.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "RepositoryInvitationEdge",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "nodes",
+              "description": "A list of nodes.",
+              "args": [],
+              "type": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "RepositoryInvitation",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "pageInfo",
+              "description": "Information to aid in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PageInfo",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "totalCount",
+              "description": "Identifies the total count of items in the connection.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "Int",
+                  "ofType": null
+                }
+              },
               "isDeprecated": false,
               "deprecationReason": null
             }
           ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "RepositoryInvitationEdge",
+          "description": "An edge in a connection.",
+          "fields": [
+            {
+              "name": "cursor",
+              "description": "A cursor for use in pagination.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "node",
+              "description": "The item at the end of the edge.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "RepositoryInvitation",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [],
+          "enumValues": null,
+          "possibleTypes": null
+        },
+        {
+          "kind": "OBJECT",
+          "name": "RepositoryInvitation",
+          "description": "An invitation for a user to be added to a repository.",
+          "fields": [
+            {
+              "name": "email",
+              "description": "The email address that received the invitation.",
+              "args": [],
+              "type": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "id",
+              "description": null,
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "ID",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "invitee",
+              "description": "The user who received the invitation.",
+              "args": [],
+              "type": {
+                "kind": "OBJECT",
+                "name": "User",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "inviter",
+              "description": "The user who created the invitation.",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "User",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "permission",
+              "description": "The permission granted on this repository by this invitation.\n\n**Upcoming Change on 2020-10-01 UTC**\n**Description:** Type for `permission` will change from `RepositoryPermission!` to `String`.\n**Reason:** This field may return additional values\n",
+              "args": [],
+              "type": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "ENUM",
+                  "name": "RepositoryPermission",
+                  "ofType": null
+                }
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            },
+            {
+              "name": "repository",
+              "description": "The Repository the user is invited to.",
+              "args": [],
+              "type": {
+                "kind": "INTERFACE",
+                "name": "RepositoryInfo",
+                "ofType": null
+              },
+              "isDeprecated": false,
+              "deprecationReason": null
+            }
+          ],
+          "inputFields": null,
+          "interfaces": [
+            {
+              "kind": "INTERFACE",
+              "name": "Node",
+              "ofType": null
+            }
+          ],
+          "enumValues": null,
           "possibleTypes": null
         },
         {
@@ -83013,22 +83415,6 @@
               "deprecationReason": null
             },
             {
-              "name": "hasApprovalBeenRequested",
-              "description": "Whether this listing has been submitted for review from GitHub for approval to be displayed in the Marketplace.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "`hasApprovalBeenRequested` will be removed. Use `isVerificationPendingFromDraft` instead. Removal on 2019-10-01 UTC."
-            },
-            {
               "name": "hasPublishedFreeTrialPlans",
               "description": "Does this listing have any plans with a free trial?",
               "args": [],
@@ -83133,22 +83519,6 @@
               "deprecationReason": null
             },
             {
-              "name": "isApproved",
-              "description": "Whether this listing has been approved for display in the Marketplace.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "`isApproved` will be removed. Use `isPublic` instead. Removal on 2019-10-01 UTC."
-            },
-            {
               "name": "isArchived",
               "description": "Whether this listing has been removed from the Marketplace.",
               "args": [],
@@ -83163,22 +83533,6 @@
               },
               "isDeprecated": false,
               "deprecationReason": null
-            },
-            {
-              "name": "isDelisted",
-              "description": "Whether this listing has been removed from the Marketplace.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "Boolean",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": true,
-              "deprecationReason": "`isDelisted` will be removed. Use `isArchived` instead. Removal on 2019-10-01 UTC."
             },
             {
               "name": "isDraft",
@@ -89774,6 +90128,16 @@
                 }
               },
               "defaultValue": null
+            },
+            {
+              "name": "includeAllBranches",
+              "description": "Whether to copy all branches from the template to the new repository. Defaults to copying only the default branch of the template.",
+              "type": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              },
+              "defaultValue": "false"
             },
             {
               "name": "clientMutationId",
@@ -100687,99 +101051,6 @@
             {
               "kind": "INTERFACE",
               "name": "HovercardContext",
-              "ofType": null
-            }
-          ],
-          "enumValues": null,
-          "possibleTypes": null
-        },
-        {
-          "kind": "OBJECT",
-          "name": "RepositoryInvitation",
-          "description": "An invitation for a user to be added to a repository.",
-          "fields": [
-            {
-              "name": "id",
-              "description": null,
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "SCALAR",
-                  "name": "ID",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "invitee",
-              "description": "The user who received the invitation.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "User",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "inviter",
-              "description": "The user who created the invitation.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "OBJECT",
-                  "name": "User",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "permission",
-              "description": "The permission granted on this repository by this invitation.",
-              "args": [],
-              "type": {
-                "kind": "NON_NULL",
-                "name": null,
-                "ofType": {
-                  "kind": "ENUM",
-                  "name": "RepositoryPermission",
-                  "ofType": null
-                }
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            },
-            {
-              "name": "repository",
-              "description": "The Repository the user is invited to.",
-              "args": [],
-              "type": {
-                "kind": "INTERFACE",
-                "name": "RepositoryInfo",
-                "ofType": null
-              },
-              "isDeprecated": false,
-              "deprecationReason": null
-            }
-          ],
-          "inputFields": null,
-          "interfaces": [
-            {
-              "kind": "INTERFACE",
-              "name": "Node",
               "ofType": null
             }
           ],
