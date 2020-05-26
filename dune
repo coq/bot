@@ -8,5 +8,3 @@
 (env
  (dev
   (flags :standard -w -9)))
-
-(vendored_dirs vendor)

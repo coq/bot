@@ -19,6 +19,7 @@
 
 with pkgs;
 
+let graphql_ppx = ocamlPackages.callPackage ./graphql_ppx.nix { }; in
 stdenv.mkDerivation rec {
   name = "coqbot";
   src = null;
@@ -40,18 +41,12 @@ stdenv.mkDerivation rec {
       hex
       nocrypto
       yojson
-      # Dependencies of vendored dependencies
-      menhir
-      ocaml-migrate-parsetree
-      ppx_tools_versioned
-      reason
-      result
+      graphql_ppx
       # Publishing
       heroku
     ];
 
   shellHook = ''
     export OCAMLFORMAT_LOCATION=${ocamlformat}
-    export GRAPHQL_PPX_SCHEMA=$(pwd)/bot-components/schema.json
   '';
 }

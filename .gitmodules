@@ -1,3 +1,0 @@
-[submodule "vendor/graphql_ppx_re"]
-	path = vendor/graphql_ppx_re
-	url = https://github.com/baransu/graphql_ppx_re
