@@ -31,6 +31,7 @@ stdenv.mkDerivation rec {
       ncurses
       merlin
       ocamlformat
+      nixfmt
       nodePackages.graphql-cli
       # Direct dependencies
       base
