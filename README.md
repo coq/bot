@@ -136,7 +136,7 @@ To use the bot without deploying your own instance, follow these steps:
 
 - In your GitLab repository:
 
-  - go to "Settings" / "Members" to add
+  - go to "Members" to add
     [**@coqbot**](https://gitlab.com/coqbot) as a project member with
     "Developer" role (so that it can push new branches).
 
@@ -148,7 +148,7 @@ To use the bot without deploying your own instance, follow these steps:
 
 - In your GitHub repository:
 
-  - go to "Settings" / "Collaborators & teams" to add
+  - go to "Settings" / "Manage access" to add
     [**@coqbot**](https://github.com/coqbot) as a collaborator (so
     that it can push status checks, and set labels).
 
