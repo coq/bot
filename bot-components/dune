@@ -9,7 +9,9 @@
 
 (rule
  (targets schema.json)
- (deps .graphqlconfig)
+ (deps
+  .graphqlconfig
+  (universe))
  (action
   (progn
    (run graphql get-schema)
