@@ -472,8 +472,10 @@ let job_action json =
   let branch = json |> member "ref" |> to_string in
   let context = f "GitLab CI job %s (%s)" build_name (branch_or_pr branch) in
   let repo_full_name =
-    json |> member "project_name" |> to_string
-    |> Str.global_replace (Str.regexp " ") ""
+    let repo_url = json |> member "repository" |> member "url" |> to_string in
+    if not (string_match ~regexp:".*:\\(.*\\).git" repo_url) then
+    Stdio.printf "Could not match project name on repository url";
+    Str.matched_group 1 repo_url
   in
   let send_url (kind, url) =
     (fun () ->
