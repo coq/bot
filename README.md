@@ -259,14 +259,7 @@ heroku apps:create --app my-coqbot
 heroku buildpacks:set http://github.com/ryandotsmith/null-buildpack.git --app my-coqbot
 ```
 
-If you've built inside `nix-shell`, a first step before deploying is
-to patch the binary to make it work on standard Linux platforms:
-
-```
-patchelf --set-interpreter /lib64/ld-linux-x86-64.so.2 bot.exe
-```
-
-Then:
+Then, every time you deploy:
 
 ```
 ./deploy.sh --app my-bot
