@@ -210,8 +210,13 @@ guidance.
 
 ### Building locally ###
 
-The current way to get the dependencies is to run `nix-shell` (see the
+The best way to get the dependencies is to run `nix-shell` (see the
 [Nix](https://nixos.org/nix/) documentation to learn more).
+
+Without Nix, you'll need [opam 2.0](https://opam.ocaml.org/doc/Install.html)
+installed on your system. Run `opam update` followed by
+`opam switch create . -y --deps-only` to install locally the required
+ocaml libraries.
 
 Use the following command to build:
 
@@ -229,14 +234,18 @@ This call to `dune build` without the `--ignore-promoted-rules` option
 requires that a file `bot-components/.github-token` be provided and
 contain a single line with a GitHub API personal token (with no
 specific permission).  It will use this token and the node package
-graphql-cli to update the GitHub schema stored in
+`graphql-cli` to update the GitHub schema stored in
 `bot-component/schema.json`, before building the project.
+Get `graphql-cli` with `npm install graphql-cli@3.0.14 -g` if you're
+not compiling in `nix-shell`.
 
 To run locally, use [ngrok](https://ngrok.io) to redirect a public URL
 to your local machine and set up the GitHub / GitLab webhooks
 accordingly.
 
 ### Deploy on Heroku ###
+
+You must compile the bot in `nix-shell` in order to follow these instructions.
 
 There's currently no up-to-date OCaml buildpack for Heroku so we
 deploy binaries directly as explained here:
