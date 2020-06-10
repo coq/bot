@@ -1,4 +1,36 @@
 (lang dune 2.2)
 
-(package (name coq-bot))
-(package (name bot-components))
+(generate_opam_files true)
+
+(package
+ (name coq-bot)
+ (synopsis "A (Coq Development Team) bot written in OCaml")
+ (depends
+  (alcotest :with-test)
+  (dune (>= 2.2))
+  (base (>= v0.13.0))
+  (lwt (= 4.5.0))
+  (cohttp-lwt (= 2.1.3))
+  (cohttp-lwt-unix (= 2.1.3))
+  (stdio (>= v0.13.0))
+  (yojson (>= 1.7.0))
+  (bot-components :dev)
+  (odoc (>= 1.4.0)))
+)
+(package
+ (name bot-components)
+ (synopsis "Building blocks to make your own bots")
+ (depends
+  (alcotest :with-test)
+  (dune (>= 2.2))
+  (base (>= v0.13.0))
+  (lwt (= 4.5.0))
+  (cohttp-lwt (= 2.1.3))
+  (cohttp-lwt-unix (= 2.1.3))
+  (stdio (>= v0.13.0))
+  (hex (>= 1.3.0))
+  (nocrypto (>= 0.5.4))
+  (yojson (>= 1.7.0))
+  (graphql_ppx (>= 0.7.1))
+  (odoc (>= 1.4.0)))
+)
