@@ -1,6 +1,12 @@
 (lang dune 2.2)
+(name coq-bot)
 
 (generate_opam_files true)
+
+(source (github coq/bot))
+(authors "Théo Zimmermann")
+(maintainers "Théo Zimmermann <theo.zimmermann@inria.fr>")
+(license MIT)
 
 (package
  (name coq-bot)
