@@ -1,3 +1,8 @@
+[![Zulip][zulip-badge]][zulip-link]
+
+[zulip-badge]: https://img.shields.io/badge/chat-on%20Zulip-informational.svg
+[zulip-link]: https://coq.zulipchat.com/#narrow/stream/243318-coqbot-devs.20.26.20users
+
 # A multi-function bot, written in OCaml #
 
 Most of the functions of this bot are used in the development of Coq.
