@@ -154,8 +154,9 @@ To use the bot without deploying your own instance, follow these steps:
 - In your GitHub repository:
 
   - go to "Settings" / "Manage access" to add
-    [**@coqbot**](https://github.com/coqbot) as a collaborator (so
-    that it can push status checks, and set labels).
+    [**@coqbot**](https://github.com/coqbot) as a collaborator with
+    the "Write" role (so that it can push status checks, and set
+    labels).
 
     Currently every invitation requires a manual validation, so there
     may be some lag before **@coqbot** is able to push status checks
