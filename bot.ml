@@ -6,17 +6,13 @@ open Utils
 
 let port = try Sys.getenv "PORT" |> int_of_string with Not_found -> 8000
 
-let username = Sys.getenv "USERNAME"
-
-let password = Sys.getenv "PASSWORD"
-
-let credentials = `Basic (username, password)
-
 let gitlab_access_token = Sys.getenv "GITLAB_ACCESS_TOKEN"
 
-let gitlab_header = [("PRIVATE-TOKEN", gitlab_access_token)]
+let gitlab_header = [("Private-Token", gitlab_access_token)]
 
 let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
+
+let github_header = [("Authorization", "token " ^ github_access_token)]
 
 let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
 
@@ -31,7 +27,7 @@ open Base
 let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
-let gitlab_repo = f "https://%s:%s@gitlab.com/%s/%s.git" username password
+let gitlab_repo ~owner ~name = f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
 
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
@@ -112,7 +108,6 @@ let headers header_list =
   Header.init ()
   |> (fun headers -> Header.add_list headers header_list)
   |> (fun headers -> Header.add headers "User-Agent" "coqbot")
-  |> fun headers -> Header.add_authorization headers credentials
 
 let send_request ~body ~uri header_list =
   let headers = headers header_list in
@@ -128,10 +123,10 @@ let add_rebase_label (issue : GitHub_subscriptions.issue) =
          url)
     |> Uri.of_string
   in
-  send_request ~body ~uri []
+  send_request ~body ~uri github_header
 
 let remove_rebase_label (issue : GitHub_subscriptions.issue) =
-  let headers = headers [] in
+  let headers = headers github_header in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
       issue.owner issue.repo issue.number
@@ -144,7 +139,7 @@ let remove_rebase_label (issue : GitHub_subscriptions.issue) =
   >>= fun () -> Client.delete ~headers uri >>= print_response
 
 let update_milestone new_milestone (issue : GitHub_subscriptions.issue) =
-  let headers = headers [] in
+  let headers = headers github_header in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
       issue.number
@@ -178,7 +173,7 @@ let add_pr_to_column pr_id column_id =
          url)
     |> Uri.of_string
   in
-  send_request ~body ~uri project_api_preview_header
+  send_request ~body ~uri (project_api_preview_header @ github_header)
 
 let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
     =
@@ -198,7 +193,7 @@ let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
     "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
     |> Uri.of_string
   in
-  send_request ~body ~uri []
+  send_request ~body ~uri github_header
 
 let retry_job ~project_id ~build_id =
   let uri =
@@ -226,7 +221,7 @@ let handle_json action default body =
 
 let generic_get relative_uri ?(header_list = []) ~default json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
-  let headers = headers header_list in
+  let headers = headers (header_list @ github_header) in
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
   >|= handle_json json_handler default
@@ -261,7 +256,7 @@ let get_cards_in_column column_id =
 
 let gitlab_ref (issue : GitHub_subscriptions.issue) :
     GitHub_subscriptions.remote_ref_info =
-  {name= f "pr-%d" issue.number; repo_url= gitlab_repo issue.owner issue.repo}
+  {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner:issue.owner ~name:issue.repo}
 
 let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) () =
   let open Lwt_result.Infix in

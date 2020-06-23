@@ -277,7 +277,6 @@ being named `coqbot`).
 The bot will need to read a few environment variables so make sure
 these are configured in your Heroku app:
 
-- `USERNAME` and `PASSWORD`
 - `GITLAB_ACCESS_TOKEN`
 - `GITHUB_ACCESS_TOKEN`
 - `GITHUB_WEBHOOK_SECRET`
