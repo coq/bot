@@ -24,9 +24,6 @@ let bot_email =
 
 open Base
 
-let project_api_preview_header =
-  [("Accept", "application/vnd.github.inertia-preview+json")]
-
 let gitlab_repo ~owner ~name =
   f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
 
@@ -94,108 +91,6 @@ let extract_commit json =
         sha )
     |> to_string
 
-let print_response (resp, body) =
-  let code = resp |> Response.status |> Code.code_of_status in
-  Lwt_io.printf "Response code: %d.\n" code
-  >>= fun () ->
-  if code < 200 && code > 299 then
-    resp |> Response.headers |> Header.to_string
-    |> Lwt_io.printf "Headers: %s\n"
-    >>= fun () ->
-    body |> Cohttp_lwt.Body.to_string >>= Lwt_io.printf "Body:\n%s\n"
-  else Lwt.return ()
-
-let headers header_list =
-  Header.init ()
-  |> (fun headers -> Header.add_list headers header_list)
-  |> fun headers -> Header.add headers "User-Agent" "coqbot"
-
-let send_request ~body ~uri header_list =
-  let headers = headers header_list in
-  Client.post ~body ~headers uri >>= print_response
-
-let add_rebase_label (issue : GitHub_subscriptions.issue) =
-  let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
-  let uri =
-    f "https://api.github.com/repos/%s/%s/issues/%d/labels" issue.owner
-      issue.repo issue.number
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url)
-    |> Uri.of_string
-  in
-  send_request ~body ~uri github_header
-
-let remove_rebase_label (issue : GitHub_subscriptions.issue) =
-  let headers = headers github_header in
-  let uri =
-    f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
-      issue.owner issue.repo issue.number
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url)
-    |> Uri.of_string
-  in
-  Lwt_io.printf "Sending delete request.\n"
-  >>= fun () -> Client.delete ~headers uri >>= print_response
-
-let update_milestone new_milestone (issue : GitHub_subscriptions.issue) =
-  let headers = headers github_header in
-  let uri =
-    f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
-      issue.number
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url)
-    |> Uri.of_string
-  in
-  let body =
-    "{\"milestone\": " ^ new_milestone ^ "}" |> Cohttp_lwt.Body.of_string
-  in
-  Lwt_io.printf "Sending patch request.\n"
-  >>= fun () -> Client.patch ~headers ~body uri >>= print_response
-
-let remove_milestone = update_milestone "null"
-
-let add_pr_to_column pr_id column_id =
-  let body =
-    "{\"content_id\":" ^ Int.to_string pr_id
-    ^ ", \"content_type\": \"PullRequest\"}"
-    |> (fun body ->
-         Stdio.printf "Body:\n%s\n" body ;
-         body)
-    |> Cohttp_lwt.Body.of_string
-  in
-  let uri =
-    "https://api.github.com/projects/columns/" ^ Int.to_string column_id
-    ^ "/cards"
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url)
-    |> Uri.of_string
-  in
-  send_request ~body ~uri (project_api_preview_header @ github_header)
-
-let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
-    =
-  Lwt_io.printf "Sending status check to %s (commit %s, state %s)\n"
-    repo_full_name commit state
-  >>= fun () ->
-  let body =
-    "{\"state\": \"" ^ state ^ "\",\"target_url\":\"" ^ url
-    ^ "\", \"description\": \"" ^ description ^ "\", \"context\": \"" ^ context
-    ^ "\"}"
-    |> (fun body ->
-         Stdio.printf "Body:\n %s\n" body ;
-         body)
-    |> Cohttp_lwt.Body.of_string
-  in
-  let uri =
-    "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
-    |> Uri.of_string
-  in
-  send_request ~body ~uri github_header
-
 let retry_job ~project_id ~build_id =
   let uri =
     "https://gitlab.com/api/v4/projects/" ^ Int.to_string project_id ^ "/jobs/"
@@ -206,54 +101,6 @@ let retry_job ~project_id ~build_id =
     |> Uri.of_string
   in
   send_request ~body:Cohttp_lwt.Body.empty ~uri gitlab_header
-
-let handle_json action default body =
-  try
-    let json = Yojson.Basic.from_string body in
-    (* print_endline "JSON decoded."; *)
-    action json
-  with
-  | Yojson.Json_error err ->
-      Stdio.printf "Json error: %s\n" err ;
-      default
-  | Yojson.Basic.Util.Type_error (err, _) ->
-      Stdio.printf "Json type error: %s\n" err ;
-      default
-
-let generic_get relative_uri ?(header_list = []) ~default json_handler =
-  let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
-  let headers = headers (header_list @ github_header) in
-  Client.get ~headers uri
-  >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
-  >|= handle_json json_handler default
-
-let get_status_check ~repo_full_name ~commit ~context =
-  generic_get
-    (Printf.sprintf "repos/%s/commits/%s/statuses" repo_full_name commit)
-    ~default:false (fun json ->
-      let open Yojson.Basic.Util in
-      json |> to_list
-      |> List.exists ~f:(fun json ->
-             json |> member "context" |> to_string |> String.equal context))
-
-let get_cards_in_column column_id =
-  generic_get
-    ("projects/columns/" ^ Int.to_string column_id ^ "/cards")
-    ~header_list:project_api_preview_header ~default:[]
-    (fun json ->
-      let open Yojson.Basic.Util in
-      json |> to_list
-      |> List.filter_map ~f:(fun json ->
-             let card_id = json |> member "id" |> to_int in
-             let content_url =
-               json |> member "content_url" |> to_string_option
-               |> Option.value ~default:""
-             in
-             let regexp = "https://api.github.com/repos/.*/\\([0-9]*\\)" in
-             if string_match ~regexp content_url then
-               let pr_number = Str.matched_group 1 content_url in
-               Some (pr_number, card_id)
-             else None))
 
 let gitlab_ref (issue : GitHub_subscriptions.issue) :
     GitHub_subscriptions.remote_ref_info =
@@ -280,14 +127,21 @@ let pull_request_updated
   if ok then (
     (* Remove rebase label *)
     if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
-    then (fun () -> remove_rebase_label pr_info.issue.issue) |> Lwt.async ;
+    then
+      (fun () ->
+        GitHub_mutations.remove_rebase_label pr_info.issue.issue
+          ~token:github_access_token)
+      |> Lwt.async ;
     (* Force push *)
     git_push (gitlab_ref pr_info.issue.issue) local_head_branch |> execute_cmd )
   else (
     (* Remove rebase label *)
-    (fun () -> add_rebase_label pr_info.issue.issue) |> Lwt.async ;
+    (fun () ->
+      GitHub_mutations.add_rebase_label pr_info.issue.issue
+        ~token:github_access_token)
+    |> Lwt.async ;
     (* Add fail status check *)
-    send_status_check
+    GitHub_mutations.send_status_check
       ~repo_full_name:
         (f "%s/%s" pr_info.issue.issue.owner pr_info.issue.issue.repo)
       ~commit:pr_info.head.sha ~state:"error" ~url:""
@@ -295,6 +149,7 @@ let pull_request_updated
       ~description:
         "Pipeline did not run on GitLab CI because PR has conflicts with base \
          branch."
+      ~token:github_access_token
     |> Lwt_result.ok )
 
 let pull_request_closed
@@ -307,7 +162,9 @@ let pull_request_closed
   if not pr_info.merged then
     Lwt_io.printf
       "PR was closed without getting merged: remove the milestone.\n"
-    >>= fun () -> remove_milestone pr_info.issue.issue
+    >>= fun () ->
+    GitHub_mutations.remove_milestone pr_info.issue.issue
+      ~token:github_access_token
   else
     (* TODO: if PR was merged in master without a milestone, post an alert *)
     Lwt.return ()
@@ -328,7 +185,8 @@ let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
          Change of milestone requested to: %s\n"
         rejected_milestone
       >>= fun () ->
-      update_milestone rejected_milestone issue
+      GitHub_mutations.update_milestone rejected_milestone issue
+        ~token:github_access_token
       <&> GitHub_mutations.post_comment ~token:github_access_token ~id
             ~message:
               "This PR was postponed. Please update accordingly the milestone \
@@ -361,11 +219,15 @@ let push_action json =
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
                    Lwt_io.printf
                      "PR was merged into the backportig branch directly.\n"
-                   >>= fun () -> add_pr_to_column pr_id backported_column
+                   >>= fun () ->
+                   GitHub_mutations.add_pr_to_column pr_id backported_column
+                     ~token:github_access_token
                  else
                    Lwt_io.printf "Backporting to %s was requested.\n"
                      backport_to
-                   >>= fun () -> add_pr_to_column pr_id request_inclusion_column)
+                   >>= fun () ->
+                   GitHub_mutations.add_pr_to_column pr_id
+                     request_inclusion_column ~token:github_access_token)
       | Ok None ->
           Lwt_io.printf "Did not get any backporting info.\n"
       | Error err ->
@@ -490,17 +352,20 @@ let job_action json =
       url |> Uri.of_string |> Client.get
       >>= fun (resp, _) ->
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-        send_status_check ~repo_full_name ~commit ~state:"success" ~url ~context
-          ~description:(description_base ^ ".")
+        GitHub_mutations.send_status_check ~repo_full_name ~commit
+          ~state:"success" ~url ~context ~description:(description_base ^ ".")
+          ~token:github_access_token
       else
         Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
         >>= fun () ->
-        send_status_check ~repo_full_name ~commit ~state:"failure"
+        GitHub_mutations.send_status_check ~repo_full_name ~commit
+          ~state:"failure"
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
           ~context
-          ~description:(description_base ^ ": not found."))
+          ~description:(description_base ^ ": not found.")
+          ~token:github_access_token)
     |> Lwt.async
   in
   if String.equal build_status "failed" then
@@ -548,12 +413,14 @@ let job_action json =
       else
         Lwt_io.printf "Pushing a status check...\n"
         >>= fun () ->
-        send_status_check ~repo_full_name ~commit ~state:"failure"
+        GitHub_mutations.send_status_check ~repo_full_name ~commit
+          ~state:"failure"
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
           ~context
           ~description:(failure_reason ^ " on GitLab CI")
+          ~token:github_access_token
     in
     (fun () ->
       Lwt_io.printf "Failed job %d of project %d.\nFailure reason: %s\n"
@@ -587,18 +454,21 @@ let job_action json =
     |> Lwt.async
   else if String.equal build_status "success" then (
     (fun () ->
-      get_status_check ~repo_full_name ~commit ~context
+      GitHub_queries.get_status_check ~repo_full_name ~commit ~context
+        ~token:github_access_token
       >>= fun b ->
       if b then
         Lwt_io.printf
           "There existed a previous status check for this build, we'll \
            override it.\n"
-        <&> send_status_check ~repo_full_name ~commit ~state:"success"
+        <&> GitHub_mutations.send_status_check ~repo_full_name ~commit
+              ~state:"success"
               ~url:
                 (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                    build_id)
               ~context
               ~description:"Test succeeded on GitLab CI after being retried"
+              ~token:github_access_token
       else Lwt.return ())
     |> Lwt.async ;
     if String.equal build_name "doc:refman" then (
@@ -660,12 +530,12 @@ let pipeline_action json =
             ("error", "Unknown pipeline status: " ^ state)
       in
       (fun () ->
-        send_status_check ~repo_full_name ~commit ~state
+        GitHub_mutations.send_status_check ~repo_full_name ~commit ~state
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
                gitlab_full_name id)
           ~context:(f "GitLab CI pipeline (%s)" (pr_from_branch branch |> snd))
-          ~description)
+          ~description ~token:github_access_token)
       |> Lwt.async
 
 let owner_team_map =

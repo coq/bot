@@ -322,3 +322,33 @@ let get_issue_closer_info ~token
   >|= Result.map_error ~f:(fun err ->
           f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
+
+(* TODO: use GraphQL API *)
+
+let get_status_check ~repo_full_name ~commit ~context =
+  generic_get
+    (Printf.sprintf "repos/%s/commits/%s/statuses" repo_full_name commit)
+    ~default:false (fun json ->
+      let open Yojson.Basic.Util in
+      json |> to_list
+      |> List.exists ~f:(fun json ->
+             json |> member "context" |> to_string |> String.equal context))
+
+let get_cards_in_column column_id =
+  generic_get
+    ("projects/columns/" ^ Int.to_string column_id ^ "/cards")
+    ~header_list:project_api_preview_header ~default:[]
+    (fun json ->
+      let open Yojson.Basic.Util in
+      json |> to_list
+      |> List.filter_map ~f:(fun json ->
+             let card_id = json |> member "id" |> to_int in
+             let content_url =
+               json |> member "content_url" |> to_string_option
+               |> Option.value ~default:""
+             in
+             let regexp = "https://api.github.com/repos/.*/\\([0-9]*\\)" in
+             if string_match ~regexp content_url then
+               let pr_number = Str.matched_group 1 content_url in
+               Some (pr_number, card_id)
+             else None))
