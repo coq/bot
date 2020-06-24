@@ -260,7 +260,10 @@ let gitlab_ref (issue : GitHub_subscriptions.issue) :
   { name= f "pr-%d" issue.number
   ; repo_url= gitlab_repo ~owner:issue.owner ~name:issue.repo }
 
-let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) () =
+let pull_request_updated
+    (pr_info :
+      GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info) ()
+    =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
@@ -294,7 +297,10 @@ let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) () =
          branch."
     |> Lwt_result.ok )
 
-let pull_request_closed (pr_info : GitHub_subscriptions.pull_request_info) () =
+let pull_request_closed
+    (pr_info :
+      GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info) ()
+    =
   git_delete (gitlab_ref pr_info.issue.issue)
   |> execute_cmd >|= ignore
   <&>
@@ -456,9 +462,10 @@ let trace_action ~repo_full_name trace =
     Ignore )
   else Warn
 
-let branch_or_pr branch_name =
-  if string_match ~regexp:"^pr-[0-9]*$" branch_name then "pull request"
-  else "branch"
+let pr_from_branch branch =
+  if string_match ~regexp:"^pr-\\([0-9]*\\)$" branch then
+    (Some (Str.matched_group 1 branch |> Int.of_string), "pull request")
+  else (None, "branch")
 
 let job_action json =
   let open Yojson.Basic.Util in
@@ -467,13 +474,15 @@ let job_action json =
   let build_name = json |> member "build_name" |> to_string in
   let commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
-  let context = f "GitLab CI job %s (%s)" build_name (branch_or_pr branch) in
-  let repo_full_name =
+  let _, branch_or_pr = pr_from_branch branch in
+  let context = f "GitLab CI job %s (%s)" build_name branch_or_pr in
+  let owner, repo =
     let repo_url = json |> member "repository" |> member "url" |> to_string in
-    if not (string_match ~regexp:".*:\\(.*\\).git" repo_url) then
-      Stdio.printf "Could not match project name on repository url" ;
-    Str.matched_group 1 repo_url
+    if not (string_match ~regexp:".*:\\(.*\\)/\\(.*\\).git" repo_url) then
+      Stdio.printf "Could not match project name on repository url.\n" ;
+    (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
   in
+  let repo_full_name = owner ^ "/" ^ repo in
   let send_url (kind, url) =
     (fun () ->
       let context = Printf.sprintf "%s: %s artifact" build_name kind in
@@ -619,7 +628,7 @@ let pipeline_action json =
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
                gitlab_full_name id)
-          ~context:(f "GitLab CI pipeline (%s)" (branch_or_pr branch))
+          ~context:(f "GitLab CI pipeline (%s)" (pr_from_branch branch |> snd))
           ~description)
       |> Lwt.async
 
@@ -796,9 +805,15 @@ let callback _conn req body =
                       | Some pr_info ->
                           pull_request_updated pr_info ()
                       | None ->
+                          let {GitHub_subscriptions.owner; repo; number} =
+                            comment_info.issue.issue
+                          in
                           GitHub_queries.get_pull_request_refs
-                            ~token:github_access_token comment_info.issue
-                          >>= fun pr_info -> pull_request_updated pr_info () )
+                            ~token:github_access_token ~owner ~repo ~number
+                          >>= fun pr_info ->
+                          pull_request_updated
+                            {pr_info with issue= comment_info.issue}
+                            () )
                     else
                       Lwt_io.print "Unauthorized user: doing nothing.\n"
                       |> Lwt_result.ok)

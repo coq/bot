@@ -73,6 +73,7 @@ module PullRequest_Refs =
   query prRefs($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name:$repo) {
       pullRequest(number: $number) {
+        id
         baseRefName
         baseRefOid @bsDecoder(fn: "Yojson.Basic.to_string")
         headRefName

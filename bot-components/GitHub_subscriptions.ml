@@ -23,22 +23,22 @@ type pull_request_action =
   | PullRequestReopened
   | PullRequestSynchronized
 
-type pull_request_info =
-  {issue: issue_info; base: commit_info; head: commit_info; merged: bool}
+type 'a pull_request_info =
+  {issue: 'a; base: commit_info; head: commit_info; merged: bool}
 
 type project_card = {issue: issue option; column_id: int}
 
 type comment_info =
   { body: string
   ; author: string
-  ; pull_request: pull_request_info option
+  ; pull_request: issue_info pull_request_info option
   ; issue: issue_info }
 
 type msg =
   | NoOp of string
   | IssueClosed of issue_info
   | RemovedFromProject of project_card
-  | PullRequestUpdated of pull_request_action * pull_request_info
+  | PullRequestUpdated of pull_request_action * issue_info pull_request_info
   | BranchCreated of remote_ref_info
   | TagCreated of remote_ref_info
   | CommentCreated of comment_info

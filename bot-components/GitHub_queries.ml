@@ -224,9 +224,8 @@ let get_team_membership ~token ~org ~team ~user =
           f "Query get_team_membership failed with %s" err)
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
 
-let pull_request_info_of_resp
-    ({issue= {owner; repo; number}} as issue : GitHub_subscriptions.issue_info)
-    resp : (GitHub_subscriptions.pull_request_info, string) Result.t =
+let pull_request_info_of_resp ~owner ~repo ~number resp :
+    (string GitHub_subscriptions.pull_request_info, string) Result.t =
   let repo_url = f "https://github.com/%s/%s" owner repo in
   match resp#repository with
   | None ->
@@ -237,7 +236,7 @@ let pull_request_info_of_resp
         Error (f "Unknown pull request %s/%s#%d." owner repo number)
     | Some pull_request ->
         Ok
-          { issue
+          { issue= pull_request#id
           ; base=
               { branch= {repo_url; name= pull_request#baseRefName}
               ; sha= pull_request#baseRefOid }
@@ -246,14 +245,12 @@ let pull_request_info_of_resp
               ; sha= pull_request#headRefOid }
           ; merged= pull_request#merged } )
 
-let get_pull_request_refs ~token
-    ({issue= {owner; repo; number}} as issue : GitHub_subscriptions.issue_info)
-    =
+let get_pull_request_refs ~token ~owner ~repo ~number =
   PullRequest_Refs.make ~owner ~repo ~number ()
   |> send_graphql_query ~token
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_info failed with %s" err)
-  >|= Result.bind ~f:(pull_request_info_of_resp issue)
+  >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
 
 type closer_info = {pull_request_id: string; milestone_id: string option}
 
