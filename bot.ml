@@ -91,17 +91,6 @@ let extract_commit json =
         sha )
     |> to_string
 
-let retry_job ~project_id ~build_id =
-  let uri =
-    "https://gitlab.com/api/v4/projects/" ^ Int.to_string project_id ^ "/jobs/"
-    ^ Int.to_string build_id ^ "/retry"
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url)
-    |> Uri.of_string
-  in
-  send_request ~body:Cohttp_lwt.Body.empty ~uri gitlab_header
-
 let gitlab_ref (issue : GitHub_subscriptions.issue) :
     GitHub_subscriptions.remote_ref_info =
   { name= f "pr-%d" issue.number
@@ -428,7 +417,8 @@ let job_action json =
       >>= fun () ->
       if String.equal failure_reason "runner_system_failure" then
         Lwt_io.printf "Runner failure reported by GitLab CI. Retrying...\n"
-        <&> retry_job ~project_id ~build_id
+        <&> GitLab_mutations.retry_job ~project_id ~build_id
+              ~token:gitlab_access_token
       else if
         String.equal failure_reason "stuck_or_timeout_failure"
         || String.equal failure_reason "job_execution_timeout"
@@ -447,7 +437,7 @@ let job_action json =
         >|= trace_action ~repo_full_name
         >>= function
         | Warn -> Lwt_io.printf "Actual failure.\n" <&> send_status_check ()
-        | Retry -> retry_job ~project_id ~build_id
+        | Retry -> GitLab_mutations.retry_job ~project_id ~build_id
         | Ignore -> Lwt.return ()
         *)
       else Lwt_io.printf "Unusual error.\n" <&> send_status_check ())
