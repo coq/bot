@@ -27,7 +27,8 @@ open Base
 let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
-let gitlab_repo ~owner ~name = f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
+let gitlab_repo ~owner ~name =
+  f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
 
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
@@ -107,7 +108,7 @@ let print_response (resp, body) =
 let headers header_list =
   Header.init ()
   |> (fun headers -> Header.add_list headers header_list)
-  |> (fun headers -> Header.add headers "User-Agent" "coqbot")
+  |> fun headers -> Header.add headers "User-Agent" "coqbot"
 
 let send_request ~body ~uri header_list =
   let headers = headers header_list in
@@ -256,7 +257,8 @@ let get_cards_in_column column_id =
 
 let gitlab_ref (issue : GitHub_subscriptions.issue) :
     GitHub_subscriptions.remote_ref_info =
-  {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner:issue.owner ~name:issue.repo}
+  { name= f "pr-%d" issue.number
+  ; repo_url= gitlab_repo ~owner:issue.owner ~name:issue.repo }
 
 let pull_request_updated (pr_info : GitHub_subscriptions.pull_request_info) () =
   let open Lwt_result.Infix in
@@ -469,7 +471,7 @@ let job_action json =
   let repo_full_name =
     let repo_url = json |> member "repository" |> member "url" |> to_string in
     if not (string_match ~regexp:".*:\\(.*\\).git" repo_url) then
-    Stdio.printf "Could not match project name on repository url";
+      Stdio.printf "Could not match project name on repository url" ;
     Str.matched_group 1 repo_url
   in
   let send_url (kind, url) =
