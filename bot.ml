@@ -474,7 +474,7 @@ let job_action json =
   let build_name = json |> member "build_name" |> to_string in
   let commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
-  let _, branch_or_pr = pr_from_branch branch in
+  let pr_num, branch_or_pr = pr_from_branch branch in
   let context = f "GitLab CI job %s (%s)" build_name branch_or_pr in
   let owner, repo =
     let repo_url = json |> member "repository" |> member "url" |> to_string in
@@ -508,7 +508,43 @@ let job_action json =
     let failure_reason = json |> member "build_failure_reason" |> to_string in
     let allow_fail = json |> member "build_allow_failure" |> to_bool in
     let send_status_check () =
-      if allow_fail then Lwt_io.printf "Job is allowed to fail.\n"
+      if allow_fail then
+        Lwt_io.printf "Job is allowed to fail.\n"
+        <&>
+        (* If we are in a PR branch, we can post a comment instead of
+           reporting a failed status check. *)
+        match pr_num with
+        | Some number -> (
+            GitHub_queries.get_pull_request_refs ~token:github_access_token
+              ~owner ~repo ~number
+            >>= function
+            | Ok {issue= id; head}
+            (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
+              when String.equal head.sha (f "\"%s\"" commit) ->
+                GitHub_mutations.post_comment ~token:github_access_token ~id
+                  ~message:
+                    (f
+                       "For your complete information, the following job in \
+                        allow failure mode has failed: \
+                        [%s](https://gitlab.com/%s/-/jobs/%d)%s"
+                       build_name repo_full_name build_id
+                       ( if
+                         String.equal build_name "library:ci-fiat_crypto_legacy"
+                       then "\nping @JasonGross"
+                       else "" ))
+            | Ok {head} ->
+                Lwt_io.printf
+                  "We are on a PR branch but the commit (%s) is not the \
+                   current head of the PR (%s). Doing nothing.\n"
+                  commit head.sha
+            | Error err ->
+                Lwt_io.printf
+                  "Couldn't get a database id for %s#%d because the following \
+                   error occured:\n\
+                   %s\n"
+                  repo_full_name number err )
+        | None ->
+            Lwt_io.printf "We are not on a PR branch. Doing nothing.\n"
       else
         Lwt_io.printf "Pushing a status check...\n"
         >>= fun () ->
