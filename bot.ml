@@ -8,11 +8,7 @@ let port = try Sys.getenv "PORT" |> int_of_string with Not_found -> 8000
 
 let gitlab_access_token = Sys.getenv "GITLAB_ACCESS_TOKEN"
 
-let gitlab_header = [("Private-Token", gitlab_access_token)]
-
 let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
-
-let github_header = [("Authorization", "token " ^ github_access_token)]
 
 let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
 
@@ -240,16 +236,6 @@ let push_action json =
     json |> member "commits" |> to_list |> Lwt_list.iter_s commit_action)
   |> Lwt.async
 
-let get_build_trace ~project_id ~build_id =
-  let uri =
-    "https://gitlab.com/api/v4/projects/" ^ Int.to_string project_id ^ "/jobs/"
-    ^ Int.to_string build_id ^ "/trace"
-    |> Uri.of_string
-  in
-  let headers = headers gitlab_header in
-  Client.get ~headers uri
-  >>= fun (_response, body) -> Cohttp_lwt.Body.to_string body
-
 let repeat_request request =
   let rec aux t =
     request
@@ -433,7 +419,7 @@ let job_action json =
           "GitLab CI reports a script failure but it could be something else. \
            Checking the trace...\n"
         >>= fun () ->
-        repeat_request (get_build_trace ~project_id ~build_id)
+        repeat_request (GitLab_queries.get_build_trace ~project_id ~build_id)
         >|= trace_action ~repo_full_name
         >>= function
         | Warn -> Lwt_io.printf "Actual failure.\n" <&> send_status_check ()
