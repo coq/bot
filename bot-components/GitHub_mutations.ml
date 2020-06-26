@@ -53,47 +53,37 @@ let reflect_pull_request_milestone ~token
 
 (* TODO: use GraphQL API *)
 
-let add_rebase_label (issue : GitHub_subscriptions.issue) ~token =
-  GitHub_queries.get_pr_id ~owner:issue.owner ~repo:issue.repo
-    ~number:issue.number ~token
+let add_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
+  let issue = issue_info.issue in
+  GitHub_queries.get_label_id ~owner:issue.owner ~repo:issue.repo
+    ~name:"needs: rebase" ~token
   >>= function
   | Error e ->
       Lwt_io.printf "Error while adding rebase label: %s" e
-  | Ok pr_id -> (
-      GitHub_queries.get_label_id ~owner:issue.owner ~repo:issue.repo
-        ~name:"needs: rebase" ~token
-      >>= function
-      | Error e ->
-          Lwt_io.printf "Error while adding rebase label: %s" e
-      | Ok label_id -> (
-          AddLabel.make ~labelable:pr_id ~label:label_id ()
-          |> GitHub_queries.send_graphql_query ~token
-          >|= function
-          | Ok _ ->
-              ()
-          | Error err ->
-              print_endline (f "Error while adding rebase label: %s" err) ) )
+  | Ok label_id -> (
+      AddLabel.make ~labelable:issue_info.id ~label:label_id ()
+      |> GitHub_queries.send_graphql_query ~token
+      >|= function
+      | Ok _ ->
+          ()
+      | Error err ->
+          print_endline (f "Error while adding rebase label: %s" err) )
 
-let remove_rebase_label (issue : GitHub_subscriptions.issue) ~token =
-  GitHub_queries.get_pr_id ~owner:issue.owner ~repo:issue.repo
-    ~number:issue.number ~token
+let remove_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
+  let issue = issue_info.issue in
+  GitHub_queries.get_label_id ~owner:issue.owner ~repo:issue.repo
+    ~name:"needs: rebase" ~token
   >>= function
   | Error e ->
       Lwt_io.printf "Error while removing rebase label: %s" e
-  | Ok pr_id -> (
-      GitHub_queries.get_label_id ~owner:issue.owner ~repo:issue.repo
-        ~name:"needs: rebase" ~token
-      >>= function
-      | Error e ->
-          Lwt_io.printf "Error while removing rebase label: %s" e
-      | Ok label_id -> (
-          RemoveLabel.make ~labelable:pr_id ~label:label_id ()
-          |> GitHub_queries.send_graphql_query ~token
-          >|= function
-          | Ok _ ->
-              ()
-          | Error err ->
-              print_endline (f "Error while removing rebase label: %s" err) ) )
+  | Ok label_id -> (
+      RemoveLabel.make ~labelable:issue_info.id ~label:label_id ()
+      |> GitHub_queries.send_graphql_query ~token
+      >|= function
+      | Ok _ ->
+          ()
+      | Error err ->
+          print_endline (f "Error while removing rebase label: %s" err) )
 
 let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token =
   let github_header = [("Authorization", "bearer " ^ token)] in
