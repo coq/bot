@@ -200,3 +200,19 @@ module AddLabel =
     }
   }
 |}]
+
+module RemoveLabel =
+[%graphql
+{|
+  mutation removeLabel($labelable: ID!, $label: ID!) {
+    removeLabelsFromLabelable(input: {labelableId: $labelable, labelIds: [$label]}) {
+      labelable {
+        labels(first: 10) {
+          nodes {
+            name
+          }
+        }
+      }
+    }
+  }
+|}]
