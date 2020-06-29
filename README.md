@@ -145,7 +145,7 @@ To use the bot without deploying your own instance, follow these steps:
     [**@coqbot**](https://gitlab.com/coqbot) as a project member with
     "Developer" role (so that it can push new branches).
 
-  - go to "Settings" / "Integration" and create two webhooks: one with
+  - go to "Settings" / "Webhooks" and create two webhooks: one with
     URL <https://coqbot.herokuapp.com/pipeline> that will only be
     triggered by pipeline events, and one with URL
     <https://coqbot.herokuapp.com/job> that will only be triggered by
