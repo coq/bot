@@ -47,8 +47,8 @@ the bot will create a merge commit and push this commit to GitLab so
 that what is tested is the result of merging the PR (similar to what
 Travis would test).  If the automatic merge fails, then the bot will
 push a failed status check on the PR, and set a "needs: rebase" label
-(it also removes the label when an updated version without conflicts
-is pushed).
+provided it already exists (it also removes the label when an updated
+version without conflicts is pushed).
 
 ![needs rebase label screenshot](screenshots/needs-rebase.png)
 
