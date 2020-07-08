@@ -251,28 +251,9 @@ accordingly.
 
 ### Deploy on Heroku ###
 
-You must compile the bot in `nix-shell` in order to follow these instructions.
-
-There's currently no up-to-date OCaml buildpack for Heroku so we
-deploy binaries directly as explained here:
-https://medium.com/cryptosense-tech/how-to-deploy-ocaml-on-heroku-9903548aafa5
-
-The first time you upload your app to Heroku run:
-
-```
-heroku plugins:install heroku-builds
-heroku apps:create --app my-coqbot
-heroku buildpacks:set http://github.com/ryandotsmith/null-buildpack.git --app my-coqbot
-```
-
-Then, every time you deploy:
-
-```
-./deploy.sh --app my-bot
-```
-
-Where `my-bot` is the name of your Heroku app (the official deploy
-being named `coqbot`).
+We provide a Docker image at each release, which can be easily deployed
+to [Heroku](https://www.heroku.com/). Simply follow the official
+[instructions](https://devcenter.heroku.com/articles/container-registry-and-runtime).
 
 The bot will need to read a few environment variables so make sure
 these are configured in your Heroku app:
@@ -280,3 +261,5 @@ these are configured in your Heroku app:
 - `GITLAB_ACCESS_TOKEN`
 - `GITHUB_ACCESS_TOKEN`
 - `GITHUB_WEBHOOK_SECRET`
+- `BOT_NAME` (defaults to `coqbot`)
+- `BOT_EMAIL` (defaults to `BOT_NAME@users.noreply.github.com`)
