@@ -9,7 +9,7 @@ let string_match ~regexp string =
   try
     let _ = Str.search_forward (Str.regexp regexp) string 0 in
     true
-  with Not_found -> false
+  with Stdlib.Not_found -> false
 
 let print_response (resp, body) =
   let code = resp |> Response.status |> Code.code_of_status in

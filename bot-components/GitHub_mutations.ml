@@ -12,7 +12,7 @@ let mv_card_to_column ~token
   | Ok _ ->
       ()
   | Error err ->
-      print_endline (f "Error while moving project card: %s" err)
+      Stdio.print_endline (f "Error while moving project card: %s" err)
 
 let post_comment ~token ~id ~message =
   PostComment.make ~id ~message ()
@@ -21,7 +21,7 @@ let post_comment ~token ~id ~message =
   | Ok _ ->
       ()
   | Error err ->
-      print_endline (f "Error while posting comment: %s" err)
+      Stdio.print_endline (f "Error while posting comment: %s" err)
 
 let update_milestone ~token ~issue ~milestone =
   UpdateMilestone.make ~issue ~milestone ()
@@ -30,7 +30,7 @@ let update_milestone ~token ~issue ~milestone =
   | Ok _ ->
       ()
   | Error err ->
-      print_endline (f "Error while updating milestone: %s" err)
+      Stdio.print_endline (f "Error while updating milestone: %s" err)
 
 let reflect_pull_request_milestone ~token
     (issue_closer_info : GitHub_queries.issue_closer_info) =
@@ -67,7 +67,7 @@ let add_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
       | Ok _ ->
           ()
       | Error err ->
-          print_endline (f "Error while adding rebase label: %s" err) )
+          Stdio.print_endline (f "Error while adding rebase label: %s" err) )
 
 let remove_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
   let issue = issue_info.issue in
@@ -83,7 +83,7 @@ let remove_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
       | Ok _ ->
           ()
       | Error err ->
-          print_endline (f "Error while removing rebase label: %s" err) )
+          Stdio.print_endline (f "Error while removing rebase label: %s" err) )
 
 let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token =
   let github_header = [("Authorization", "bearer " ^ token)] in
