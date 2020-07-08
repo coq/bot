@@ -1,1 +1,0 @@
-web: ./bot.exe
