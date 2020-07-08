@@ -1,21 +1,12 @@
 { pkgs ? import (fetchTarball {
+  name = "nixos-unstable-2020-07-08";
   url =
-    "https://github.com/NixOS/nixpkgs/archive/fa7445532900f2555435076c1e7dce0684daa01a.tar.gz";
-  sha256 = "1hbf7kmbxmd19hj3kz9lglnyi4g20jjychmlhcz4bx1limfv3c3r";
-}) {
-  overlays = [
-    (self: super:
-      let openssl = super.openssl_1_0_2;
-      in {
-        ocamlPackages = super.ocaml-ng.ocamlPackages_4_09.overrideScope'
-          (self: super: { ssl = super.ssl.override { inherit openssl; }; });
-      })
-  ];
-} }:
+    "https://github.com/NixOS/nixpkgs/archive/c3fb5d86a68bf606c2408629c1a1719eff08b06d.tar.gz";
+  sha256 = "1i8d37h1yr7fxijx0yi0nj93g23a7kc0i6p5ckd6ccwzwbllr3y3";
+}) { } }:
 
 with pkgs;
-
-let graphql_ppx = ocamlPackages.callPackage ./graphql_ppx.nix { };
+let ocamlPackages = ocaml-ng.ocamlPackages_4_10;
 in stdenv.mkDerivation rec {
   name = "coqbot";
   src = null;
