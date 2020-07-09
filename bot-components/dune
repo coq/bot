@@ -9,22 +9,18 @@
 
 (rule
  (targets schema.json)
- (deps .graphqlconfig (universe))
+ (deps
+  (:input .graphqlconfig.in)
+  .github-token
+  (universe))
  (action
   (progn
+   (with-stdout-to
+    .graphqlconfig
+    (run sed "s/%%TOKEN%%/%{read:.github-token}/" %{input}))
    (run graphql get-schema)
    (run sed -i "s/\"timestamp\": \".*\"/\"timestamp\": \"\"/" %{targets})))
  (mode promote))
-
-(rule
- (targets .graphqlconfig)
- (deps
-  (:input .graphqlconfig.in)
-  .github-token)
- (action
-  (with-stdout-to
-   %{targets}
-   (run sed "s/%%TOKEN%%/%{read:.github-token}/" %{input}))))
 
 (env
  (dev
