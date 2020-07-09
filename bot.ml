@@ -580,7 +580,7 @@ let callback _conn req body =
           match Map.find owner_team_map pr_info.issue.issue.owner with
           | Some team when signed ->
               (fun () ->
-                let open Lwt_result.Infix in
+                (let open Lwt_result.Infix in
                 GitHub_queries.get_team_membership ~token:github_access_token
                   ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
                 >>= (fun is_member ->
@@ -592,6 +592,7 @@ let callback _conn req body =
                         |> Lwt_result.ok)
                 |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
                        Lwt_io.printf "Error: %s\n" err))
+                >>= fun _ -> Lwt.return ())
               |> Lwt.async ;
               Server.respond_string ~status:`OK
                 ~body:
@@ -605,7 +606,9 @@ let callback _conn req body =
               Server.respond_string ~status:(Code.status_of_code 403)
                 ~body:"Webhook requires secret." ()
           | None ->
-              pull_request_updated pr_info |> Lwt.async ;
+              (fun () ->
+                pull_request_updated pr_info () >>= fun _ -> Lwt.return ())
+              |> Lwt.async ;
               Server.respond_string ~status:`OK
                 ~body:
                   (f
@@ -676,7 +679,7 @@ let callback _conn req body =
         match Map.find owner_team_map comment_info.issue.issue.owner with
         | Some team when signed ->
             (fun () ->
-              let open Lwt_result.Infix in
+              (let open Lwt_result.Infix in
               GitHub_queries.get_team_membership ~token:github_access_token
                 ~org:comment_info.issue.issue.owner ~team
                 ~user:comment_info.author
@@ -701,6 +704,7 @@ let callback _conn req body =
                       |> Lwt_result.ok)
               |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
                      Lwt_io.printf "Error: %s\n" err))
+              >>= fun _ -> Lwt.return ())
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
