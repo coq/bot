@@ -117,42 +117,6 @@ module Issue_Milestone =
   }
 |}]
 
-module GetLabelID =
-[%graphql
-{|
-  query getLabelId($owner: String!, $repo: String!, $name: String!) {
-    repository(owner: $owner, name: $repo) {
-      label(name: $name) {
-        id
-      }
-    }
-  }
-|}]
-
-module GetIssueID =
-[%graphql
-{|
-  query getIssueID($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) {
-      issue(number: $number) {
-        id
-      }
-    }
-  }
-|}]
-
-module GetPullRequestID =
-[%graphql
-{|
-  query getPullRequestID($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner, name: $repo) {
-      pullRequest(number: $number) {
-        id
-      }
-    }
-  }
-|}]
-
 (* Mutations *)
 
 module MoveCardToColumn =
@@ -181,38 +145,6 @@ module UpdateMilestone =
   mutation updateMilestone($issue: ID!, $milestone: ID!) {
     updateIssue(input: {id: $issue, milestoneId: $milestone}) {
       clientMutationId
-    }
-  }
-|}]
-
-module AddLabel =
-[%graphql
-{|
-  mutation addLabel($labelable: ID!, $label: ID!) {
-    addLabelsToLabelable(input: {labelableId: $labelable, labelIds: [$label]}) {
-      labelable {
-        labels(first: 10) {
-          nodes {
-            name
-          }
-        }
-      }
-    }
-  }
-|}]
-
-module RemoveLabel =
-[%graphql
-{|
-  mutation removeLabel($labelable: ID!, $label: ID!) {
-    removeLabelsFromLabelable(input: {labelableId: $labelable, labelIds: [$label]}) {
-      labelable {
-        labels(first: 10) {
-          nodes {
-            name
-          }
-        }
-      }
     }
   }
 |}]

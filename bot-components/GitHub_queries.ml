@@ -323,57 +323,6 @@ let get_issue_closer_info ~token
           f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
 
-let label_id_of_resp ~owner ~repo ~name resp =
-  match resp#repository with
-  | None ->
-      Error (f "Unknown repository %s/%s." owner repo)
-  | Some repository -> (
-    match repository#label with
-    | None ->
-        Error (f "Label %s does not exist." name)
-    | Some label ->
-        Ok label#id )
-
-let get_label_id ~owner ~repo ~name ~token =
-  GetLabelID.make ~owner ~repo ~name ()
-  |> send_graphql_query ~token
-  >|= Result.map_error ~f:(fun err -> f "Query get_label failed with %s" err)
-  >|= Result.bind ~f:(label_id_of_resp ~owner ~repo ~name)
-
-let issue_id_of_resp ~owner ~repo ~number resp =
-  match resp#repository with
-  | None ->
-      Error (f "Unknown repository %s/%s." owner repo)
-  | Some repository -> (
-    match repository#issue with
-    | None ->
-        Error (f "Issue %d does not exist." number)
-    | Some issue ->
-        Ok issue#id )
-
-let get_issue_id ~owner ~repo ~number ~token =
-  GetIssueID.make ~owner ~repo ~number ()
-  |> send_graphql_query ~token
-  >|= Result.map_error ~f:(fun err -> f "Query get_issue_id failed with %s" err)
-  >|= Result.bind ~f:(issue_id_of_resp ~owner ~repo ~number)
-
-let pr_id_of_resp ~owner ~repo ~number resp =
-  match resp#repository with
-  | None ->
-      Error (f "Unknown repository %s/%s." owner repo)
-  | Some repository -> (
-    match repository#pullRequest with
-    | None ->
-        Error (f "Issue %d does not exist." number)
-    | Some pr ->
-        Ok pr#id )
-
-let get_pr_id ~owner ~repo ~number ~token =
-  GetPullRequestID.make ~owner ~repo ~number ()
-  |> send_graphql_query ~token
-  >|= Result.map_error ~f:(fun err -> f "Query get_pr_id failed with %s" err)
-  >|= Result.bind ~f:(pr_id_of_resp ~owner ~repo ~number)
-
 (* TODO: use GraphQL API *)
 
 let get_status_check ~repo_full_name ~commit ~context =

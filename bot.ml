@@ -114,7 +114,7 @@ let pull_request_updated
     if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
     then
       (fun () ->
-        GitHub_mutations.remove_rebase_label pr_info.issue
+        GitHub_mutations.remove_rebase_label pr_info.issue.issue
           ~token:github_access_token)
       |> Lwt.async ;
     (* Force push *)
@@ -122,7 +122,8 @@ let pull_request_updated
   else (
     (* Remove rebase label *)
     (fun () ->
-      GitHub_mutations.add_rebase_label pr_info.issue ~token:github_access_token)
+      GitHub_mutations.add_rebase_label pr_info.issue.issue
+        ~token:github_access_token)
     |> Lwt.async ;
     (* Add fail status check *)
     GitHub_mutations.send_status_check
