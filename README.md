@@ -210,47 +210,6 @@ the relevant queries and mutations on demand.
 
 ## How to deploy a new instance ##
 
-To our knowledge, no one has really attempted so far to deploy their
-own instance, so expect some rough edges and open an issue to ask for
-guidance.
-
-### Building locally ###
-
-The best way to get the dependencies is to run `nix-shell` (see the
-[Nix](https://nixos.org/nix/) documentation to learn more).
-
-Without Nix, you'll need [opam 2.0](https://opam.ocaml.org/doc/Install.html)
-installed on your system. Run `opam update` followed by
-`opam switch create . -y --deps-only` to install locally the required
-ocaml libraries.
-
-Use the following command to build:
-
-```
-dune build --ignore-promoted-rules
-```
-
-If you want to update the GraphQL schema:
-
-```
-dune build
-```
-
-This call to `dune build` without the `--ignore-promoted-rules` option
-requires that a file `bot-components/.github-token` be provided and
-contain a single line with a GitHub API personal token (with no
-specific permission).  It will use this token and the node package
-`graphql-cli` to update the GitHub schema stored in
-`bot-component/schema.json`, before building the project.
-Get `graphql-cli` with `npm install graphql-cli@3.0.14 -g` if you're
-not compiling in `nix-shell`.
-
-To run locally, use [ngrok](https://ngrok.io) to redirect a public URL
-to your local machine and set up the GitHub / GitLab webhooks
-accordingly.
-
-### Deploy on Heroku ###
-
 We provide a Docker image at each release, which can be easily deployed
 to [Heroku](https://www.heroku.com/). Simply follow the official
 [instructions](https://devcenter.heroku.com/articles/container-registry-and-runtime).
@@ -263,3 +222,8 @@ these are configured in your Heroku app:
 - `GITHUB_WEBHOOK_SECRET`
 - `BOT_NAME` (defaults to `coqbot`)
 - `BOT_EMAIL` (defaults to `BOT_NAME@users.noreply.github.com`)
+
+## Building locally ##
+
+Instructions for building and testing locally can be found in the
+[contributing guide](.github/CONTRIBUTING.md).
