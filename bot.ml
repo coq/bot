@@ -591,8 +591,7 @@ let callback _conn req body =
                         Lwt_io.print "Unauthorized user: doing nothing.\n"
                         |> Lwt_result.ok)
                 |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                       Lwt_io.printf "Error: %s\n" err)
-                |> fun _ -> Lwt.return ())
+                       Lwt_io.printf "Error: %s\n" err))
               |> Lwt.async ;
               Server.respond_string ~status:`OK
                 ~body:
@@ -606,8 +605,7 @@ let callback _conn req body =
               Server.respond_string ~status:(Code.status_of_code 403)
                 ~body:"Webhook requires secret." ()
           | None ->
-              (fun () -> pull_request_updated pr_info |> fun _ -> Lwt.return ())
-              |> Lwt.async ;
+              pull_request_updated pr_info |> Lwt.async ;
               Server.respond_string ~status:`OK
                 ~body:
                   (f
@@ -702,8 +700,7 @@ let callback _conn req body =
                       Lwt_io.print "Unauthorized user: doing nothing.\n"
                       |> Lwt_result.ok)
               |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                     Lwt_io.printf "Error: %s\n" err)
-              |> fun _ -> Lwt.return ())
+                     Lwt_io.printf "Error: %s\n" err))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
