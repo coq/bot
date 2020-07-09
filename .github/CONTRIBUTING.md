@@ -51,3 +51,14 @@ webhooks coming from the web to this local server.
 3. Run the bot with: `docker run -p 8080:8080 --env-file .env coq-bot-local-test:latest`
 4. Make the server accessible from the web with: `ngrok http 8080`
 5. Configure your repositories' webhooks with the ngrok URL.
+
+## Formatting ##
+
+We use `ocamlformat` to auto-format OCaml and Dune files.  If
+possible, run it with `dune build @fmt --auto-promote` before
+committing.  As of today, any version between 0.12 and 0.14.2 should
+work fine.
+
+You may also configure your editor to auto-format your files on save.
+If you are inside a `nix-shell` and using Emacs, you can simply do so
+by adding `(load "/path/to/the/bot/dev.el")` to your `.emacs`.
