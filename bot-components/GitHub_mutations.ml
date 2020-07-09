@@ -66,21 +66,19 @@ let add_rebase_label (issue : GitHub_subscriptions.issue) ~token =
   let github_header = [("Authorization", "bearer " ^ token)] in
   send_request ~body ~uri github_header
 
-let remove_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
-  let issue = issue_info.issue in
-  GitHub_queries.get_label_id ~owner:issue.owner ~repo:issue.repo
-    ~name:"needs: rebase" ~token
-  >>= function
-  | Error e ->
-      Lwt_io.printf "Error while removing rebase label: %s" e
-  | Ok label_id -> (
-      RemoveLabel.make ~labelable:issue_info.id ~label:label_id ()
-      |> GitHub_queries.send_graphql_query ~token
-      >|= function
-      | Ok _ ->
-          ()
-      | Error err ->
-          Stdio.print_endline (f "Error while removing rebase label: %s" err) )
+let remove_rebase_label (issue : GitHub_subscriptions.issue) ~token =
+  let github_header = [("Authorization", "bearer " ^ token)] in
+  let headers = headers github_header in
+  let uri =
+    f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
+      issue.owner issue.repo issue.number
+    |> (fun url ->
+         Stdio.printf "URL: %s\n" url ;
+         url)
+    |> Uri.of_string
+  in
+  Lwt_io.printf "Sending delete request.\n"
+  >>= fun () -> Client.delete ~headers uri >>= print_response
 
 let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token =
   let github_header = [("Authorization", "bearer " ^ token)] in
