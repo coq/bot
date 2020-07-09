@@ -53,21 +53,18 @@ let reflect_pull_request_milestone ~token
 
 (* TODO: use GraphQL API *)
 
-let add_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
-  let issue = issue_info.issue in
-  GitHub_queries.get_label_id ~owner:issue.owner ~repo:issue.repo
-    ~name:"needs: rebase" ~token
-  >>= function
-  | Error e ->
-      Lwt_io.printf "Error while adding rebase label: %s" e
-  | Ok label_id -> (
-      AddLabel.make ~labelable:issue_info.id ~label:label_id ()
-      |> GitHub_queries.send_graphql_query ~token
-      >|= function
-      | Ok _ ->
-          ()
-      | Error err ->
-          Stdio.print_endline (f "Error while adding rebase label: %s" err) )
+let add_rebase_label (issue : GitHub_subscriptions.issue) ~token =
+  let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
+  let uri =
+    f "https://api.github.com/repos/%s/%s/issues/%d/labels" issue.owner
+      issue.repo issue.number
+    |> (fun url ->
+         Stdio.printf "URL: %s\n" url ;
+         url)
+    |> Uri.of_string
+  in
+  let github_header = [("Authorization", "bearer " ^ token)] in
+  send_request ~body ~uri github_header
 
 let remove_rebase_label (issue_info : GitHub_subscriptions.issue_info) ~token =
   let issue = issue_info.issue in
