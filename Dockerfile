@@ -41,4 +41,4 @@ RUN cat depexts-bot-components | xargs apk --update add
 
 EXPOSE 8000
 
-CMD ./bot.exe
+CMD ["./bot.exe"]
