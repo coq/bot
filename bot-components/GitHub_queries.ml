@@ -234,16 +234,29 @@ let pull_request_info_of_resp ~owner ~repo ~number resp :
     match repository#pullRequest with
     | None ->
         Error (f "Unknown pull request %s/%s#%d." owner repo number)
-    | Some pull_request ->
-        Ok
-          { issue= pull_request#id
-          ; base=
-              { branch= {repo_url; name= pull_request#baseRefName}
-              ; sha= pull_request#baseRefOid }
-          ; head=
-              { branch= {repo_url; name= pull_request#headRefName}
-              ; sha= pull_request#headRefOid }
-          ; merged= pull_request#merged } )
+    | Some pull_request -> (
+      match pull_request#commits#nodes with
+      | None ->
+          Error
+            (f "No commits found for pull request %s/%s#%d." owner repo number)
+      | Some nodes -> (
+          let commits = nodes |> Array.to_list |> List.filter_opt in
+          match List.hd commits with
+          | None ->
+              Error
+                (f "No commits found for pull request %s/%s#%d." owner repo
+                   number)
+          | Some node ->
+              Ok
+                { issue= pull_request#id
+                ; base=
+                    { branch= {repo_url; name= pull_request#baseRefName}
+                    ; sha= pull_request#baseRefOid }
+                ; head=
+                    { branch= {repo_url; name= pull_request#headRefName}
+                    ; sha= pull_request#headRefOid }
+                ; merged= pull_request#merged
+                ; last_commit_message= Some node#commit#message } ) ) )
 
 let get_pull_request_refs ~token ~owner ~repo ~number =
   PullRequest_Refs.make ~owner ~repo ~number ()

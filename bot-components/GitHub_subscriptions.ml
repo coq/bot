@@ -24,7 +24,11 @@ type pull_request_action =
   | PullRequestSynchronized
 
 type 'a pull_request_info =
-  {issue: 'a; base: commit_info; head: commit_info; merged: bool}
+  { issue: 'a
+  ; base: commit_info
+  ; head: commit_info
+  ; merged: bool
+  ; last_commit_message: string option }
 
 type project_card = {issue: issue option; column_id: int}
 
@@ -79,7 +83,8 @@ let pull_request_info_of_json json =
   ; base= pr_json |> member "base" |> commit_info_of_json
   ; head= pr_json |> member "head" |> commit_info_of_json
   ; merged=
-      (match pr_json |> member "merged_at" with `Null -> false | _ -> true) }
+      (match pr_json |> member "merged_at" with `Null -> false | _ -> true)
+  ; last_commit_message= None }
 
 let project_card_of_json json =
   let card_json = json |> member "project_card" in
