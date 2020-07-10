@@ -79,6 +79,13 @@ module PullRequest_Refs =
         headRefName
         headRefOid @bsDecoder(fn: "Yojson.Basic.to_string")
         merged
+        commits(last: 1) {
+          nodes {
+            commit {
+              message
+            }
+          }
+        }
       }
     }
   }

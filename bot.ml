@@ -70,6 +70,9 @@ let git_make_ancestor ~base head =
   | Unix.WSTOPPED signal ->
       Error (f "git_make_ancestor script stopped by signal %d." signal)
 
+let first_line_of_string s =
+  if string_match ~regexp:"\\(.*\\)\n" s then Str.matched_group 1 s else s
+
 let extract_commit json =
   let open Yojson.Basic.Util in
   let commit_json = json |> member "commit" in
@@ -358,16 +361,17 @@ let job_action json =
             GitHub_queries.get_pull_request_refs ~token:github_access_token
               ~owner ~repo ~number
             >>= function
-            | Ok {issue= id; head}
+            | Ok {issue= id; head; last_commit_message= Some commit_message}
             (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
               when String.equal head.sha (f "\"%s\"" commit) ->
                 GitHub_mutations.post_comment ~token:github_access_token ~id
                   ~message:
                     (f
-                       "For your complete information, the following job in \
-                        allow failure mode has failed: \
-                        [%s](https://gitlab.com/%s/-/jobs/%d)%s"
-                       build_name repo_full_name build_id
+                       "For your complete information, the job \
+                        [%s](https://gitlab.com/%s/-/jobs/%d) in allow failure \
+                        mode has failed for commit %s: %s%s"
+                       build_name repo_full_name build_id commit
+                       (first_line_of_string commit_message)
                        ( if
                          String.equal build_name "library:ci-fiat_crypto_legacy"
                        then "\nping @JasonGross"
