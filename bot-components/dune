@@ -9,17 +9,13 @@
 
 (rule
  (targets schema.json)
- (deps
-  (:input .graphqlconfig.in)
-  .github-token
-  (universe))
+ (deps .github-token (universe))
  (action
-  (progn
-   (with-stdout-to
-    .graphqlconfig
-    (run sed "s/%%TOKEN%%/%{read:.github-token}/" %{input}))
-   (run graphql get-schema)
-   (run sed -i "s/\"timestamp\": \".*\"/\"timestamp\": \"\"/" %{targets})))
+  (with-stdout-to
+   %{targets}
+   (run get-graphql-schema --json --header
+     "Authorization=Bearer %{read:.github-token}"
+     https://api.github.com/graphql)))
  (mode promote))
 
 (env

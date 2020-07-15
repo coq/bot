@@ -34,9 +34,9 @@ This call to `dune build` without the `--ignore-promoted-rules` option
 requires that a file `bot-components/.github-token` be provided and
 contain a single line with a GitHub API personal token (with no
 specific permission).  It will use this token and the node package
-`graphql-cli` to update the GitHub schema stored in
+`get-graphql-schema` to update the GitHub schema stored in
 `bot-component/schema.json`, before building the project.
-Get `graphql-cli` with `npm install graphql-cli@3.0.14 -g` if you're
+Get `get-graphql-schema` with `npm install get-graphql-schema -g` if you're
 not compiling in `nix-shell`.
 
 ## Testing locally ##
