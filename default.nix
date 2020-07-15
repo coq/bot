@@ -1,8 +1,8 @@
 { pkgs ? import (fetchTarball {
-  name = "nixos-unstable-2020-07-08";
+  name = "pr-93179-2020-07-15";
   url =
-    "https://github.com/NixOS/nixpkgs/archive/c3fb5d86a68bf606c2408629c1a1719eff08b06d.tar.gz";
-  sha256 = "1i8d37h1yr7fxijx0yi0nj93g23a7kc0i6p5ckd6ccwzwbllr3y3";
+    "https://github.com/NixOS/nixpkgs/archive/49496772d214aff4f361f90fc95d071bd04df890.tar.gz";
+  sha256 = "0gr6a75s3z6hga7bpz3zwfmf7dc12rhv07rw72qyysk86wl1rf6y";
 }) { } }:
 
 with pkgs;
@@ -19,7 +19,7 @@ in stdenv.mkDerivation rec {
     merlin
     ocamlformat
     nixfmt
-    nodePackages.graphql-cli
+    nodePackages.get-graphql-schema
     # Direct dependencies
     base
     cohttp
