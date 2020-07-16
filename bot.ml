@@ -815,7 +815,11 @@ let callback _conn req body =
                          "git push https://%s:%s@github.com/%s.git --delete \
                           '%s'"
                          bot_name github_access_token repo_name branch_name)
-                  >>= fun _ -> Lwt.return () ))
+                  >>= function
+                  | Ok () ->
+                      Lwt.return ()
+                  | Error f ->
+                      Lwt_io.printf "Error: %s" f ))
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"" ()
         | _ ->
