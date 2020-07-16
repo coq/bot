@@ -702,20 +702,23 @@ let callback _conn req body =
           in
           let script = Str.matched_group 1 comment_info.body in
           (fun () ->
-            Lwt_io.printf "Found script: %s\n" script
-            >>= fun _ ->
             git_coq_bug_minimizer ~script ~comment_thread_id
               ~comment_author:comment_info.author ~bot_name ~bot_domain
               ~token:github_access_token
-            >>= fun _ ->
-            GitHub_mutations.post_comment ~id:comment_thread_id
-              ~message:
-                (f
-                   "Hey @%s, the coq bug minimizer is running your script, \
-                    I'll come back to you with the results once it's done."
-                   comment_info.author)
-              ~token:github_access_token
-            >>= fun _ -> Lwt.return ())
+            >>= function
+            | Ok ok ->
+                if ok then
+                  GitHub_mutations.post_comment ~id:comment_thread_id
+                    ~message:
+                      (f
+                         "Hey @%s, the coq bug minimizer is running your \
+                          script, I'll come back to you with the results once \
+                          it's done."
+                         comment_info.author)
+                    ~token:github_access_token
+                else Lwt.return ()
+            | Error f ->
+                Lwt_io.printf "Error: %s" f)
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok
@@ -804,13 +807,17 @@ let callback _conn req body =
         let message = Str.matched_group 2 body in
         match Str.split (Str.regexp " ") stamp with
         | [id; author; repo_name; branch_name] ->
-            GitHub_mutations.post_comment ~token:github_access_token ~id
-              ~message:(f "@%s, %s" author message)
-            >>= fun () ->
-            execute_cmd
-              (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
-                 bot_name github_access_token repo_name branch_name)
-            >>= fun _ -> Server.respond_string ~status:`OK ~body:"" ()
+            (fun () ->
+              GitHub_mutations.post_comment ~token:github_access_token ~id
+                ~message:(f "@%s, %s" author message)
+              <&> ( execute_cmd
+                      (f
+                         "git push https://%s:%s@github.com/%s.git --delete \
+                          '%s'"
+                         bot_name github_access_token repo_name branch_name)
+                  >>= fun _ -> Lwt.return () ))
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK ~body:"" ()
         | _ ->
             Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
       else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
