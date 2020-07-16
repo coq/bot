@@ -25,7 +25,7 @@ pushd "$wtree"
 printf "%s %s %s %s" "$comment_thread_id" "$comment_author" "$repo_name" "$branch_name" > coqbot-request-stamp
 printf "%s\n" "$script" > coqbot.sh
 sed -i 's/\r$//g' coqbot.sh
-sed -i "s/COQBOT_URL='.*'/COQBOT_URL='https:\/\/$bot_domain\/coq-bug-minimizer'/" coqbot-config.sh
+echo "https://$bot_domain/coq-bug-minimizer" > coqbot.url
 git add .
 git commit -m "Added user script in coqbot.sh"
 git push --set-upstream "https://$bot_name:$token@github.com/$repo_name.git" "$branch_name"
