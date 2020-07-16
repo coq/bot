@@ -14,6 +14,8 @@ let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
 
 let bot_name = try Sys.getenv "BOT_NAME" with Not_found -> "coqbot"
 
+let bot_domain = f "%s.herokuapp.com" bot_name
+
 let bot_email =
   try Sys.getenv "BOT_EMAIL"
   with Not_found -> f "%s@users.noreply.github.com" bot_name
@@ -69,6 +71,22 @@ let git_make_ancestor ~base head =
       Error (f "git_make_ancestor script killed by signal %d." signal)
   | Unix.WSTOPPED signal ->
       Error (f "git_make_ancestor script stopped by signal %d." signal)
+
+let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~token
+    ~bot_name ~bot_domain =
+  f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s" script comment_thread_id
+    comment_author token bot_name bot_domain
+  |> Lwt_unix.system
+  >|= fun status ->
+  match status with
+  | Unix.WEXITED 0 ->
+      Ok true (* push successful *)
+  | Unix.WEXITED code ->
+      Error (f "coq_bug_minimizer script exited with status %d." code)
+  | Unix.WSIGNALED signal ->
+      Error (f "coq_bug_minimizer script killed by signal %d." signal)
+  | Unix.WSTOPPED signal ->
+      Error (f "coq_bug_minimizer script stopped by signal %d." signal)
 
 let first_line_of_string s =
   if string_match ~regexp:"\\(.*\\)\n" s then Str.matched_group 1 s else s
@@ -672,6 +690,34 @@ let callback _conn req body =
       | Ok (_, GitHub_subscriptions.RemovedFromProject _) ->
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
+      | Ok (_, GitHub_subscriptions.CommentCreated comment_info)
+        when string_match ~regexp:"@coqbot: minimize[^```]*```\\([^```]+\\)```"
+               comment_info.body ->
+          let comment_thread_id =
+            match comment_info.pull_request with
+            | None ->
+                comment_info.issue.id
+            | Some pr ->
+                pr.issue.id
+          in
+          let script = Str.matched_group 1 comment_info.body in
+          (fun () ->
+            Lwt_io.printf "Found script: %s\n" script
+            >>= fun _ ->
+            git_coq_bug_minimizer ~script ~comment_thread_id
+              ~comment_author:comment_info.author ~bot_name ~bot_domain
+              ~token:github_access_token
+            >>= fun _ ->
+            GitHub_mutations.post_comment ~id:comment_thread_id
+              ~message:
+                (f
+                   "Hey @%s, the coq bug minimizer is running your script, \
+                    I'll come back to you with the results once it's done."
+                   comment_info.author)
+              ~token:github_access_token
+            >>= fun _ -> Lwt.return ())
+          |> Lwt.async ;
+          Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok
           (_, GitHub_subscriptions.CommentCreated {issue= {pull_request= false}})
         ->
@@ -750,6 +796,24 @@ let callback _conn req body =
       | Error s ->
           Server.respond_string ~status:(Code.status_of_code 400)
             ~body:(f "Error: %s" s) () )
+  | "/coq-bug-minimizer" ->
+      body
+      >>= fun body ->
+      if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
+        let stamp = Str.matched_group 1 body in
+        let message = Str.matched_group 2 body in
+        match Str.split (Str.regexp " ") stamp with
+        | [id; author; repo_name; branch_name] ->
+            GitHub_mutations.post_comment ~token:github_access_token ~id
+              ~message:(f "@%s, %s" author message)
+            >>= fun () ->
+            execute_cmd
+              (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
+                 bot_name github_access_token repo_name branch_name)
+            >>= fun _ -> Server.respond_string ~status:`OK ~body:"" ()
+        | _ ->
+            Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
+      else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
   | _ ->
       Server.respond_not_found ()
 
