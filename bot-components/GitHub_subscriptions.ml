@@ -38,6 +38,8 @@ type comment_info =
   ; pull_request: issue_info pull_request_info option
   ; issue: issue_info }
 
+type check_run_info = {id: int; node_id: string; url: string}
+
 type msg =
   | NoOp of string
   | IssueClosed of issue_info
@@ -46,6 +48,7 @@ type msg =
   | BranchCreated of remote_ref_info
   | TagCreated of remote_ref_info
   | CommentCreated of comment_info
+  | CheckRunCreated of check_run_info
 
 let issue_info_of_json ?issue_json json =
   let issue_json =
@@ -129,6 +132,12 @@ let comment_info_of_json ?(review_comment = false) json =
       | None ->
           issue_info_of_json json ) }
 
+let check_run_info_of_json json =
+  let check_run = json |> member "check_run" in
+  { id= check_run |> member "id" |> to_int
+  ; node_id= check_run |> member "node_id" |> to_string
+  ; url= check_run |> member "url" |> to_string }
+
 let github_action ~event ~action json =
   match (event, action) with
   | "pull_request", "opened" ->
@@ -153,6 +162,8 @@ let github_action ~event ~action json =
       Ok (CommentCreated (comment_info_of_json json))
   | "pull_request_review", "submitted" ->
       Ok (CommentCreated (comment_info_of_json json ~review_comment:true))
+  | "check_run", "created" ->
+      Ok (CheckRunCreated (check_run_info_of_json json))
   | _ ->
       Ok (NoOp "Unhandled GitHub action.")
 
@@ -162,7 +173,8 @@ let github_event ~event json =
   | "issues"
   | "project_card"
   | "issue_comment"
-  | "pull_request_review" ->
+  | "pull_request_review"
+  | "check_run" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
   | "create" -> (
       let ref_info =

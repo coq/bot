@@ -25,7 +25,7 @@ FROM alpine:3.10 AS app
 WORKDIR /app
 
 COPY --from=builder /src/opam-install/bin/bot bot.exe
-COPY --from=builder /src/make_ancestor.sh ./
+COPY --from=builder /src/make_ancestor.sh /src/coq_bug_minimizer.sh ./
 
 RUN apk update \
   && apk add bash git \
