@@ -4,35 +4,35 @@ open Cohttp_lwt_unix
 open Lwt
 open Utils
 
-let mv_card_to_column ~token
+let mv_card_to_column ~token ~bot_name
     ({card_id; column_id} : GitHub_queries.mv_card_to_column_input) =
   MoveCardToColumn.make ~card_id ~column_id ()
-  |> GitHub_queries.send_graphql_query ~token
+  |> GitHub_queries.send_graphql_query ~token ~bot_name
   >|= function
   | Ok _ ->
       ()
   | Error err ->
       Stdio.print_endline (f "Error while moving project card: %s" err)
 
-let post_comment ~token ~id ~message =
+let post_comment ~token ~id ~message ~bot_name =
   PostComment.make ~id ~message ()
-  |> GitHub_queries.send_graphql_query ~token
+  |> GitHub_queries.send_graphql_query ~token ~bot_name
   >|= function
   | Ok _ ->
       ()
   | Error err ->
       Stdio.print_endline (f "Error while posting comment: %s" err)
 
-let update_milestone ~token ~issue ~milestone =
+let update_milestone ~token ~issue ~milestone ~bot_name =
   UpdateMilestone.make ~issue ~milestone ()
-  |> GitHub_queries.send_graphql_query ~token
+  |> GitHub_queries.send_graphql_query ~token ~bot_name
   >|= function
   | Ok _ ->
       ()
   | Error err ->
       Stdio.print_endline (f "Error while updating milestone: %s" err)
 
-let reflect_pull_request_milestone ~token
+let reflect_pull_request_milestone ~token ~bot_name
     (issue_closer_info : GitHub_queries.issue_closer_info) =
   match issue_closer_info.closer.milestone_id with
   | None ->
@@ -42,11 +42,13 @@ let reflect_pull_request_milestone ~token
     | None ->
         (* No previous milestone: setting the one of the PR which closed the issue *)
         update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
+          ~bot_name
     | Some previous_milestone when String.equal previous_milestone milestone ->
         Lwt_io.print "Issue is already in the right milestone: doing nothing.\n"
     | Some _ ->
         update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
-        <&> post_comment ~token ~id:issue_closer_info.issue_id
+          ~bot_name
+        <&> post_comment ~token ~id:issue_closer_info.issue_id ~bot_name
               ~message:
                 "The milestone of this issue was changed to reflect the one of \
                  the pull request that closed it." )
@@ -66,9 +68,9 @@ let add_rebase_label (issue : GitHub_subscriptions.issue) ~token =
   let github_header = [("Authorization", "bearer " ^ token)] in
   send_request ~body ~uri github_header
 
-let remove_rebase_label (issue : GitHub_subscriptions.issue) ~token =
+let remove_rebase_label (issue : GitHub_subscriptions.issue) ~token ~bot_name =
   let github_header = [("Authorization", "bearer " ^ token)] in
-  let headers = headers github_header in
+  let headers = headers github_header ~bot_name in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
       issue.owner issue.repo issue.number
@@ -80,9 +82,10 @@ let remove_rebase_label (issue : GitHub_subscriptions.issue) ~token =
   Lwt_io.printf "Sending delete request.\n"
   >>= fun () -> Client.delete ~headers uri >>= print_response
 
-let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token =
+let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token
+    ~bot_name =
   let github_header = [("Authorization", "bearer " ^ token)] in
-  let headers = headers github_header in
+  let headers = headers github_header ~bot_name in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
       issue.number
@@ -100,7 +103,7 @@ let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token =
 let remove_milestone = update_milestone "null"
 
 let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
-    ~token =
+    ~bot_name ~token =
   Lwt_io.printf "Sending status check to %s (commit %s, state %s)\n"
     repo_full_name commit state
   >>= fun () ->
@@ -118,7 +121,7 @@ let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
     |> Uri.of_string
   in
   let github_header = [("Authorization", "bearer " ^ token)] in
-  send_request ~body ~uri github_header
+  send_request ~body ~uri github_header ~bot_name
 
 let add_pr_to_column pr_id column_id ~token =
   let body =
