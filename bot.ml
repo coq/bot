@@ -717,7 +717,7 @@ let callback _conn req body =
       | Ok
           (_, GitHub_subscriptions.IssueOpened ({body= Some body} as issue_info))
         when string_match
-               ~regexp:(f "@%s: minimize[^```]*```\\([^```]+\\)```" bot_name)
+               ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
                body ->
           run_coq_minimizer ~script:(Str.matched_group 1 body)
             ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
@@ -725,7 +725,7 @@ let callback _conn req body =
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok (_, GitHub_subscriptions.CommentCreated comment_info)
         when string_match
-               ~regexp:(f "@%s: minimize[^```]*```\\([^```]+\\)```" bot_name)
+               ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
                comment_info.body ->
           let comment_thread_id =
             match comment_info.pull_request with
