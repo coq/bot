@@ -11,7 +11,8 @@ type issue_info =
   ; user: string
   ; labels: string list
   ; milestoned: bool
-  ; pull_request: bool }
+  ; pull_request: bool
+  ; body: string option }
 
 type remote_ref_info = {repo_url: string; name: string}
 
@@ -42,6 +43,7 @@ type check_run_info = {id: int; node_id: string; url: string}
 
 type msg =
   | NoOp of string
+  | IssueOpened of issue_info
   | IssueClosed of issue_info
   | RemovedFromProject of project_card
   | PullRequestUpdated of pull_request_action * issue_info pull_request_info
@@ -72,7 +74,8 @@ let issue_info_of_json ?issue_json json =
       (match issue_json |> member "milestone" with `Null -> false | _ -> true)
   ; pull_request=
       issue_json |> member "html_url" |> to_string
-      |> string_match ~regexp:"https://github.com/[^/]*/[^/]*/pull/[0-9]*" }
+      |> string_match ~regexp:"https://github.com/[^/]*/[^/]*/pull/[0-9]*"
+  ; body= issue_json |> member "body" |> to_string_option }
 
 let commit_info_of_json json =
   { branch=
@@ -153,6 +156,8 @@ let github_action ~event ~action json =
   | "pull_request", "closed" ->
       Ok
         (PullRequestUpdated (PullRequestClosed, pull_request_info_of_json json))
+  | "issues", "opened" ->
+      Ok (IssueOpened (issue_info_of_json json))
   | "issues", "closed" ->
       Ok (IssueClosed (issue_info_of_json json))
   | "project_card", "deleted" ->

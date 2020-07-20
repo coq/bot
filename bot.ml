@@ -91,6 +91,23 @@ let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~token
 let first_line_of_string s =
   if string_match ~regexp:"\\(.*\\)\n" s then Str.matched_group 1 s else s
 
+let run_coq_minimizer ~script ~comment_thread_id ~comment_author () =
+  git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_name
+    ~bot_domain ~token:github_access_token
+  >>= function
+  | Ok ok ->
+      if ok then
+        GitHub_mutations.post_comment ~id:comment_thread_id
+          ~message:
+            (f
+               "Hey @%s, the coq bug minimizer is running your script, I'll \
+                come back to you with the results once it's done."
+               comment_author)
+          ~token:github_access_token
+      else Lwt.return ()
+  | Error f ->
+      Lwt_io.printf "Error: %s" f
+
 let extract_commit json =
   let open Yojson.Basic.Util in
   let commit_json = json |> member "commit" in
@@ -690,6 +707,14 @@ let callback _conn req body =
       | Ok (_, GitHub_subscriptions.RemovedFromProject _) ->
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
+      | Ok
+          (_, GitHub_subscriptions.IssueOpened ({body= Some body} as issue_info))
+        when string_match ~regexp:"@coqbot: minimize[^```]*```\\([^```]+\\)```"
+               body ->
+          run_coq_minimizer ~script:(Str.matched_group 1 body)
+            ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
+          |> Lwt.async ;
+          Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok (_, GitHub_subscriptions.CommentCreated comment_info)
         when string_match ~regexp:"@coqbot: minimize[^```]*```\\([^```]+\\)```"
                comment_info.body ->
@@ -700,25 +725,9 @@ let callback _conn req body =
             | Some pr ->
                 pr.issue.id
           in
-          let script = Str.matched_group 1 comment_info.body in
-          (fun () ->
-            git_coq_bug_minimizer ~script ~comment_thread_id
-              ~comment_author:comment_info.author ~bot_name ~bot_domain
-              ~token:github_access_token
-            >>= function
-            | Ok ok ->
-                if ok then
-                  GitHub_mutations.post_comment ~id:comment_thread_id
-                    ~message:
-                      (f
-                         "Hey @%s, the coq bug minimizer is running your \
-                          script, I'll come back to you with the results once \
-                          it's done."
-                         comment_info.author)
-                    ~token:github_access_token
-                else Lwt.return ()
-            | Error f ->
-                Lwt_io.printf "Error: %s" f)
+          run_coq_minimizer
+            ~script:(Str.matched_group 1 comment_info.body)
+            ~comment_thread_id ~comment_author:comment_info.author
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok
