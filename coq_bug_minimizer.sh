@@ -13,7 +13,7 @@ token=$4
 bot_name=$5
 bot_domain=$6
 branch_id=$(($(od -A n -t uI -N 5 /dev/urandom | tr -d ' ')))
-repo_name="JasonGross/run-coq-bug-minimizer"
+repo_name="coq-community/run-coq-bug-minimizer"
 branch_name="run-coq-bug-minimizer-$branch_id"
 
 wtree=$(mktemp -d)
