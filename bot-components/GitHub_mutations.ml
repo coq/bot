@@ -4,35 +4,35 @@ open Cohttp_lwt_unix
 open Lwt
 open Utils
 
-let mv_card_to_column ~token ~bot_name
+let mv_card_to_column ~bot_info
     ({card_id; column_id} : GitHub_queries.mv_card_to_column_input) =
   MoveCardToColumn.make ~card_id ~column_id ()
-  |> GitHub_queries.send_graphql_query ~token ~bot_name
+  |> GitHub_queries.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
       ()
   | Error err ->
       Stdio.print_endline (f "Error while moving project card: %s" err)
 
-let post_comment ~token ~id ~message ~bot_name =
+let post_comment ~bot_info ~id ~message =
   PostComment.make ~id ~message ()
-  |> GitHub_queries.send_graphql_query ~token ~bot_name
+  |> GitHub_queries.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
       ()
   | Error err ->
       Stdio.print_endline (f "Error while posting comment: %s" err)
 
-let update_milestone ~token ~issue ~milestone ~bot_name =
+let update_milestone ~bot_info ~issue ~milestone =
   UpdateMilestone.make ~issue ~milestone ()
-  |> GitHub_queries.send_graphql_query ~token ~bot_name
+  |> GitHub_queries.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
       ()
   | Error err ->
       Stdio.print_endline (f "Error while updating milestone: %s" err)
 
-let reflect_pull_request_milestone ~token ~bot_name
+let reflect_pull_request_milestone ~bot_info
     (issue_closer_info : GitHub_queries.issue_closer_info) =
   match issue_closer_info.closer.milestone_id with
   | None ->
@@ -41,21 +41,19 @@ let reflect_pull_request_milestone ~token ~bot_name
     match issue_closer_info.milestone_id with
     | None ->
         (* No previous milestone: setting the one of the PR which closed the issue *)
-        update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
-          ~bot_name
+        update_milestone ~bot_info ~issue:issue_closer_info.issue_id ~milestone
     | Some previous_milestone when String.equal previous_milestone milestone ->
         Lwt_io.print "Issue is already in the right milestone: doing nothing.\n"
     | Some _ ->
-        update_milestone ~token ~issue:issue_closer_info.issue_id ~milestone
-          ~bot_name
-        <&> post_comment ~token ~id:issue_closer_info.issue_id ~bot_name
+        update_milestone ~bot_info ~issue:issue_closer_info.issue_id ~milestone
+        <&> post_comment ~bot_info ~id:issue_closer_info.issue_id
               ~message:
                 "The milestone of this issue was changed to reflect the one of \
                  the pull request that closed it." )
 
 (* TODO: use GraphQL API *)
 
-let add_rebase_label (issue : GitHub_subscriptions.issue) ~token =
+let add_rebase_label (issue : GitHub_subscriptions.issue) ~bot_info =
   let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels" issue.owner
@@ -65,12 +63,12 @@ let add_rebase_label (issue : GitHub_subscriptions.issue) ~token =
          url)
     |> Uri.of_string
   in
-  let github_header = [("Authorization", "bearer " ^ token)] in
-  send_request ~body ~uri github_header
+  let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
+  send_request ~body ~uri github_header ~bot_info
 
-let remove_rebase_label (issue : GitHub_subscriptions.issue) ~token ~bot_name =
-  let github_header = [("Authorization", "bearer " ^ token)] in
-  let headers = headers github_header ~bot_name in
+let remove_rebase_label (issue : GitHub_subscriptions.issue) ~bot_info =
+  let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
+  let headers = headers github_header ~bot_info in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
       issue.owner issue.repo issue.number
@@ -82,10 +80,10 @@ let remove_rebase_label (issue : GitHub_subscriptions.issue) ~token ~bot_name =
   Lwt_io.printf "Sending delete request.\n"
   >>= fun () -> Client.delete ~headers uri >>= print_response
 
-let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token
-    ~bot_name =
-  let github_header = [("Authorization", "bearer " ^ token)] in
-  let headers = headers github_header ~bot_name in
+let update_milestone new_milestone (issue : GitHub_subscriptions.issue)
+    ~bot_info =
+  let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
+  let headers = headers github_header ~bot_info in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
       issue.number
@@ -103,7 +101,7 @@ let update_milestone new_milestone (issue : GitHub_subscriptions.issue) ~token
 let remove_milestone = update_milestone "null"
 
 let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
-    ~bot_name ~token =
+    ~bot_info =
   Lwt_io.printf "Sending status check to %s (commit %s, state %s)\n"
     repo_full_name commit state
   >>= fun () ->
@@ -120,10 +118,10 @@ let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
     "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
     |> Uri.of_string
   in
-  let github_header = [("Authorization", "bearer " ^ token)] in
-  send_request ~body ~uri github_header ~bot_name
+  let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
+  send_request ~body ~uri github_header ~bot_info
 
-let add_pr_to_column pr_id column_id ~token =
+let add_pr_to_column pr_id column_id ~bot_info =
   let body =
     "{\"content_id\":" ^ Int.to_string pr_id
     ^ ", \"content_type\": \"PullRequest\"}"
@@ -140,5 +138,5 @@ let add_pr_to_column pr_id column_id ~token =
          url)
     |> Uri.of_string
   in
-  let github_header = [("Authorization", "bearer " ^ token)] in
-  send_request ~body ~uri (project_api_preview_header @ github_header)
+  let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
+  send_request ~body ~uri (project_api_preview_header @ github_header) ~bot_info

@@ -20,6 +20,11 @@ let bot_email =
   try Sys.getenv "BOT_EMAIL"
   with Not_found -> f "%s@users.noreply.github.com" bot_name
 
+let bot_info =
+  { github_token= github_access_token
+  ; gitlab_token= gitlab_access_token
+  ; bot_name }
+
 open Base
 
 let gitlab_repo ~owner ~name =
@@ -72,10 +77,10 @@ let git_make_ancestor ~base head =
   | Unix.WSTOPPED signal ->
       Error (f "git_make_ancestor script stopped by signal %d." signal)
 
-let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~token
-    ~bot_name ~bot_domain =
+let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info
+    ~bot_domain =
   f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s" script comment_thread_id
-    comment_author token bot_name bot_domain
+    comment_author bot_info.github_token bot_name bot_domain
   |> Lwt_unix.system
   >|= fun status ->
   match status with
@@ -92,8 +97,8 @@ let first_line_of_string s =
   if string_match ~regexp:"\\(.*\\)\n" s then Str.matched_group 1 s else s
 
 let run_coq_minimizer ~script ~comment_thread_id ~comment_author () =
-  git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_name
-    ~bot_domain ~token:github_access_token
+  git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info
+    ~bot_domain
   >>= function
   | Ok ok ->
       if ok then
@@ -103,7 +108,7 @@ let run_coq_minimizer ~script ~comment_thread_id ~comment_author () =
                "Hey @%s, the coq bug minimizer is running your script, I'll \
                 come back to you with the results once it's done."
                comment_author)
-          ~token:github_access_token ~bot_name
+          ~bot_info
       else Lwt.return ()
   | Error f ->
       Lwt_io.printf "Error: %s" f
@@ -152,16 +157,13 @@ let pull_request_updated
     if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
     then
       (fun () ->
-        GitHub_mutations.remove_rebase_label pr_info.issue.issue
-          ~token:github_access_token ~bot_name)
+        GitHub_mutations.remove_rebase_label pr_info.issue.issue ~bot_info)
       |> Lwt.async ;
     (* Force push *)
     git_push (gitlab_ref pr_info.issue.issue) local_head_branch |> execute_cmd )
   else (
     (* Remove rebase label *)
-    (fun () ->
-      GitHub_mutations.add_rebase_label pr_info.issue.issue
-        ~token:github_access_token ~bot_name)
+    (fun () -> GitHub_mutations.add_rebase_label pr_info.issue.issue ~bot_info)
     |> Lwt.async ;
     (* Add fail status check *)
     GitHub_mutations.send_status_check
@@ -172,7 +174,7 @@ let pull_request_updated
       ~description:
         "Pipeline did not run on GitLab CI because PR has conflicts with base \
          branch."
-      ~token:github_access_token ~bot_name
+      ~bot_info
     |> Lwt_result.ok )
 
 let pull_request_closed
@@ -186,15 +188,14 @@ let pull_request_closed
     Lwt_io.printf
       "PR was closed without getting merged: remove the milestone.\n"
     >>= fun () ->
-    GitHub_mutations.remove_milestone pr_info.issue.issue
-      ~token:github_access_token ~bot_name
+    GitHub_mutations.remove_milestone pr_info.issue.issue ~bot_info
   else
     (* TODO: if PR was merged in master without a milestone, post an alert *)
     Lwt.return ()
 
 let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
-  GitHub_queries.get_pull_request_id_and_milestone ~token:github_access_token
-    ~owner:"coq" ~repo:"coq" ~number:issue.number ~bot_name
+  GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
+    ~repo:"coq" ~number:issue.number
   >>= function
   | Error err ->
       Lwt_io.printf "Error: %s\n" err
@@ -208,14 +209,12 @@ let project_action ~(issue : GitHub_subscriptions.issue) ~column_id () =
          Change of milestone requested to: %s\n"
         rejected_milestone
       >>= fun () ->
-      GitHub_mutations.update_milestone rejected_milestone issue
-        ~token:github_access_token ~bot_name
-      <&> GitHub_mutations.post_comment ~token:github_access_token ~id
+      GitHub_mutations.update_milestone rejected_milestone issue ~bot_info
+      <&> GitHub_mutations.post_comment ~bot_info ~id
             ~message:
               "This PR was postponed. Please update accordingly the milestone \
                of any issue that this fixes as this cannot be done \
                automatically."
-            ~bot_name
   | _ ->
       Lwt_io.printf "This was not a request inclusion column: ignoring.\n"
 
@@ -229,9 +228,8 @@ let push_action json =
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.get_pull_request_id_and_milestone
-        ~token:github_access_token ~owner:"coq" ~repo:"coq" ~number:pr_number
-        ~bot_name
+      GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
+        ~repo:"coq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
       | Ok (Some (_, pr_id, {backport_info})) ->
@@ -246,14 +244,13 @@ let push_action json =
                      "PR was merged into the backportig branch directly.\n"
                    >>= fun () ->
                    GitHub_mutations.add_pr_to_column pr_id backported_column
-                     ~token:github_access_token ~bot_name
+                     ~bot_info
                  else
                    Lwt_io.printf "Backporting to %s was requested.\n"
                      backport_to
                    >>= fun () ->
                    GitHub_mutations.add_pr_to_column pr_id
-                     request_inclusion_column ~token:github_access_token
-                     ~bot_name)
+                     request_inclusion_column ~bot_info)
       | Ok None ->
           Lwt_io.printf "Did not get any backporting info.\n"
       | Error err ->
@@ -262,14 +259,11 @@ let push_action json =
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.backported_pr_info ~token:github_access_token pr_number
-        base_ref ~bot_name
+      GitHub_queries.backported_pr_info ~bot_info pr_number base_ref
       >>= function
       | Some ({card_id; column_id} as input) ->
           Lwt_io.printf "Moving card %s to column %s.\n" card_id column_id
-          >>= fun () ->
-          GitHub_mutations.mv_card_to_column ~token:github_access_token input
-            ~bot_name
+          >>= fun () -> GitHub_mutations.mv_card_to_column ~bot_info input
       | None ->
           Lwt_io.printf "Could not find backporting info for backported PR.\n"
     else Lwt.return ()
@@ -371,7 +365,7 @@ let job_action json =
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
         GitHub_mutations.send_status_check ~repo_full_name ~commit
           ~state:"success" ~url ~context ~description:(description_base ^ ".")
-          ~token:github_access_token ~bot_name
+          ~bot_info
       else
         Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
         >>= fun () ->
@@ -382,7 +376,7 @@ let job_action json =
                build_id)
           ~context
           ~description:(description_base ^ ": not found.")
-          ~token:github_access_token ~bot_name)
+          ~bot_info)
     |> Lwt.async
   in
   if String.equal build_status "failed" then
@@ -397,13 +391,12 @@ let job_action json =
            reporting a failed status check. *)
         match pr_num with
         | Some number -> (
-            GitHub_queries.get_pull_request_refs ~token:github_access_token
-              ~owner ~repo ~number ~bot_name
+            GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo ~number
             >>= function
             | Ok {issue= id; head; last_commit_message= Some commit_message}
             (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
               when String.equal head.sha (f "\"%s\"" commit) ->
-                GitHub_mutations.post_comment ~token:github_access_token ~id
+                GitHub_mutations.post_comment ~bot_info ~id
                   ~message:
                     (f
                        "For your complete information, the job \
@@ -415,7 +408,6 @@ let job_action json =
                          String.equal build_name "library:ci-fiat_crypto_legacy"
                        then "\nping @JasonGross"
                        else "" ))
-                  ~bot_name
             | Ok {head} ->
                 Lwt_io.printf
                   "We are on a PR branch but the commit (%s) is not the \
@@ -439,7 +431,7 @@ let job_action json =
                build_id)
           ~context
           ~description:(failure_reason ^ " on GitLab CI")
-          ~token:github_access_token ~bot_name
+          ~bot_info
     in
     (fun () ->
       Lwt_io.printf "Failed job %d of project %d.\nFailure reason: %s\n"
@@ -447,8 +439,7 @@ let job_action json =
       >>= fun () ->
       if String.equal failure_reason "runner_system_failure" then
         Lwt_io.printf "Runner failure reported by GitLab CI. Retrying...\n"
-        <&> GitLab_mutations.retry_job ~project_id ~build_id
-              ~token:gitlab_access_token ~bot_name
+        <&> GitLab_mutations.retry_job ~project_id ~build_id ~bot_info
       else if
         String.equal failure_reason "stuck_or_timeout_failure"
         || String.equal failure_reason "job_execution_timeout"
@@ -474,8 +465,7 @@ let job_action json =
     |> Lwt.async
   else if String.equal build_status "success" then (
     (fun () ->
-      GitHub_queries.get_status_check ~repo_full_name ~commit ~context
-        ~token:github_access_token ~bot_name
+      GitHub_queries.get_status_check ~repo_full_name ~commit ~context ~bot_info
       >>= fun b ->
       if b then
         Lwt_io.printf
@@ -488,7 +478,7 @@ let job_action json =
                    build_id)
               ~context
               ~description:"Test succeeded on GitLab CI after being retried"
-              ~token:github_access_token ~bot_name
+              ~bot_info
       else Lwt.return ())
     |> Lwt.async ;
     if String.equal build_name "doc:refman" then (
@@ -555,7 +545,7 @@ let pipeline_action json =
             (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
                gitlab_full_name id)
           ~context:(f "GitLab CI pipeline (%s)" (pr_from_branch branch |> snd))
-          ~description ~token:github_access_token ~bot_name)
+          ~description ~bot_info)
       |> Lwt.async
 
 let owner_team_map =
@@ -606,8 +596,7 @@ let callback _conn req body =
             when String.equal pr_info.base.branch.name pr_info.head.branch.name
             ->
               (fun () ->
-                GitHub_mutations.post_comment ~token:github_access_token
-                  ~id:pr_info.issue.id
+                GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
                   ~message:
                     (f
                        "Hello, thanks for your pull request!\n\
@@ -617,8 +606,7 @@ let callback _conn req body =
                         By the way, you may be interested in reading [our \
                         contributing \
                         guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
-                       pr_info.base.branch.name)
-                  ~bot_name)
+                       pr_info.base.branch.name))
               |> Lwt.async
           | _ ->
               () ) ;
@@ -626,9 +614,8 @@ let callback _conn req body =
           | Some team when signed ->
               (fun () ->
                 (let open Lwt_result.Infix in
-                GitHub_queries.get_team_membership ~token:github_access_token
+                GitHub_queries.get_team_membership ~bot_info
                   ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
-                  ~bot_name
                 >>= (fun is_member ->
                       if is_member then (
                         Stdio.printf "Authorized user: pushing to GitLab.\n" ;
@@ -669,12 +656,10 @@ let callback _conn req body =
              after 5, 25, and 125 seconds, if the issue was closed by a
              commit not yet associated to a pull request. *)
           let rec adjust_milestone sleep_time () =
-            GitHub_queries.get_issue_closer_info ~token:github_access_token
-              issue ~bot_name
+            GitHub_queries.get_issue_closer_info ~bot_info issue
             >>= function
             | Ok (GitHub_queries.ClosedByPullRequest result) ->
-                GitHub_mutations.reflect_pull_request_milestone
-                  ~token:github_access_token result ~bot_name
+                GitHub_mutations.reflect_pull_request_milestone ~bot_info result
             | Ok GitHub_queries.ClosedByCommit ->
                 (* May be worth trying again later. *)
                 if Float.(sleep_time > 200.) then
@@ -751,9 +736,9 @@ let callback _conn req body =
             | Some team when signed ->
                 (fun () ->
                   (let open Lwt_result.Infix in
-                  GitHub_queries.get_team_membership ~token:github_access_token
+                  GitHub_queries.get_team_membership ~bot_info
                     ~org:comment_info.issue.issue.owner ~team
-                    ~user:comment_info.author ~bot_name
+                    ~user:comment_info.author
                   >>= (fun is_member ->
                         if is_member then (
                           Stdio.printf "Authorized user: pushing to GitLab.\n" ;
@@ -764,9 +749,8 @@ let callback _conn req body =
                               let {GitHub_subscriptions.owner; repo; number} =
                                 comment_info.issue.issue
                               in
-                              GitHub_queries.get_pull_request_refs
-                                ~token:github_access_token ~owner ~repo ~number
-                                ~bot_name
+                              GitHub_queries.get_pull_request_refs ~bot_info
+                                ~owner ~repo ~number
                               >>= fun pr_info ->
                               pull_request_updated
                                 {pr_info with issue= comment_info.issue}
@@ -824,9 +808,8 @@ let callback _conn req body =
         match Str.split (Str.regexp " ") stamp with
         | [id; author; repo_name; branch_name] ->
             (fun () ->
-              GitHub_mutations.post_comment ~token:github_access_token ~id
+              GitHub_mutations.post_comment ~bot_info ~id
                 ~message:(f "@%s, %s" author message)
-                ~bot_name
               <&> ( execute_cmd
                       (f
                          "git push https://%s:%s@github.com/%s.git --delete \
