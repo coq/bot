@@ -716,104 +716,97 @@ let callback _conn req body =
             ~body:"Note card removed from project: nothing to do." ()
       | Ok
           (_, GitHub_subscriptions.IssueOpened ({body= Some body} as issue_info))
-        when string_match
-               ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
-               body ->
-          run_coq_minimizer ~script:(Str.matched_group 1 body)
-            ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
-          |> Lwt.async ;
-          Server.respond_string ~status:`OK ~body:"Handling minimization." ()
-      | Ok (_, GitHub_subscriptions.CommentCreated comment_info)
-        when string_match
-               ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
-               comment_info.body ->
-          let comment_thread_id =
-            match comment_info.pull_request with
-            | None ->
-                comment_info.issue.id
-            | Some pr ->
-                pr.issue.id
-          in
-          run_coq_minimizer
-            ~script:(Str.matched_group 1 comment_info.body)
-            ~comment_thread_id ~comment_author:comment_info.author
-          |> Lwt.async ;
-          Server.respond_string ~status:`OK ~body:"Handling minimization." ()
-      | Ok
-          (_, GitHub_subscriptions.CommentCreated {issue= {pull_request= false}})
         ->
-          Server.respond_string ~status:`OK
-            ~body:"Issue comment: nothing to do." ()
-      | Ok (signed, GitHub_subscriptions.CommentCreated comment_info)
-        when string_match
-               ~regexp:(f "@%s: [Rr]un CI now" bot_name)
-               comment_info.body -> (
-        match Map.find owner_team_map comment_info.issue.issue.owner with
-        | Some team when signed ->
-            (fun () ->
-              (let open Lwt_result.Infix in
-              GitHub_queries.get_team_membership ~token:github_access_token
-                ~org:comment_info.issue.issue.owner ~team
-                ~user:comment_info.author ~bot_name
-              >>= (fun is_member ->
-                    if is_member then (
-                      Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                      match comment_info.pull_request with
-                      | Some pr_info ->
-                          pull_request_updated pr_info ()
-                      | None ->
-                          let {GitHub_subscriptions.owner; repo; number} =
-                            comment_info.issue.issue
-                          in
-                          GitHub_queries.get_pull_request_refs
-                            ~token:github_access_token ~owner ~repo ~number
-                            ~bot_name
-                          >>= fun pr_info ->
-                          pull_request_updated
-                            {pr_info with issue= comment_info.issue}
-                            () )
-                    else
-                      Lwt_io.print "Unauthorized user: doing nothing.\n"
-                      |> Lwt_result.ok)
-              |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                     Lwt_io.printf "Error: %s\n" err))
-              >>= fun _ -> Lwt.return ())
+          let body = trim_comments body in
+          if
+            string_match
+              ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
+              body
+          then
+            run_coq_minimizer ~script:(Str.matched_group 1 body)
+              ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
             |> Lwt.async ;
+          Server.respond_string ~status:`OK ~body:"Handling minimization." ()
+      | Ok (signed, GitHub_subscriptions.CommentCreated comment_info) ->
+          let body = trim_comments comment_info.body in
+          if
+            string_match
+              ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
+              body
+          then (
+            run_coq_minimizer ~script:(Str.matched_group 1 body)
+              ~comment_thread_id:
+                ( match comment_info.pull_request with
+                | None ->
+                    comment_info.issue.id
+                | Some pr ->
+                    pr.issue.id )
+              ~comment_author:comment_info.author
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK ~body:"Handling minimization." ()
+            )
+          else if string_match ~regexp:(f "@%s: [Rr]un CI now" bot_name) body
+          then
+            match Map.find owner_team_map comment_info.issue.issue.owner with
+            | Some team when signed ->
+                (fun () ->
+                  (let open Lwt_result.Infix in
+                  GitHub_queries.get_team_membership ~token:github_access_token
+                    ~org:comment_info.issue.issue.owner ~team
+                    ~user:comment_info.author ~bot_name
+                  >>= (fun is_member ->
+                        if is_member then (
+                          Stdio.printf "Authorized user: pushing to GitLab.\n" ;
+                          match comment_info.pull_request with
+                          | Some pr_info ->
+                              pull_request_updated pr_info ()
+                          | None ->
+                              let {GitHub_subscriptions.owner; repo; number} =
+                                comment_info.issue.issue
+                              in
+                              GitHub_queries.get_pull_request_refs
+                                ~token:github_access_token ~owner ~repo ~number
+                                ~bot_name
+                              >>= fun pr_info ->
+                              pull_request_updated
+                                {pr_info with issue= comment_info.issue}
+                                () )
+                        else
+                          Lwt_io.print "Unauthorized user: doing nothing.\n"
+                          |> Lwt_result.ok)
+                  |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+                         Lwt_io.printf "Error: %s\n" err))
+                  >>= fun _ -> Lwt.return ())
+                |> Lwt.async ;
+                Server.respond_string ~status:`OK
+                  ~body:
+                    (f
+                       "Received a request to run CI: checking that @%s is a \
+                        member of @%s/%s before doing so."
+                       comment_info.issue.user comment_info.issue.issue.owner
+                       team)
+                  ()
+            | Some _ ->
+                Server.respond_string ~status:(Code.status_of_code 403)
+                  ~body:"Webhook requires secret." ()
+            | None ->
+                (* TODO: check if user is member of the host organization. *)
+                Server.respond_string ~status:`OK
+                  ~body:
+                    (f
+                       "Received a request to run CI but no team defined for \
+                        organization %s: nothing to do."
+                       comment_info.issue.issue.owner)
+                  ()
+          else if string_match ~regexp:(f "@%s: [Mm]erge now" bot_name) body
+          then
+            (* Should be restricted to coq *)
             Server.respond_string ~status:`OK
               ~body:
-                (f
-                   "Received a request to run CI: checking that @%s is a \
-                    member of @%s/%s before doing so."
-                   comment_info.issue.user comment_info.issue.issue.owner team)
+                (f "Received a request to merge the PR: not implemented yet.")
               ()
-        | Some _ ->
-            Server.respond_string ~status:(Code.status_of_code 403)
-              ~body:"Webhook requires secret." ()
-        | None ->
-            (* TODO: check if user is member of the host organization. *)
-            Server.respond_string ~status:`OK
-              ~body:
-                (f
-                   "Received a request to run CI but no team defined for \
-                    organization %s: nothing to do."
-                   comment_info.issue.issue.owner)
-              () )
-      | Ok (_signed, GitHub_subscriptions.CommentCreated comment_info)
-        when string_match
-               ~regexp:(f "@%s: [Mm]erge now" bot_name)
-               comment_info.body ->
-          (* Should be restricted to coq *)
-          Server.respond_string ~status:`OK
-            ~body:(f "Received a request to merge the PR: not implemented yet.")
-            ()
-      | Ok (_, GitHub_subscriptions.CommentCreated _) ->
-          Server.respond_string ~status:`OK
-            ~body:
-              (f
-                 "Pull request comment doesn't contain any request to @%s: \
-                  nothing to do."
-                 bot_name)
-            ()
+          else
+            Server.respond_string ~status:`OK ~body:(f "Unhandled comment.") ()
       | Ok (_, GitHub_subscriptions.NoOp s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
       | Ok _ ->
