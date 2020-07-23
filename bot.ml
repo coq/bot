@@ -731,6 +731,7 @@ let callback _conn req body =
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )
           else if string_match ~regexp:(f "@%s: [Rr]un CI now" bot_name) body
+          && (match comment_info.pull_request with None -> false | Some _ -> true)
           then
             match Map.find owner_team_map comment_info.issue.issue.owner with
             | Some team when signed ->
@@ -783,6 +784,7 @@ let callback _conn req body =
                        comment_info.issue.issue.owner)
                   ()
           else if string_match ~regexp:(f "@%s: [Mm]erge now" bot_name) body
+          && (match comment_info.pull_request with None -> false | Some _ -> true)
           then
             (* Should be restricted to coq *)
             Server.respond_string ~status:`OK
