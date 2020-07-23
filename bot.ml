@@ -730,8 +730,9 @@ let callback _conn req body =
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )
-          else if string_match ~regexp:(f "@%s: [Rr]un CI now" bot_name) body
-          && (match comment_info.pull_request with None -> false | Some _ -> true)
+          else if
+            string_match ~regexp:(f "@%s: [Rr]un CI now" bot_name) body
+            && Option.is_some comment_info.pull_request
           then
             match Map.find owner_team_map comment_info.issue.issue.owner with
             | Some team when signed ->
@@ -783,8 +784,9 @@ let callback _conn req body =
                         organization %s: nothing to do."
                        comment_info.issue.issue.owner)
                   ()
-          else if string_match ~regexp:(f "@%s: [Mm]erge now" bot_name) body
-          && (match comment_info.pull_request with None -> false | Some _ -> true)
+          else if
+            string_match ~regexp:(f "@%s: [Mm]erge now" bot_name) body
+            && Option.is_some comment_info.pull_request
           then
             (* Should be restricted to coq *)
             Server.respond_string ~status:`OK
