@@ -5,11 +5,12 @@ open GitHub_GraphQL
 open Lwt
 open Utils
 
-let send_graphql_query ~token query =
+let send_graphql_query ~bot_info query =
   let uri = Uri.of_string "https://api.github.com/graphql" in
   let headers =
     Cohttp.Header.of_list
-      [("Authorization", "bearer " ^ token); ("User-Agent", "coqbot")]
+      [ ("Authorization", "bearer " ^ bot_info.github_token)
+      ; ("User-Agent", bot_info.bot_name) ]
   in
   let body =
     `Assoc [("query", `String query#query); ("variables", query#variables)]
@@ -40,12 +41,12 @@ type backport_info =
 type full_backport_info =
   {backport_info: backport_info list; rejected_milestone: string}
 
-let get_backport_info bot_name description =
+let get_backport_info ~bot_info description =
   let project_column_regexp =
     "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
   in
   let regexp =
-    bot_name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
+    bot_info.bot_name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
     ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
     ^ "; move rejected PRs to: "
     ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
@@ -62,7 +63,7 @@ let get_backport_info bot_name description =
           [{backport_to; request_inclusion_column; backported_column}]
       ; rejected_milestone }
   else
-    let begin_regexp = bot_name ^ ": \\(.*\\)$" in
+    let begin_regexp = bot_info.bot_name ^ ": \\(.*\\)$" in
     let backport_info_unit =
       "backport to \\([^ ]*\\) (request inclusion column: "
       ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
@@ -97,9 +98,9 @@ let get_backport_info bot_name description =
 type project_card =
   {id: string; column: project_column option; columns: project_column list}
 
-let pull_request_milestone_and_cards ~token ~owner ~repo ~number =
+let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
-  |> send_graphql_query ~token
+  |> send_graphql_query ~bot_info
   >|= function
   | Ok result -> (
     match result#repository with
@@ -132,14 +133,15 @@ let pull_request_milestone_and_cards ~token ~owner ~repo ~number =
 
 type mv_card_to_column_input = {card_id: string; column_id: string}
 
-let backported_pr_info ~token number base_ref =
-  pull_request_milestone_and_cards ~token ~owner:"coq" ~repo:"coq" ~number
+let backported_pr_info ~bot_info number base_ref =
+  pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq" ~number
   >|= function
   | Ok (cards, milestone) ->
       let open Option in
       milestone
       >>= fun milestone ->
-      milestone.description >>= get_backport_info "coqbot"
+      milestone.description
+      >>= get_backport_info ~bot_info
       >>= (fun full_backport_info ->
             full_backport_info.backport_info
             |> List.find ~f:(fun {backport_to} ->
@@ -162,9 +164,9 @@ let backported_pr_info ~token number base_ref =
       Stdio.printf "Error in backported_pr_info: %s\n" err ;
       None
 
-let get_pull_request_id_and_milestone ~token ~owner ~repo ~number =
+let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   PullRequest_ID_and_Milestone.make ~owner ~repo ~number ()
-  |> send_graphql_query ~token
+  |> send_graphql_query ~bot_info
   >|= Result.bind ~f:(fun result ->
           match result#repository with
           | None ->
@@ -188,7 +190,7 @@ let get_pull_request_id_and_milestone ~token ~owner ~repo ~number =
                   Ok
                     ( match milestone#description with
                     | Some description -> (
-                      match get_backport_info "coqbot" description with
+                      match get_backport_info ~bot_info description with
                       | Some bp_info ->
                           Some (pr#id, db_id, bp_info)
                       | _ ->
@@ -217,9 +219,9 @@ let team_membership_of_resp ~org ~team ~user resp =
       | _ ->
           Ok false ) )
 
-let get_team_membership ~token ~org ~team ~user =
+let get_team_membership ~bot_info ~org ~team ~user =
   TeamMembership.make ~org ~team ~user ()
-  |> send_graphql_query ~token
+  |> send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_team_membership failed with %s" err)
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
@@ -258,9 +260,9 @@ let pull_request_info_of_resp ~owner ~repo ~number resp :
                 ; merged= pull_request#merged
                 ; last_commit_message= Some node#commit#message } ) ) )
 
-let get_pull_request_refs ~token ~owner ~repo ~number =
+let get_pull_request_refs ~bot_info ~owner ~repo ~number =
   PullRequest_Refs.make ~owner ~repo ~number ()
-  |> send_graphql_query ~token
+  |> send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
@@ -328,10 +330,10 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
       | _ ->
           Error (f "No close event for issue %s/%s#%d." owner repo number) ) )
 
-let get_issue_closer_info ~token
+let get_issue_closer_info ~bot_info
     ({owner; repo; number} : GitHub_subscriptions.issue) =
   Issue_Milestone.make ~owner ~repo ~number ()
-  |> send_graphql_query ~token
+  |> send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
