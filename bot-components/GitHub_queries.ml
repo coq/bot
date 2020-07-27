@@ -281,17 +281,24 @@ let merge_pull_request_info_of_resp ~owner ~repo ~number resp :
         ( pull_request#assignees#nodes
         , pull_request#milestone
         , pull_request#labels
-        , pull_request#reviews )
+        , pull_request#reviews
+        , pull_request#reviewDecision )
       with
-      | None, _, _, _ ->
+      | None, _, _, _, _ ->
           Error "No assignees found."
-      | _, None, _, _ ->
+      | _, None, _, _, _ ->
           Error "No milestone found."
-      | _, _, None, _ ->
+      | _, _, None, _, _ ->
           Error "No labels found."
-      | _, _, _, None ->
+      | _, _, _, None, _ ->
           Error "No reviews found."
-      | Some assignees, Some milestone, Some labels, Some reviews ->
+      | _, _, _, _, None ->
+          Error "No review decision found."
+      | ( Some assignees
+        , Some milestone
+        , Some labels
+        , Some reviews
+        , Some review_decision ) ->
           Ok
             { assignees=
                 assignees |> Array.to_list |> List.filter_opt
@@ -315,25 +322,32 @@ let merge_pull_request_info_of_resp ~owner ~repo ~number resp :
                                  ""
                              | Some (`Actor a) ->
                                  a#login )
-                           , GitHub_subscriptions.(
-                               match review#state with
-                               | `APPROVED ->
-                                   APPROVED
-                               | `CHANGES_REQUESTED ->
-                                   CHANGES_REQUESTED
-                               | `COMMENTED ->
-                                   COMMENTED
-                               | `DISMISSED ->
-                                   DISMISSED
-                               | `PENDING ->
-                                   PENDING) )) )
+                           , match review#state with
+                             | `APPROVED ->
+                                 (APPROVED : GitHub_subscriptions.review_state)
+                             | `CHANGES_REQUESTED ->
+                                 CHANGES_REQUESTED
+                             | `COMMENTED ->
+                                 COMMENTED
+                             | `DISMISSED ->
+                                 DISMISSED
+                             | `PENDING ->
+                                 PENDING )) )
             ; labels=
                 ( match labels#nodes with
                 | None ->
                     []
                 | Some labels ->
                     labels |> Array.to_list |> List.filter_opt
-                    |> List.map ~f:(fun l -> l#name) ) } ) )
+                    |> List.map ~f:(fun l -> l#name) )
+            ; review_decision=
+                ( match review_decision with
+                | `CHANGES_REQUESTED ->
+                    CHANGES_REQUESTED
+                | `APPROVED ->
+                    APPROVED
+                | `REVIEW_REQUIRED ->
+                    REVIEW_REQUIRED ) } ) )
 
 let get_merge_pull_request_refs ~bot_info ~owner ~repo ~number =
   MergePullRequestInfo.make ~owner ~repo ~number ()

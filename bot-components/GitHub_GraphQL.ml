@@ -146,6 +146,7 @@ module MergePullRequestInfo =
         milestone {
           id
         }
+        reviewDecision
         reviews(first: 100) {
           nodes {
             author {

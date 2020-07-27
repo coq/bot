@@ -819,68 +819,56 @@ let callback _conn req body =
                              comment_info.author)
                         ~id:pr.id
                       (* merge_info already contains a valid milestone, no need to check if there's one *)
-                      (*else if
-                          List.exists merge_info.reviews ~f:(fun (_, state) ->
-                              match state with
-                              | GitHub_subscriptions.(CHANGES_REQUESTED | DISMISSED)
-                                ->
-                                  true
-                              | _ ->
-                                  false)
-                        then Lwt_io.print "Changes requested, abort merge\n"*)
-                    else if
-                      not
-                        (List.exists merge_info.reviews ~f:(fun (_, state) ->
-                             match state with
-                             | GitHub_subscriptions.APPROVED ->
-                                 true
-                             | _ ->
-                                 false))
-                    then
-                      GitHub_mutations.post_comment ~bot_info
-                        ~message:
-                          (f
-                             "@%s: PR cannot be merged as it isn't approved \
-                              yet."
-                             comment_info.author)
-                        ~id:pr.id
-                    else if
-                      not
-                        (List.exists merge_info.assignees ~f:(fun login ->
-                             String.equal login comment_info.author))
-                    then
-                      GitHub_mutations.post_comment ~bot_info
-                        ~message:
-                          (f
-                             "@%s: You can't merge the PR as you're not among \
-                              the assignees."
-                             comment_info.author)
-                        ~id:pr.id
-                    else if String.equal comment_info.author pr.user then
-                      GitHub_mutations.post_comment ~bot_info
-                        ~message:
-                          (f
-                             "@%s: You can't merge the PR since you authored \
-                              it."
-                             comment_info.author)
-                        ~id:pr.id
                     else
-                      GitHub_queries.get_team_membership ~bot_info ~org:"coq"
-                        ~team:"Pushers" ~user:comment_info.author
-                      >>= function
-                      | Ok _ ->
-                          GitHub_mutations.merge_pull_request ~bot_info
-                            ~pr_id:pr.id
-                            ~commitHeadline:(f "Merge PR #%d: " pr.issue.number)
-                            ~commitBody:(f "") ~mergeMethod:`MERGE
-                      | Error _ ->
+                      match merge_info.review_decision with
+                      | REVIEW_REQUIRED | CHANGES_REQUESTED ->
                           GitHub_mutations.post_comment ~bot_info
                             ~message:
                               (f
-                                 "@%s: You can't merge this PR as you're not a \
-                                  member of the Pushers team."
+                                 "@%s: PR cannot be merged as it isn't \
+                                  approved yet."
                                  comment_info.author)
-                            ~id:pr.id ) )
+                            ~id:pr.id
+                      | APPROVED -> (
+                          if
+                            not
+                              (List.exists merge_info.assignees ~f:(fun login ->
+                                   String.equal login comment_info.author))
+                          then
+                            GitHub_mutations.post_comment ~bot_info
+                              ~message:
+                                (f
+                                   "@%s: You can't merge the PR as you're not \
+                                    among the assignees."
+                                   comment_info.author)
+                              ~id:pr.id
+                          else if String.equal comment_info.author pr.user then
+                            GitHub_mutations.post_comment ~bot_info
+                              ~message:
+                                (f
+                                   "@%s: You can't merge the PR since you \
+                                    authored it."
+                                   comment_info.author)
+                              ~id:pr.id
+                          else
+                            GitHub_queries.get_team_membership ~bot_info
+                              ~org:"coq" ~team:"Pushers"
+                              ~user:comment_info.author
+                            >>= function
+                            | Ok _ ->
+                                GitHub_mutations.merge_pull_request ~bot_info
+                                  ~pr_id:pr.id
+                                  ~commitHeadline:
+                                    (f "Merge PR #%d: " pr.issue.number)
+                                  ~commitBody:(f "") ~mergeMethod:`MERGE
+                            | Error _ ->
+                                GitHub_mutations.post_comment ~bot_info
+                                  ~message:
+                                    (f
+                                       "@%s: You can't merge this PR as you're \
+                                        not a member of the Pushers team."
+                                       comment_info.author)
+                                  ~id:pr.id ) ) )
               | Error e ->
                   Lwt_io.print e)
             |> Lwt.async ;
