@@ -124,6 +124,41 @@ module Issue_Milestone =
   }
 |}]
 
+module MergePullRequestInfo =
+[%graphql
+{|
+  query mergePullRequestInfo($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        assignees(first: 10) {
+          nodes {
+            login
+          }
+        }
+        author {
+          login
+        }
+        labels(first: 20) {
+          nodes {
+            name
+          }
+        }
+        milestone {
+          id
+        }
+        reviews(first: 100) {
+          nodes {
+            author {
+              login
+            }
+            state
+          }
+        }
+      }
+    }
+  }
+|}]
+
 (* Mutations *)
 
 module MoveCardToColumn =
@@ -152,6 +187,21 @@ module UpdateMilestone =
   mutation updateMilestone($issue: ID!, $milestone: ID!) {
     updateIssue(input: {id: $issue, milestoneId: $milestone}) {
       clientMutationId
+    }
+  }
+|}]
+
+module MergePullRequest =
+[%graphql
+{|
+  mutation mergePullRequest($pr_id: ID!) {
+    mergePullRequest(input: {pullRequestId: $pr_id}) {
+      pullRequest {
+        merged
+        mergedAt
+        state
+        url
+      }
     }
   }
 |}]
