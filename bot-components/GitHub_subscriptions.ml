@@ -18,6 +18,8 @@ type remote_ref_info = {repo_url: string; name: string}
 
 type commit_info = {branch: remote_ref_info; sha: string}
 
+type state = APPROVED | CHANGES_REQUESTED | COMMENTED | DISMISSED | PENDING
+
 type pull_request_action =
   | PullRequestOpened
   | PullRequestClosed
@@ -30,6 +32,13 @@ type 'a pull_request_info =
   ; head: commit_info
   ; merged: bool
   ; last_commit_message: string option }
+
+type merge_pull_request_info =
+  { assignees: string list
+  ; author: string
+  ; milestone_id: string
+  ; reviews: (string * state) list
+  ; labels: string list }
 
 type project_card = {issue: issue option; column_id: int}
 
