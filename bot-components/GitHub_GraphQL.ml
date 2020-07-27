@@ -194,8 +194,8 @@ module UpdateMilestone =
 module MergePullRequest =
 [%graphql
 {|
-  mutation mergePullRequest($pr_id: ID!) {
-    mergePullRequest(input: {pullRequestId: $pr_id}) {
+  mutation mergePullRequest($pr_id: ID!, $commitHeadline: String!, $commitBody: String!, $mergeMethod: PullRequestMergeMethod) {
+    mergePullRequest(input: {pullRequestId: $pr_id, commitHeadline: $commitHeadline, commitBody: $commitBody, mergeMethod: $mergeMethod}) {
       pullRequest {
         merged
         mergedAt
