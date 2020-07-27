@@ -277,64 +277,63 @@ let merge_pull_request_info_of_resp ~owner ~repo ~number resp :
     | None ->
         Error (f "Unknown pull request %s/%s#%d." owner repo number)
     | Some pull_request -> (
-      match pull_request#assignees#nodes with
-      | None ->
+      match
+        ( pull_request#assignees#nodes
+        , pull_request#milestone
+        , pull_request#labels
+        , pull_request#reviews )
+      with
+      | None, _, _, _ ->
           Error "No assignees found."
-      | Some assignees -> (
-        match pull_request#milestone with
-        | None ->
-            Error "No milestone found."
-        | Some milestone -> (
-          match pull_request#labels with
-          | None ->
-              Error "No labels found."
-          | Some labels -> (
-            match pull_request#reviews with
-            | None ->
-                Error "No reviews found."
-            | Some reviews ->
-                Ok
-                  { assignees=
-                      assignees |> Array.to_list |> List.filter_opt
-                      |> List.map ~f:(fun a -> a#login)
-                  ; author=
-                      ( match pull_request#author with
-                      | None ->
-                          ""
-                      | Some (`Actor a) ->
-                          a#login )
-                  ; milestone_id= milestone#id
-                  ; reviews=
-                      ( match reviews#nodes with
-                      | None ->
-                          []
-                      | Some reviews ->
-                          reviews |> Array.to_list |> List.filter_opt
-                          |> List.map ~f:(fun review ->
-                                 ( ( match review#author with
-                                   | None ->
-                                       ""
-                                   | Some (`Actor a) ->
-                                       a#login )
-                                 , GitHub_subscriptions.(
-                                     match review#state with
-                                     | `APPROVED ->
-                                         APPROVED
-                                     | `CHANGES_REQUESTED ->
-                                         CHANGES_REQUESTED
-                                     | `COMMENTED ->
-                                         COMMENTED
-                                     | `DISMISSED ->
-                                         DISMISSED
-                                     | `PENDING ->
-                                         PENDING) )) )
-                  ; labels=
-                      ( match labels#nodes with
-                      | None ->
-                          []
-                      | Some labels ->
-                          labels |> Array.to_list |> List.filter_opt
-                          |> List.map ~f:(fun l -> l#name) ) } ) ) ) ) )
+      | _, None, _, _ ->
+          Error "No milestone found."
+      | _, _, None, _ ->
+          Error "No labels found."
+      | _, _, _, None ->
+          Error "No reviews found."
+      | Some assignees, Some milestone, Some labels, Some reviews ->
+          Ok
+            { assignees=
+                assignees |> Array.to_list |> List.filter_opt
+                |> List.map ~f:(fun a -> a#login)
+            ; author=
+                ( match pull_request#author with
+                | None ->
+                    ""
+                | Some (`Actor a) ->
+                    a#login )
+            ; milestone_id= milestone#id
+            ; reviews=
+                ( match reviews#nodes with
+                | None ->
+                    []
+                | Some reviews ->
+                    reviews |> Array.to_list |> List.filter_opt
+                    |> List.map ~f:(fun review ->
+                           ( ( match review#author with
+                             | None ->
+                                 ""
+                             | Some (`Actor a) ->
+                                 a#login )
+                           , GitHub_subscriptions.(
+                               match review#state with
+                               | `APPROVED ->
+                                   APPROVED
+                               | `CHANGES_REQUESTED ->
+                                   CHANGES_REQUESTED
+                               | `COMMENTED ->
+                                   COMMENTED
+                               | `DISMISSED ->
+                                   DISMISSED
+                               | `PENDING ->
+                                   PENDING) )) )
+            ; labels=
+                ( match labels#nodes with
+                | None ->
+                    []
+                | Some labels ->
+                    labels |> Array.to_list |> List.filter_opt
+                    |> List.map ~f:(fun l -> l#name) ) } ) )
 
 let get_merge_pull_request_refs ~bot_info ~owner ~repo ~number =
   MergePullRequestInfo.make ~owner ~repo ~number ()
