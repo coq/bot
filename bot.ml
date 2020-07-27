@@ -732,7 +732,7 @@ let callback _conn req body =
             )
           else if
             string_match ~regexp:(f "@%s: [Rr]un CI now" bot_name) body
-            && Option.is_some comment_info.pull_request
+            && Bool.equal comment_info.issue.pull_request true
           then
             match Map.find owner_team_map comment_info.issue.issue.owner with
             | Some team when signed ->
@@ -786,15 +786,119 @@ let callback _conn req body =
                   ()
           else if
             string_match ~regexp:(f "@%s: [Mm]erge now" bot_name) body
-            && Option.is_some comment_info.pull_request
-          then
-            (* Should be restricted to coq *)
+            && Bool.equal comment_info.issue.pull_request true
+            && String.equal comment_info.issue.issue.owner "coq"
+            && String.equal comment_info.issue.issue.repo "coq"
+            (*&&
+              let pr =
+                (Option.value_exn ~message:"Attempting to merge an issue."
+                   comment_info.pull_request)
+                  .issue
+              in
+              String.equal pr.issue.owner "coq"
+              && String.equal pr.issue.repo "coq"*)
+          then (
+            (fun () ->
+              (*let pr =
+                  Option.value_exn ~message:"Attempting to merge an issue."
+                    comment_info.pull_request
+                in
+                GitHub_queries.get_merge_pull_request_refs ~bot_info
+                  ~owner:pr.issue.issue.owner ~repo:pr.issue.issue.repo
+                  ~number:pr.issue.issue.number*)
+              let pr = comment_info.issue in
+              GitHub_queries.get_merge_pull_request_refs ~bot_info
+                ~owner:pr.issue.owner ~repo:pr.issue.repo
+                ~number:pr.issue.number
+              >>= function
+              | Ok merge_info -> (
+                  if
+                    List.exists merge_info.labels ~f:(fun label ->
+                        string_match ~regexp:"needs:.*" label)
+                  then
+                    GitHub_mutations.post_comment ~bot_info
+                      ~message:
+                        (f "@%s: Needs label found, merge aborted."
+                           comment_info.author)
+                      ~id:pr.id
+                  else if
+                    not
+                      (List.exists merge_info.labels ~f:(fun label ->
+                           string_match ~regexp:"kind:.*" label))
+                  then
+                    GitHub_mutations.post_comment ~bot_info
+                      ~message:
+                        (f "@%s: No kind label found, merge aborted."
+                           comment_info.author)
+                      ~id:pr.id
+                    (* merge_info already contains a valid milestone, no need to check if there's one *)
+                    (*else if
+                        List.exists merge_info.reviews ~f:(fun (_, state) ->
+                            match state with
+                            | GitHub_subscriptions.(CHANGES_REQUESTED | DISMISSED)
+                              ->
+                                true
+                            | _ ->
+                                false)
+                      then Lwt_io.print "Changes requested, abort merge\n"*)
+                  else if
+                    not
+                      (List.exists merge_info.reviews ~f:(fun (_, state) ->
+                           match state with
+                           | GitHub_subscriptions.APPROVED ->
+                               true
+                           | _ ->
+                               false))
+                  then
+                    GitHub_mutations.post_comment ~bot_info
+                      ~message:
+                        (f "@%s: PR cannot be merged as it isn't approved yet."
+                           comment_info.author)
+                      ~id:pr.id
+                  else if
+                    not
+                      (List.exists merge_info.assignees ~f:(fun login ->
+                           String.equal login comment_info.author))
+                    (* PR author must be among the assignees *)
+                  then
+                    GitHub_mutations.post_comment ~bot_info
+                      ~message:
+                        (f
+                           "@%s: You can't merge the PR as you're not among \
+                            the assignees."
+                           comment_info.author)
+                      ~id:pr.id
+                  else if String.equal comment_info.author pr.user then
+                    GitHub_mutations.post_comment ~bot_info
+                      ~message:
+                        (f "@%s: You can't merge the PR since you authored it."
+                           comment_info.author)
+                      ~id:pr.id
+                  else
+                    GitHub_queries.get_team_membership ~bot_info ~org:"coq"
+                      ~team:"Pushers" ~user:comment_info.author
+                    >>= function
+                    | Ok _ ->
+                        GitHub_mutations.merge_pull_request ~bot_info
+                          ~pr_id:pr.id
+                    | Error _ ->
+                        GitHub_mutations.post_comment ~bot_info
+                          ~message:
+                            (f
+                               "@%s: You can't merge this PR as you're not a \
+                                member of the Pushers team."
+                               comment_info.author)
+                          ~id:pr.id )
+              | Error e ->
+                  Lwt_io.print e)
+            |> Lwt.async ;
             Server.respond_string ~status:`OK
-              ~body:
-                (f "Received a request to merge the PR: not implemented yet.")
-              ()
+              ~body:(f "Received a request to merge the PR.")
+              () )
           else
-            Server.respond_string ~status:`OK ~body:(f "Unhandled comment.") ()
+            Server.respond_string ~status:`OK
+              ~body:(f "Unhandled comment: %s." body)
+              ()
       | Ok (_, GitHub_subscriptions.NoOp s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
       | Ok _ ->
