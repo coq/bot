@@ -892,7 +892,7 @@ let callback _conn req body =
                                   ~id:pr.id )
                             >>= fun () ->
                             GitHub_queries.get_team_membership ~bot_info
-                              ~org:"coq" ~team:"Pushers"
+                              ~org:"coq" ~team:"pushers"
                               ~user:comment_info.author
                             >>= function
                             | Ok _ ->
