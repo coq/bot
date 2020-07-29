@@ -867,6 +867,30 @@ let callback _conn req body =
                                    comment_info.author reviews_info.baseRef)
                               ~id:pr.id
                           else
+                            ( match
+                                List.fold_left ~init:[] reviews_info.files
+                                  ~f:(fun acc f ->
+                                    if
+                                      string_match
+                                        ~regexp:"dev/ci/user-overlays/\\(.*\\)"
+                                        f
+                                    then Str.matched_group 1 f :: acc
+                                    else acc)
+                              with
+                            | [] ->
+                                Lwt.return ()
+                            | overlays ->
+                                GitHub_mutations.post_comment ~bot_info
+                                  ~message:
+                                    (f
+                                       "@%s: Please take care of the following \
+                                        overlays:\n\
+                                        %s"
+                                       comment_info.author
+                                       (List.fold_left overlays ~init:""
+                                          ~f:(fun s o -> s ^ f "- %s\n" o)))
+                                  ~id:pr.id )
+                            >>= fun () ->
                             GitHub_queries.get_team_membership ~bot_info
                               ~org:"coq" ~team:"Pushers"
                               ~user:comment_info.author
