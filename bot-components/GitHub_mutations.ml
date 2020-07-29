@@ -32,9 +32,9 @@ let update_milestone ~bot_info ~issue ~milestone =
   | Error err ->
       Stdio.print_endline (f "Error while updating milestone: %s" err)
 
-let merge_pull_request ?mergeMethod ~bot_info ~pr_id ~commitHeadline ~commitBody
-    =
-  MergePullRequest.make ~pr_id ~commitHeadline ~commitBody ?mergeMethod ()
+let merge_pull_request ?merge_method ~bot_info ~pr_id ~commit_headline
+    ~commit_body =
+  MergePullRequest.make ~pr_id ~commit_headline ~commit_body ?merge_method ()
   |> GitHub_queries.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->

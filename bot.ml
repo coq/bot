@@ -898,15 +898,15 @@ let callback _conn req body =
                             | Ok _ ->
                                 GitHub_mutations.merge_pull_request ~bot_info
                                   ~pr_id:pr.id
-                                  ~commitHeadline:
+                                  ~commit_headline:
                                     (f "Merge PR #%d: %s" pr.issue.number
                                        comment_info.issue.title)
-                                  ~commitBody:
+                                  ~commit_body:
                                     (List.fold_left
                                        reviews_info.approved_reviews
                                        ~init:"Reviewed-by:\n" ~f:(fun s r ->
                                          s ^ f "- %s\n" r))
-                                  ~mergeMethod:`MERGE
+                                  ~merge_method:`MERGE
                             | Error _ ->
                                 GitHub_mutations.post_comment ~bot_info
                                   ~message:
