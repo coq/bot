@@ -342,7 +342,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                     REVIEW_REQUIRED ) } ) )
 
 let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
-  MergePullRequestInfo.make ~owner ~repo ~number ()
+  PullRequestReviewsInfo.make ~owner ~repo ~number ()
   |> send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query merge_pull_request_info failed with %s" err)

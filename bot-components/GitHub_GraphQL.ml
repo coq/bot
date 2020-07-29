@@ -124,7 +124,7 @@ module Issue_Milestone =
   }
 |}]
 
-module MergePullRequestInfo =
+module PullRequestReviewsInfo =
 [%graphql
 {|
   query mergePullRequestInfo($owner: String!, $repo: String!, $number: Int!) {
