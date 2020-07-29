@@ -901,7 +901,12 @@ let callback _conn req body =
                                   ~commitHeadline:
                                     (f "Merge PR #%d: %s" pr.issue.number
                                        comment_info.issue.title)
-                                  ~commitBody:(f "") ~mergeMethod:`MERGE
+                                  ~commitBody:
+                                    (List.fold_left
+                                       reviews_info.approved_reviews
+                                       ~init:"Reviewed-by:\n" ~f:(fun s r ->
+                                         s ^ f "- %s\n" r))
+                                  ~mergeMethod:`MERGE
                             | Error _ ->
                                 GitHub_mutations.post_comment ~bot_info
                                   ~message:
