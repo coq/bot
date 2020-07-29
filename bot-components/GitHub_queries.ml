@@ -267,8 +267,8 @@ let get_pull_request_refs ~bot_info ~owner ~repo ~number =
           f "Query pull_request_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
 
-let merge_pull_request_info_of_resp ~owner ~repo ~number resp :
-    (GitHub_subscriptions.merge_pull_request_info, string) Result.t =
+let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
+    (GitHub_subscriptions.pull_request_reviews_info, string) Result.t =
   match resp#repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -277,40 +277,14 @@ let merge_pull_request_info_of_resp ~owner ~repo ~number resp :
     | None ->
         Error (f "Unknown pull request %s/%s#%d." owner repo number)
     | Some pull_request -> (
-      match
-        ( pull_request#assignees#nodes
-        , pull_request#milestone
-        , pull_request#labels
-        , pull_request#reviews
-        , pull_request#reviewDecision )
-      with
-      | None, _, _, _, _ ->
-          Error "No assignees found."
-      | _, None, _, _, _ ->
-          Error "No milestone found."
-      | _, _, None, _, _ ->
-          Error "No labels found."
-      | _, _, _, None, _ ->
+      match (pull_request#reviews, pull_request#reviewDecision) with
+      | None, _ ->
           Error "No reviews found."
-      | _, _, _, _, None ->
+      | _, None ->
           Error "No review decision found."
-      | ( Some assignees
-        , Some milestone
-        , Some labels
-        , Some reviews
-        , Some review_decision ) ->
+      | Some reviews, Some review_decision ->
           Ok
-            { assignees=
-                assignees |> Array.to_list |> List.filter_opt
-                |> List.map ~f:(fun a -> a#login)
-            ; author=
-                ( match pull_request#author with
-                | None ->
-                    ""
-                | Some (`Actor a) ->
-                    a#login )
-            ; milestone_id= milestone#id
-            ; reviews=
+            { reviews=
                 ( match reviews#nodes with
                 | None ->
                     []
@@ -333,13 +307,6 @@ let merge_pull_request_info_of_resp ~owner ~repo ~number resp :
                                  DISMISSED
                              | `PENDING ->
                                  PENDING )) )
-            ; labels=
-                ( match labels#nodes with
-                | None ->
-                    []
-                | Some labels ->
-                    labels |> Array.to_list |> List.filter_opt
-                    |> List.map ~f:(fun l -> l#name) )
             ; review_decision=
                 ( match review_decision with
                 | `CHANGES_REQUESTED ->
@@ -349,12 +316,12 @@ let merge_pull_request_info_of_resp ~owner ~repo ~number resp :
                 | `REVIEW_REQUIRED ->
                     REVIEW_REQUIRED ) } ) )
 
-let get_merge_pull_request_refs ~bot_info ~owner ~repo ~number =
+let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   MergePullRequestInfo.make ~owner ~repo ~number ()
   |> send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query merge_pull_request_info failed with %s" err)
-  >|= Result.bind ~f:(merge_pull_request_info_of_resp ~owner ~repo ~number)
+  >|= Result.bind ~f:(pull_request_reviews_info_of_resp ~owner ~repo ~number)
 
 type closer_info = {pull_request_id: string; milestone_id: string option}
 

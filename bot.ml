@@ -792,13 +792,13 @@ let callback _conn req body =
           then (
             (fun () ->
               let pr = comment_info.issue in
-              GitHub_queries.get_merge_pull_request_refs ~bot_info
+              GitHub_queries.get_pull_request_reviews_refs ~bot_info
                 ~owner:pr.issue.owner ~repo:pr.issue.repo
                 ~number:pr.issue.number
               >>= function
-              | Ok merge_info -> (
+              | Ok reviews_info -> (
                 match
-                  List.find merge_info.labels ~f:(fun label ->
+                  List.find comment_info.issue.labels ~f:(fun label ->
                       string_match ~regexp:"needs:.*" label)
                 with
                 | Some l ->
@@ -810,7 +810,7 @@ let callback _conn req body =
                 | None -> (
                     if
                       not
-                        (List.exists merge_info.labels ~f:(fun label ->
+                        (List.exists comment_info.issue.labels ~f:(fun label ->
                              string_match ~regexp:"kind:.*" label))
                     then
                       GitHub_mutations.post_comment ~bot_info
@@ -818,9 +818,14 @@ let callback _conn req body =
                           (f "@%s: No kind label found, merge aborted."
                              comment_info.author)
                         ~id:pr.id
-                      (* merge_info already contains a valid milestone, no need to check if there's one *)
+                    else if not comment_info.issue.milestoned then
+                      GitHub_mutations.post_comment ~bot_info
+                        ~message:
+                          (f "@%s: No milestone found, merge aborted."
+                             comment_info.author)
+                        ~id:pr.id
                     else
-                      match merge_info.review_decision with
+                      match reviews_info.review_decision with
                       | REVIEW_REQUIRED | CHANGES_REQUESTED ->
                           GitHub_mutations.post_comment ~bot_info
                             ~message:
@@ -832,7 +837,8 @@ let callback _conn req body =
                       | APPROVED -> (
                           if
                             not
-                              (List.exists merge_info.assignees ~f:(fun login ->
+                              (List.exists comment_info.issue.assignees
+                                 ~f:(fun login ->
                                    String.equal login comment_info.author))
                           then
                             GitHub_mutations.post_comment ~bot_info
