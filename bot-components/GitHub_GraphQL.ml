@@ -130,8 +130,16 @@ module MergePullRequestInfo =
   query mergePullRequestInfo($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
+        baseRef {
+          name
+        }
+        files(first: 100) {
+          nodes {
+            path
+          }
+        }
         reviewDecision
-        reviews(first: 100) {
+        reviews(last: 100) {
           nodes {
             author {
               login

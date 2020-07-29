@@ -43,7 +43,10 @@ type 'a pull_request_info =
   ; last_commit_message: string option }
 
 type pull_request_reviews_info =
-  {reviews: (string * review_state) list; review_decision: review_decision}
+  { baseRef: string
+  ; files: string list
+  ; reviews: (string * review_state) list
+  ; review_decision: review_decision }
 
 type project_card = {issue: issue option; column_id: int}
 

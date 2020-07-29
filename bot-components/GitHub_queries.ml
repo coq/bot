@@ -277,14 +277,31 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
     | None ->
         Error (f "Unknown pull request %s/%s#%d." owner repo number)
     | Some pull_request -> (
-      match (pull_request#reviews, pull_request#reviewDecision) with
-      | None, _ ->
+      match
+        ( pull_request#baseRef
+        , pull_request#files
+        , pull_request#reviews
+        , pull_request#reviewDecision )
+      with
+      | None, _, _, _ ->
+          Error "No base ref found."
+      | _, None, _, _ ->
+          Error "No files found."
+      | _, _, None, _ ->
           Error "No reviews found."
-      | _, None ->
+      | _, _, _, None ->
           Error "No review decision found."
-      | Some reviews, Some review_decision ->
+      | Some baseRef, Some files, Some reviews, Some review_decision ->
           Ok
-            { reviews=
+            { baseRef= baseRef#name
+            ; files=
+                ( match files#nodes with
+                | None ->
+                    []
+                | Some files ->
+                    files |> Array.to_list |> List.filter_opt
+                    |> List.map ~f:(fun file -> file#path) )
+            ; reviews=
                 ( match reviews#nodes with
                 | None ->
                     []
