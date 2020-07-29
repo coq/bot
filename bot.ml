@@ -878,10 +878,14 @@ let callback _conn req body =
                                     (f "Merge PR #%d: %s" pr.issue.number
                                        comment_info.issue.title)
                                   ~commit_body:
-                                    (List.fold_left
-                                       reviews_info.approved_reviews
-                                       ~init:"Reviewed-by:\n" ~f:(fun s r ->
-                                         s ^ f "- %s\n" r))
+                                    ( List.fold_left
+                                        reviews_info.approved_reviews
+                                        ~init:"Reviewed-by:\n" ~f:(fun s r ->
+                                          s ^ f "- %s\n" r)
+                                    ^ List.fold_left
+                                        reviews_info.comment_reviews
+                                        ~init:"Ack-by:\n" ~f:(fun s r ->
+                                          s ^ f "- %s\n" r) )
                                   ~merge_method:`MERGE
                                 >>= fun () ->
                                 match
