@@ -139,12 +139,18 @@ module MergePullRequestInfo =
           }
         }
         reviewDecision
-        reviews(last: 100) {
+        commentReviews: reviews(states: COMMENTED, last: 100) {
           nodes {
             author {
               login
             }
-            state
+          }
+        }
+        approvedReviews: reviews(states: APPROVED, last: 100) {
+          nodes {
+            author {
+              login
+            }
           }
         }
       }

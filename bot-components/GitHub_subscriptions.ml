@@ -20,13 +20,6 @@ type remote_ref_info = {repo_url: string; name: string}
 
 type commit_info = {branch: remote_ref_info; sha: string}
 
-type review_state =
-  | APPROVED
-  | CHANGES_REQUESTED
-  | COMMENTED
-  | DISMISSED
-  | PENDING
-
 type review_decision = CHANGES_REQUESTED | APPROVED | REVIEW_REQUIRED
 
 type pull_request_action =
@@ -45,7 +38,8 @@ type 'a pull_request_info =
 type pull_request_reviews_info =
   { baseRef: string
   ; files: string list
-  ; reviews: (string * review_state) list
+  ; approved_reviews: string list
+  ; comment_reviews: string list
   ; review_decision: review_decision }
 
 type project_card = {issue: issue option; column_id: int}

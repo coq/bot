@@ -280,18 +280,25 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
       match
         ( pull_request#baseRef
         , pull_request#files
-        , pull_request#reviews
+        , pull_request#approvedReviews
+        , pull_request#commentReviews
         , pull_request#reviewDecision )
       with
-      | None, _, _, _ ->
+      | None, _, _, _, _ ->
           Error "No base ref found."
-      | _, None, _, _ ->
+      | _, None, _, _, _ ->
           Error "No files found."
-      | _, _, None, _ ->
-          Error "No reviews found."
-      | _, _, _, None ->
+      | _, _, None, _, _ ->
+          Error "No approved reviews found."
+      | _, _, _, None, _ ->
+          Error "No comment reviews found."
+      | _, _, _, _, None ->
           Error "No review decision found."
-      | Some baseRef, Some files, Some reviews, Some review_decision ->
+      | ( Some baseRef
+        , Some files
+        , Some approved_reviews
+        , Some comment_reviews
+        , Some review_decision ) ->
           Ok
             { baseRef= baseRef#name
             ; files=
@@ -301,29 +308,30 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                 | Some files ->
                     files |> Array.to_list |> List.filter_opt
                     |> List.map ~f:(fun file -> file#path) )
-            ; reviews=
-                ( match reviews#nodes with
+            ; approved_reviews=
+                ( match approved_reviews#nodes with
                 | None ->
                     []
                 | Some reviews ->
                     reviews |> Array.to_list |> List.filter_opt
                     |> List.map ~f:(fun review ->
-                           ( ( match review#author with
-                             | None ->
-                                 ""
-                             | Some (`Actor a) ->
-                                 a#login )
-                           , match review#state with
-                             | `APPROVED ->
-                                 (APPROVED : GitHub_subscriptions.review_state)
-                             | `CHANGES_REQUESTED ->
-                                 CHANGES_REQUESTED
-                             | `COMMENTED ->
-                                 COMMENTED
-                             | `DISMISSED ->
-                                 DISMISSED
-                             | `PENDING ->
-                                 PENDING )) )
+                           match review#author with
+                           | None ->
+                               ""
+                           | Some (`Actor a) ->
+                               a#login) )
+            ; comment_reviews=
+                ( match comment_reviews#nodes with
+                | None ->
+                    []
+                | Some reviews ->
+                    reviews |> Array.to_list |> List.filter_opt
+                    |> List.map ~f:(fun review ->
+                           match review#author with
+                           | None ->
+                               ""
+                           | Some (`Actor a) ->
+                               a#login) )
             ; review_decision=
                 ( match review_decision with
                 | `CHANGES_REQUESTED ->
