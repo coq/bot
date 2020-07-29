@@ -916,7 +916,9 @@ let callback _conn req body =
                                        comment_info.author)
                                   ~id:pr.id ) ) )
               | Error e ->
-                  Lwt_io.print e)
+                  GitHub_mutations.post_comment ~bot_info
+                    ~message:(f "@%s: %s" comment_info.author e)
+                    ~id:pr.id)
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:(f "Received a request to merge the PR.")
