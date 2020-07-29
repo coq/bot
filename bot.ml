@@ -856,6 +856,16 @@ let callback _conn req body =
                                     authored it."
                                    comment_info.author)
                               ~id:pr.id
+                          else if
+                            not (String.equal reviews_info.baseRef "master")
+                          then
+                            GitHub_mutations.post_comment ~bot_info
+                              ~message:
+                                (f
+                                   "@%s: PR targets branch %s instead of \
+                                    master, abort merge."
+                                   comment_info.author reviews_info.baseRef)
+                              ~id:pr.id
                           else
                             GitHub_queries.get_team_membership ~bot_info
                               ~org:"coq" ~team:"Pushers"
