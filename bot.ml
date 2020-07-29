@@ -899,7 +899,8 @@ let callback _conn req body =
                                 GitHub_mutations.merge_pull_request ~bot_info
                                   ~pr_id:pr.id
                                   ~commitHeadline:
-                                    (f "Merge PR #%d: " pr.issue.number)
+                                    (f "Merge PR #%d: %s" pr.issue.number
+                                       comment_info.issue.title)
                                   ~commitBody:(f "") ~mergeMethod:`MERGE
                             | Error _ ->
                                 GitHub_mutations.post_comment ~bot_info
