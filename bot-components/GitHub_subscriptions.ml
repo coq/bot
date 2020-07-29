@@ -14,7 +14,6 @@ type issue_info =
   ; milestoned: bool
   ; pull_request: bool
   ; body: string option
-  ; milestone_id: string option
   ; assignees: string list }
 
 type remote_ref_info = {repo_url: string; name: string}
@@ -89,12 +88,6 @@ let issue_info_of_json ?issue_json json =
       issue_json |> member "html_url" |> to_string
       |> string_match ~regexp:"https://github.com/[^/]*/[^/]*/pull/[0-9]*"
   ; body= issue_json |> member "body" |> to_string_option
-  ; milestone_id=
-      ( match issue_json |> member "milestone" with
-      | `Null ->
-          None
-      | m ->
-          Some (m |> member "node_id" |> to_string) )
   ; assignees=
       issue_json |> member "assignees" |> to_list
       |> List.map ~f:(fun json -> json |> member "login" |> to_string) }
