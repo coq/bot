@@ -314,24 +314,18 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                     []
                 | Some reviews ->
                     reviews |> Array.to_list |> List.filter_opt
-                    |> List.map ~f:(fun review ->
-                           match review#author with
-                           | None ->
-                               ""
-                           | Some (`Actor a) ->
-                               a#login) )
+                    |> List.filter_map ~f:(fun review ->
+                           review#author
+                           |> Option.map ~f:(fun (`Actor a) -> a#login)) )
             ; comment_reviews=
                 ( match comment_reviews#nodes with
                 | None ->
                     []
                 | Some reviews ->
                     reviews |> Array.to_list |> List.filter_opt
-                    |> List.map ~f:(fun review ->
-                           match review#author with
-                           | None ->
-                               ""
-                           | Some (`Actor a) ->
-                               a#login) )
+                    |> List.filter_map ~f:(fun review ->
+                           review#author
+                           |> Option.map ~f:(fun (`Actor a) -> a#login)) )
             ; review_decision=
                 ( match review_decision with
                 | `CHANGES_REQUESTED ->
