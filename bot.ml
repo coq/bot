@@ -832,7 +832,7 @@ let callback _conn req body =
                         ~id:pr.id
                     else
                       match reviews_info.review_decision with
-                      | REVIEW_REQUIRED | CHANGES_REQUESTED ->
+                      | NONE | REVIEW_REQUIRED | CHANGES_REQUESTED ->
                           GitHub_mutations.post_comment ~bot_info
                             ~message:
                               (f
@@ -937,7 +937,10 @@ let callback _conn req body =
                                   ~id:pr.id ) ) )
               | Error e ->
                   GitHub_mutations.post_comment ~bot_info
-                    ~message:(f "@%s: %s" comment_info.author e)
+                    ~message:
+                      (f
+                         "@%s: Something unexpected happend: %s\n\
+                          cc @coq/coqbot-maintainers" comment_info.author e)
                     ~id:pr.id)
             |> Lwt.async ;
             Server.respond_string ~status:`OK

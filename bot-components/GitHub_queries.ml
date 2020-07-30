@@ -292,13 +292,11 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
           Error "No approved reviews found."
       | _, _, _, None, _ ->
           Error "No comment reviews found."
-      | _, _, _, _, None ->
-          Error "No review decision found."
       | ( Some baseRef
         , Some files
         , Some approved_reviews
         , Some comment_reviews
-        , Some review_decision ) ->
+        , review_decision ) ->
           let approved_reviews =
             match approved_reviews#nodes with
             | None ->
@@ -335,12 +333,16 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                                   String.equal a b))) )
             ; review_decision=
                 ( match review_decision with
-                | `CHANGES_REQUESTED ->
-                    CHANGES_REQUESTED
-                | `APPROVED ->
-                    APPROVED
-                | `REVIEW_REQUIRED ->
-                    REVIEW_REQUIRED ) } ) )
+                | None ->
+                    NONE
+                | Some r -> (
+                  match r with
+                  | `CHANGES_REQUESTED ->
+                      CHANGES_REQUESTED
+                  | `APPROVED ->
+                      APPROVED
+                  | `REVIEW_REQUIRED ->
+                      REVIEW_REQUIRED ) ) } ) )
 
 let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   PullRequestReviewsInfo.make ~owner ~repo ~number ()

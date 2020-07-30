@@ -20,7 +20,7 @@ type remote_ref_info = {repo_url: string; name: string}
 
 type commit_info = {branch: remote_ref_info; sha: string}
 
-type review_decision = CHANGES_REQUESTED | APPROVED | REVIEW_REQUIRED
+type review_decision = CHANGES_REQUESTED | APPROVED | REVIEW_REQUIRED | NONE
 
 type pull_request_action =
   | PullRequestOpened
