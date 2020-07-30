@@ -851,12 +851,20 @@ let callback _conn req body =
                               ~id:pr.id
                           else
                             match reviews_info.review_decision with
-                            | NONE | REVIEW_REQUIRED | CHANGES_REQUESTED ->
+                            | NONE | REVIEW_REQUIRED ->
                                 GitHub_mutations.post_comment ~bot_info
                                   ~message:
                                     (f
                                        "@%s: This PR cannot be merged because \
                                         it hasn't been approved yet."
+                                       comment_info.author)
+                                  ~id:pr.id
+                            | CHANGES_REQUESTED ->
+                                GitHub_mutations.post_comment ~bot_info
+                                  ~message:
+                                    (f
+                                       "@%s: This PR cannot be merged because \
+                                        some changes are requested."
                                        comment_info.author)
                                   ~id:pr.id
                             | APPROVED -> (
