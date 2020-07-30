@@ -292,16 +292,18 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
       | _, _, _, None ->
           Error "No comment reviews found."
       | Some baseRef, Some files, Some approved_reviews, Some comment_reviews ->
+          let filter_authors a =
+            a |> Array.to_list |> List.filter_opt
+            |> List.filter_map ~f:(fun review ->
+                   review#author |> Option.map ~f:(fun (`Actor a) -> a#login))
+            |> List.dedup_and_sort ~compare:String.compare
+          in
           let approved_reviews =
             match approved_reviews#nodes with
             | None ->
                 []
             | Some reviews ->
-                reviews |> Array.to_list |> List.filter_opt
-                |> List.filter_map ~f:(fun review ->
-                       review#author
-                       |> Option.map ~f:(fun (`Actor a) -> a#login))
-                |> List.dedup_and_sort ~compare:String.compare
+                filter_authors reviews
           in
           Ok
             { baseRef= baseRef#name
@@ -318,10 +320,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                 | None ->
                     []
                 | Some reviews ->
-                    reviews |> Array.to_list |> List.filter_opt
-                    |> List.filter_map ~f:(fun review ->
-                           review#author
-                           |> Option.map ~f:(fun (`Actor a) -> a#login))
+                    reviews |> filter_authors
                     |> List.filter ~f:(fun a ->
                            not
                              (List.exists approved_reviews ~f:(String.equal a)))
