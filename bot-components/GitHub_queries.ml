@@ -342,7 +342,7 @@ let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   PullRequestReviewsInfo.make ~owner ~repo ~number ()
   |> send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
-          f "Query merge_pull_request_info failed with %s" err)
+          f "Query pull_request_reviews_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_reviews_info_of_resp ~owner ~repo ~number)
 
 let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
@@ -361,8 +361,7 @@ let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
 let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
   FileContent.make ~owner ~repo ~file:(branch ^ ":" ^ file_name) ()
   |> send_graphql_query ~bot_info
-  >|= Result.map_error ~f:(fun err ->
-          f "Query get_content_of_resp failed with %s" err)
+  >|= Result.map_error ~f:(fun err -> f "Query file_content failed with %s" err)
   >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
 
 type closer_info = {pull_request_id: string; milestone_id: string option}
