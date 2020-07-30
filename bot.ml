@@ -895,19 +895,12 @@ let callback _conn req body =
                                         ~commit_body:
                                           ( List.fold_left
                                               reviews_info.approved_reviews
-                                              ~init:"Reviewed-by:\n"
-                                              ~f:(fun s r -> s ^ f "- %s\n" r)
-                                          ^
-                                          if
-                                            not
-                                              (List.is_empty
-                                                 reviews_info.comment_reviews)
-                                          then
-                                            List.fold_left
+                                              ~init:"" ~f:(fun s r ->
+                                                s ^ f "Reviewed-by: %s\n" r)
+                                          ^ List.fold_left
                                               reviews_info.comment_reviews
-                                              ~init:"Ack-by:\n" ~f:(fun s r ->
-                                                s ^ f "- %s\n" r)
-                                          else "" )
+                                              ~init:"" ~f:(fun s r ->
+                                                s ^ f "Ack-by: %s\n" r) )
                                         ~merge_method:`MERGE
                                       >>= fun () ->
                                       match
