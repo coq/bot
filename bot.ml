@@ -705,7 +705,7 @@ let callback _conn req body =
           let body = trim_comments body in
           if
             string_match
-              ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
+              ~regexp:(f "@%s:? [Mm]inimize[^```]*```\\([^```]+\\)```" bot_name)
               body
           then
             run_coq_minimizer ~script:(Str.matched_group 1 body)
@@ -716,7 +716,7 @@ let callback _conn req body =
           let body = trim_comments comment_info.body in
           if
             string_match
-              ~regexp:(f "@%s:? minimize[^```]*```\\([^```]+\\)```" bot_name)
+              ~regexp:(f "@%s:? [Mm]inimize[^```]*```\\([^```]+\\)```" bot_name)
               body
           then (
             run_coq_minimizer ~script:(Str.matched_group 1 body)
@@ -731,7 +731,7 @@ let callback _conn req body =
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )
           else if
-            string_match ~regexp:(f "@%s: [Rr]un CI now" bot_name) body
+            string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
             && comment_info.issue.pull_request
           then
             match Map.find owner_team_map comment_info.issue.issue.owner with
@@ -785,7 +785,7 @@ let callback _conn req body =
                        comment_info.issue.issue.owner)
                   ()
           else if
-            string_match ~regexp:(f "@%s: [Mm]erge now" bot_name) body
+            string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
             && comment_info.issue.pull_request
             && String.equal comment_info.issue.issue.owner "coq"
             && String.equal comment_info.issue.issue.repo "coq"
