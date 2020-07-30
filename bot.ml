@@ -789,6 +789,7 @@ let callback _conn req body =
             && comment_info.issue.pull_request
             && String.equal comment_info.issue.issue.owner "coq"
             && String.equal comment_info.issue.issue.repo "coq"
+            && signed
           then (
             (fun () ->
               let pr = comment_info.issue in
