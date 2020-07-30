@@ -281,22 +281,17 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
         ( pull_request#baseRef
         , pull_request#files
         , pull_request#approvedReviews
-        , pull_request#commentReviews
-        , pull_request#reviewDecision )
+        , pull_request#commentReviews )
       with
-      | None, _, _, _, _ ->
+      | None, _, _, _ ->
           Error "No base ref found."
-      | _, None, _, _, _ ->
+      | _, None, _, _ ->
           Error "No files found."
-      | _, _, None, _, _ ->
+      | _, _, None, _ ->
           Error "No approved reviews found."
-      | _, _, _, None, _ ->
+      | _, _, _, None ->
           Error "No comment reviews found."
-      | ( Some baseRef
-        , Some files
-        , Some approved_reviews
-        , Some comment_reviews
-        , review_decision ) ->
+      | Some baseRef, Some files, Some approved_reviews, Some comment_reviews ->
           let approved_reviews =
             match approved_reviews#nodes with
             | None ->
@@ -329,10 +324,10 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                            |> Option.map ~f:(fun (`Actor a) -> a#login))
                     |> List.filter ~f:(fun a ->
                            not
-                             (List.exists approved_reviews ~f:(fun b ->
-                                  String.equal a b))) )
+                             (List.exists approved_reviews ~f:(String.equal a)))
+                )
             ; review_decision=
-                ( match review_decision with
+                ( match pull_request#reviewDecision with
                 | None ->
                     NONE
                 | Some r -> (
