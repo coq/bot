@@ -804,7 +804,9 @@ let callback _conn req body =
                 | Some l ->
                     GitHub_mutations.post_comment ~bot_info
                       ~message:
-                        (f "@%s: Needs label %s found, merge aborted."
+                        (f
+                           "@%s: This PR cannot be merged because there is \
+                            still a `%s` label."
                            comment_info.author l)
                       ~id:pr.id
                 | None -> (
@@ -815,13 +817,17 @@ let callback _conn req body =
                     then
                       GitHub_mutations.post_comment ~bot_info
                         ~message:
-                          (f "@%s: No kind label found, merge aborted."
+                          (f
+                             "@%s: This PR cannot be merged because there is \
+                              no `kind:` label."
                              comment_info.author)
                         ~id:pr.id
                     else if not comment_info.issue.milestoned then
                       GitHub_mutations.post_comment ~bot_info
                         ~message:
-                          (f "@%s: No milestone found, merge aborted."
+                          (f
+                             "@%s: This PR cannot be merged because no \
+                              milestone is set."
                              comment_info.author)
                         ~id:pr.id
                     else
@@ -830,8 +836,8 @@ let callback _conn req body =
                           GitHub_mutations.post_comment ~bot_info
                             ~message:
                               (f
-                                 "@%s: PR cannot be merged as it isn't \
-                                  approved yet."
+                                 "@%s: This PR cannot be merged because it \
+                                  hasn't been approved yet."
                                  comment_info.author)
                             ~id:pr.id
                       | APPROVED -> (
@@ -844,16 +850,16 @@ let callback _conn req body =
                             GitHub_mutations.post_comment ~bot_info
                               ~message:
                                 (f
-                                   "@%s: You can't merge the PR as you're not \
-                                    among the assignees."
+                                   "@%s: You can't merge the PR because you're \
+                                    not among the assignees."
                                    comment_info.author)
                               ~id:pr.id
                           else if String.equal comment_info.author pr.user then
                             GitHub_mutations.post_comment ~bot_info
                               ~message:
                                 (f
-                                   "@%s: You can't merge the PR since you \
-                                    authored it."
+                                   "@%s: You can't merge the PR because you \
+                                    are the author."
                                    comment_info.author)
                               ~id:pr.id
                           else if
@@ -862,8 +868,10 @@ let callback _conn req body =
                             GitHub_mutations.post_comment ~bot_info
                               ~message:
                                 (f
-                                   "@%s: PR targets branch %s instead of \
-                                    master, abort merge."
+                                   "@%s: This PR targets branch `%s` instead \
+                                    of `master`. Only release managers can \
+                                    merge in release branches. Merging with \
+                                    the bot is not supported."
                                    comment_info.author reviews_info.baseRef)
                               ~id:pr.id
                           else
@@ -922,8 +930,9 @@ let callback _conn req body =
                                 GitHub_mutations.post_comment ~bot_info
                                   ~message:
                                     (f
-                                       "@%s: You can't merge this PR as you're \
-                                        not a member of the Pushers team."
+                                       "@%s: You can't merge this PR because \
+                                        you're not a member of the \
+                                        `@coq/pushers` team."
                                        comment_info.author)
                                   ~id:pr.id ) ) )
               | Error e ->
