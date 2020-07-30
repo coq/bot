@@ -158,6 +158,20 @@ module PullRequestReviewsInfo =
   }
 |}]
 
+module FileContent =
+[%graphql
+{|
+  query fileContent($owner: String!, $repo: String!, $file: String!) {
+    repository(owner: $owner, name: $repo) {
+      file:object(expression: $file) {
+        ... on Blob {
+          text
+        }
+      }
+    }
+  }
+|}]
+
 (* Mutations *)
 
 module MoveCardToColumn =
