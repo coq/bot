@@ -7,16 +7,20 @@ type issue = {owner: string; repo: string; number: int}
 
 type issue_info =
   { issue: issue
+  ; title: string
   ; id: string
   ; user: string
   ; labels: string list
   ; milestoned: bool
   ; pull_request: bool
-  ; body: string option }
+  ; body: string option
+  ; assignees: string list }
 
 type remote_ref_info = {repo_url: string; name: string}
 
 type commit_info = {branch: remote_ref_info; sha: string}
+
+type review_decision = CHANGES_REQUESTED | APPROVED | REVIEW_REQUIRED | NONE
 
 type pull_request_action =
   | PullRequestOpened
@@ -30,6 +34,13 @@ type 'a pull_request_info =
   ; head: commit_info
   ; merged: bool
   ; last_commit_message: string option }
+
+type pull_request_reviews_info =
+  { baseRef: string
+  ; files: string list
+  ; approved_reviews: string list
+  ; comment_reviews: string list
+  ; review_decision: review_decision }
 
 type project_card = {issue: issue option; column_id: int}
 
@@ -65,6 +76,7 @@ let issue_info_of_json ?issue_json json =
       { owner= repo_json |> member "owner" |> member "login" |> to_string
       ; repo= repo_json |> member "name" |> to_string
       ; number= issue_json |> member "number" |> to_int }
+  ; title= issue_json |> member "title" |> to_string
   ; id= issue_json |> member "node_id" |> to_string
   ; user= issue_json |> member "user" |> member "login" |> to_string
   ; labels=
@@ -75,7 +87,10 @@ let issue_info_of_json ?issue_json json =
   ; pull_request=
       issue_json |> member "html_url" |> to_string
       |> string_match ~regexp:"https://github.com/[^/]*/[^/]*/pull/[0-9]*"
-  ; body= issue_json |> member "body" |> to_string_option }
+  ; body= issue_json |> member "body" |> to_string_option
+  ; assignees=
+      issue_json |> member "assignees" |> to_list
+      |> List.map ~f:(fun json -> json |> member "login" |> to_string) }
 
 let commit_info_of_json json =
   { branch=

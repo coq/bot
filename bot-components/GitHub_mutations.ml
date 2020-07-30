@@ -32,6 +32,16 @@ let update_milestone ~bot_info ~issue ~milestone =
   | Error err ->
       Stdio.print_endline (f "Error while updating milestone: %s" err)
 
+let merge_pull_request ?merge_method ?commit_headline ?commit_body ~bot_info
+    ~pr_id =
+  MergePullRequest.make ~pr_id ?commit_headline ?commit_body ?merge_method ()
+  |> GitHub_queries.send_graphql_query ~bot_info
+  >|= function
+  | Ok _ ->
+      ()
+  | Error err ->
+      Stdio.print_endline (f "Error while merging PR: %s" err)
+
 let reflect_pull_request_milestone ~bot_info
     (issue_closer_info : GitHub_queries.issue_closer_info) =
   match issue_closer_info.closer.milestone_id with

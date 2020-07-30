@@ -267,6 +267,103 @@ let get_pull_request_refs ~bot_info ~owner ~repo ~number =
           f "Query pull_request_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
 
+let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
+    (GitHub_subscriptions.pull_request_reviews_info, string) Result.t =
+  match resp#repository with
+  | None ->
+      Error (f "Unknown repository %s/%s." owner repo)
+  | Some repository -> (
+    match repository#pullRequest with
+    | None ->
+        Error (f "Unknown pull request %s/%s#%d." owner repo number)
+    | Some pull_request -> (
+      match
+        ( pull_request#baseRef
+        , pull_request#files
+        , pull_request#approvedReviews
+        , pull_request#commentReviews )
+      with
+      | None, _, _, _ ->
+          Error "No base ref found."
+      | _, None, _, _ ->
+          Error "No files found."
+      | _, _, None, _ ->
+          Error "No approved reviews found."
+      | _, _, _, None ->
+          Error "No comment reviews found."
+      | Some baseRef, Some files, Some approved_reviews, Some comment_reviews ->
+          let filter_authors a =
+            a |> Array.to_list |> List.filter_opt
+            |> List.filter_map ~f:(fun review ->
+                   review#author |> Option.map ~f:(fun (`Actor a) -> a#login))
+            |> List.dedup_and_sort ~compare:String.compare
+          in
+          let approved_reviews =
+            match approved_reviews#nodes with
+            | None ->
+                []
+            | Some reviews ->
+                filter_authors reviews
+          in
+          Ok
+            { baseRef= baseRef#name
+            ; files=
+                ( match files#nodes with
+                | None ->
+                    []
+                | Some files ->
+                    files |> Array.to_list |> List.filter_opt
+                    |> List.map ~f:(fun file -> file#path) )
+            ; approved_reviews
+            ; comment_reviews=
+                ( match comment_reviews#nodes with
+                | None ->
+                    []
+                | Some reviews ->
+                    reviews |> filter_authors
+                    |> List.filter ~f:(fun a ->
+                           not
+                             (List.exists approved_reviews ~f:(String.equal a)))
+                )
+            ; review_decision=
+                ( match pull_request#reviewDecision with
+                | None ->
+                    NONE
+                | Some r -> (
+                  match r with
+                  | `CHANGES_REQUESTED ->
+                      CHANGES_REQUESTED
+                  | `APPROVED ->
+                      APPROVED
+                  | `REVIEW_REQUIRED ->
+                      REVIEW_REQUIRED ) ) } ) )
+
+let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
+  PullRequestReviewsInfo.make ~owner ~repo ~number ()
+  |> send_graphql_query ~bot_info
+  >|= Result.map_error ~f:(fun err ->
+          f "Query pull_request_reviews_info failed with %s" err)
+  >|= Result.bind ~f:(pull_request_reviews_info_of_resp ~owner ~repo ~number)
+
+let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
+  match resp#repository with
+  | None ->
+      Error (f "Unknown repository %s/%s." owner repo)
+  | Some repository -> (
+    match repository#file with
+    | Some (`Blob b) ->
+        Ok b#text
+    | Some (`GitObject _) ->
+        Ok None
+    | None ->
+        Ok None )
+
+let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
+  FileContent.make ~owner ~repo ~file:(branch ^ ":" ^ file_name) ()
+  |> send_graphql_query ~bot_info
+  >|= Result.map_error ~f:(fun err -> f "Query file_content failed with %s" err)
+  >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
+
 type closer_info = {pull_request_id: string; milestone_id: string option}
 
 let closer_info_of_pr pr =

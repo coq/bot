@@ -124,6 +124,54 @@ module Issue_Milestone =
   }
 |}]
 
+module PullRequestReviewsInfo =
+[%graphql
+{|
+  query mergePullRequestInfo($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequest(number: $number) {
+        baseRef {
+          name
+        }
+        files(first: 100) {
+          nodes {
+            path
+          }
+        }
+        reviewDecision
+        commentReviews: reviews(states: COMMENTED, last: 100) {
+          nodes {
+            author {
+              login
+            }
+          }
+        }
+        approvedReviews: reviews(states: APPROVED, last: 100) {
+          nodes {
+            author {
+              login
+            }
+          }
+        }
+      }
+    }
+  }
+|}]
+
+module FileContent =
+[%graphql
+{|
+  query fileContent($owner: String!, $repo: String!, $file: String!) {
+    repository(owner: $owner, name: $repo) {
+      file:object(expression: $file) {
+        ... on Blob {
+          text
+        }
+      }
+    }
+  }
+|}]
+
 (* Mutations *)
 
 module MoveCardToColumn =
@@ -152,6 +200,21 @@ module UpdateMilestone =
   mutation updateMilestone($issue: ID!, $milestone: ID!) {
     updateIssue(input: {id: $issue, milestoneId: $milestone}) {
       clientMutationId
+    }
+  }
+|}]
+
+module MergePullRequest =
+[%graphql
+{|
+  mutation mergePullRequest($pr_id: ID!, $commit_headline: String, $commit_body: String, $merge_method: PullRequestMergeMethod) {
+    mergePullRequest(input: {pullRequestId: $pr_id, commitHeadline: $commit_headline, commitBody: $commit_body, mergeMethod: $merge_method}) {
+      pullRequest {
+        merged
+        mergedAt
+        state
+        url
+      }
     }
   }
 |}]
