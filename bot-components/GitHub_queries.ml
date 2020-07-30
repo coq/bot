@@ -299,6 +299,17 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
         , Some approved_reviews
         , Some comment_reviews
         , Some review_decision ) ->
+          let approved_reviews =
+            match approved_reviews#nodes with
+            | None ->
+                []
+            | Some reviews ->
+                reviews |> Array.to_list |> List.filter_opt
+                |> List.filter_map ~f:(fun review ->
+                       review#author
+                       |> Option.map ~f:(fun (`Actor a) -> a#login))
+                |> List.dedup_and_sort ~compare:String.compare
+          in
           Ok
             { baseRef= baseRef#name
             ; files=
@@ -308,15 +319,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                 | Some files ->
                     files |> Array.to_list |> List.filter_opt
                     |> List.map ~f:(fun file -> file#path) )
-            ; approved_reviews=
-                ( match approved_reviews#nodes with
-                | None ->
-                    []
-                | Some reviews ->
-                    reviews |> Array.to_list |> List.filter_opt
-                    |> List.filter_map ~f:(fun review ->
-                           review#author
-                           |> Option.map ~f:(fun (`Actor a) -> a#login)) )
+            ; approved_reviews
             ; comment_reviews=
                 ( match comment_reviews#nodes with
                 | None ->
@@ -325,7 +328,11 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                     reviews |> Array.to_list |> List.filter_opt
                     |> List.filter_map ~f:(fun review ->
                            review#author
-                           |> Option.map ~f:(fun (`Actor a) -> a#login)) )
+                           |> Option.map ~f:(fun (`Actor a) -> a#login))
+                    |> List.filter ~f:(fun a ->
+                           not
+                             (List.exists approved_reviews ~f:(fun b ->
+                                  String.equal a b))) )
             ; review_decision=
                 ( match review_decision with
                 | `CHANGES_REQUESTED ->
