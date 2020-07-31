@@ -846,7 +846,11 @@ let callback _conn req body =
                           then
                             GitHub_mutations.post_comment ~bot_info
                               ~message:
-                                (f "@%s: This PR cannot be merged by email."
+                                (f
+                                   "@%s: Merge requests sent over e-mail are \
+                                    not accepted because this put less \
+                                    guarantee on the authenticity of the \
+                                    author of the request."
                                    comment_info.author)
                               ~id:pr.id
                           else if
