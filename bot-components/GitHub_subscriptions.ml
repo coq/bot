@@ -51,7 +51,8 @@ type comment_info =
   { body: string
   ; author: string
   ; pull_request: issue_info pull_request_info option
-  ; issue: issue_info }
+  ; issue: issue_info
+  ; id: string }
 
 type check_run_info = {id: int; node_id: string; url: string}
 
@@ -151,7 +152,8 @@ let comment_info_of_json ?(review_comment = false) json =
       | Some pr_info ->
           pr_info.issue
       | None ->
-          issue_info_of_json json ) }
+          issue_info_of_json json )
+  ; id= comment_json |> member "node_id" |> to_string }
 
 let check_run_info_of_json json =
   let check_run = json |> member "check_run" in

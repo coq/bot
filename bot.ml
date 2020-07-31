@@ -839,7 +839,18 @@ let callback _conn req body =
                         ~number:pr.issue.number
                       >>= function
                       | Ok reviews_info -> (
-                          if not (String.equal reviews_info.baseRef "master")
+                          if
+                            List.exists reviews_info.last_comments ~f:(fun c ->
+                                String.equal comment_info.id c.id
+                                && c.created_by_email)
+                          then
+                            GitHub_mutations.post_comment ~bot_info
+                              ~message:
+                                (f "@%s: This PR cannot be merged by email."
+                                   comment_info.author)
+                              ~id:pr.id
+                          else if
+                            not (String.equal reviews_info.baseRef "master")
                           then
                             GitHub_mutations.post_comment ~bot_info
                               ~message:
