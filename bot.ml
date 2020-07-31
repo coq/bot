@@ -839,7 +839,33 @@ let callback _conn req body =
                         ~number:pr.issue.number
                       >>= function
                       | Ok reviews_info -> (
-                          if not (String.equal reviews_info.baseRef "master")
+                          let comment =
+                            List.find reviews_info.last_comments ~f:(fun c ->
+                                String.equal comment_info.id c.id)
+                          in
+                          if Option.is_none comment then
+                            GitHub_mutations.post_comment ~bot_info
+                              ~message:
+                                (f
+                                   "@%s: Could not find merge comment because \
+                                    too many comments were posted since."
+                                   comment_info.author)
+                              ~id:pr.id
+                          else if
+                            (Option.value_exn comment).created_by_email
+                            (* Option.value_exn doesn't raise an exception because comment isn't None at this point*)
+                          then
+                            GitHub_mutations.post_comment ~bot_info
+                              ~message:
+                                (f
+                                   "@%s: Merge requests sent over e-mail are \
+                                    not accepted because this put less \
+                                    guarantee on the authenticity of the \
+                                    author of the request."
+                                   comment_info.author)
+                              ~id:pr.id
+                          else if
+                            not (String.equal reviews_info.baseRef "master")
                           then
                             GitHub_mutations.post_comment ~bot_info
                               ~message:

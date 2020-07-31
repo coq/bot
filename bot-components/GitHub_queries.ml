@@ -314,6 +314,19 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                 | Some files ->
                     files |> Array.to_list |> List.filter_opt
                     |> List.map ~f:(fun file -> file#path) )
+            ; last_comments=
+                ( match pull_request#comments#nodes with
+                | None ->
+                    []
+                | Some comments ->
+                    comments |> Array.to_list |> List.filter_opt
+                    |> List.filter_map ~f:(fun c ->
+                           c#author
+                           |> Option.map ~f:(fun (`Actor a) ->
+                                  ( { id= c#id
+                                    ; author= a#login
+                                    ; created_by_email= c#createdViaEmail }
+                                    : GitHub_subscriptions.comment ))) )
             ; approved_reviews
             ; comment_reviews=
                 ( match comment_reviews#nodes with

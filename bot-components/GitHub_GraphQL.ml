@@ -138,6 +138,15 @@ module PullRequestReviewsInfo =
             path
           }
         }
+        comments(last:10) {
+          nodes {
+            id
+            author {
+              login
+            }
+            createdViaEmail
+          }
+        }
         reviewDecision
         commentReviews: reviews(states: COMMENTED, last: 100) {
           nodes {
