@@ -5,6 +5,8 @@ open Yojson.Basic.Util
 
 type issue = {owner: string; repo: string; number: int}
 
+type comment = {id: string; author: string; created_by_email: bool}
+
 type issue_info =
   { issue: issue
   ; title: string
@@ -40,7 +42,8 @@ type pull_request_reviews_info =
   ; files: string list
   ; approved_reviews: string list
   ; comment_reviews: string list
-  ; review_decision: review_decision }
+  ; review_decision: review_decision
+  ; last_comments: comment list }
 
 type project_card = {issue: issue option; column_id: int}
 
