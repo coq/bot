@@ -90,13 +90,11 @@ let make_mappings_table toml_data =
   |> parse_mappings
 
 let github_of_gitlab gl mappings_table =
-  Option.value_exn
-    (List.find ~f:(fun (_, _, gl') -> String.equal gl' gl) mappings_table)
-    ~message:(f "No correspondence found for %s" gl)
-  |> function _, gh, _ -> gh
+  Option.Monad_infix.(
+    List.find ~f:(fun (_, _, gl') -> String.equal gl' gl) mappings_table
+    >>= function _, gh, _ -> Some gh)
 
 let gitlab_of_github gh mappings_table =
-  Option.value_exn
-    (List.find ~f:(fun (_, gh', _) -> String.equal gh' gh) mappings_table)
-    ~message:(f "No correspondence found for %s" gh)
-  |> function _, _, gl -> gl
+  Option.Monad_infix.(
+    List.find ~f:(fun (_, gh', _) -> String.equal gh' gh) mappings_table
+    >>= function _, _, gl -> Some gl)

@@ -138,15 +138,17 @@ let extract_commit json =
 let gitlab_ref (issue : GitHub_subscriptions.issue) :
     GitHub_subscriptions.remote_ref_info =
   let owner, name =
-    match
-      gitlab_of_github (issue.owner ^ "/" ^ issue.repo)
-      |> Str.split (Str.regexp "/")
-    with
-    | [owner; repo] ->
-        (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
-        (owner, repo)
-    | _ ->
-        (issue.owner, issue.repo)
+    gitlab_of_github (issue.owner ^ "/" ^ issue.repo)
+    |> Option.value_map ~default:(issue.owner, issue.repo) ~f:(fun gl_repo ->
+           match Str.split (Str.regexp "/") gl_repo with
+           | [owner; repo] ->
+               (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
+               (owner, repo)
+           | _ ->
+               Stdio.printf
+                 "No correspondence found for GitHub repository %s/%s.\n"
+                 issue.owner issue.repo ;
+               (issue.owner, issue.repo))
   in
   {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
 
@@ -371,7 +373,14 @@ let job_action json =
     (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
   in
   let repo_full_name = owner ^ "/" ^ repo in
-  let github_repo_full_name = github_of_gitlab repo_full_name in
+  let github_repo_full_name =
+    Option.value
+      (github_of_gitlab repo_full_name)
+      ~default:
+        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
+            repo_full_name ;
+          repo_full_name )
+  in
   let gh_owner, gh_repo =
     match Str.split (Str.regexp "/") github_repo_full_name with
     | [owner_; repo_] ->
@@ -541,7 +550,14 @@ let pipeline_action json =
   let gitlab_full_name =
     json |> member "project" |> member "path_with_namespace" |> to_string
   in
-  let repo_full_name = github_of_gitlab gitlab_full_name in
+  let repo_full_name =
+    Option.value
+      (github_of_gitlab gitlab_full_name)
+      ~default:
+        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
+            gitlab_full_name ;
+          gitlab_full_name )
+  in
   match state with
   | "skipped" ->
       ()
