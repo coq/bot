@@ -3,6 +3,8 @@ open Bot_components.Utils
 
 let toml_of_file file_path = Toml.Parser.(from_filename file_path |> unsafe)
 
+let toml_of_string s = Toml.Parser.(from_string s |> unsafe)
+
 let find k = TomlTypes.Table.find (Toml.key k)
 
 let subkey_value toml_table k k' =

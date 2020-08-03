@@ -58,13 +58,13 @@ let git_fetch ?(force = true)
     (if force then "+" else "")
     remote_ref.name local_branch_name
 
-let git_push ?(force = true) (remote_ref : GitHub_subscriptions.remote_ref_info)
-    local_ref =
+let git_push ?(force = true)
+    ~(remote_ref : GitHub_subscriptions.remote_ref_info) ~local_ref =
   f "git push %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then " +" else " ")
     local_ref remote_ref.name
 
-let git_delete remote_ref = git_push ~force:false remote_ref ""
+let git_delete ~remote_ref = git_push ~force:false ~remote_ref ~local_ref:""
 
 let git_make_ancestor ~base head =
   f "./make_ancestor.sh %s %s" base head
@@ -135,22 +135,41 @@ let extract_commit json =
         sha )
     |> to_string
 
-let gitlab_ref (issue : GitHub_subscriptions.issue) :
-    GitHub_subscriptions.remote_ref_info =
-  let owner, name =
-    gitlab_of_github (issue.owner ^ "/" ^ issue.repo)
-    |> Option.value_map ~default:(issue.owner, issue.repo) ~f:(fun gl_repo ->
-           match Str.split (Str.regexp "/") gl_repo with
-           | [owner; repo] ->
-               (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
-               (owner, repo)
-           | _ ->
-               Stdio.printf
-                 "No correspondence found for GitHub repository %s/%s.\n"
-                 issue.owner issue.repo ;
-               (issue.owner, issue.repo))
-  in
-  {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
+let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
+  let gh_repo = issue.owner ^ "/" ^ issue.repo in
+  Lwt.Infix.( >|= )
+    ( match gitlab_of_github gh_repo with
+    | None -> (
+        Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
+          issue.owner issue.repo ;
+        GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
+          ~repo:issue.repo
+          ~branch:"master" (* TODO: change to default base branch *)
+          ~file_name:"coqbot.toml"
+        >>= function
+        | Ok (Some content) ->
+            Lwt.return
+              (Option.value
+                 (Config.subkey_value
+                    (Config.toml_of_string content)
+                    "mapping" "gitlab")
+                 ~default:gh_repo)
+        | _ ->
+            Lwt.return gh_repo )
+    | Some r ->
+        Lwt.return r )
+    (fun gl_repo ->
+      let owner, name =
+        match Str.split (Str.regexp "/") gl_repo with
+        | [owner; repo] ->
+            (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
+            (owner, repo)
+        | _ ->
+            Stdio.printf "Something unexpected happened.\n" ;
+            (issue.owner, issue.repo)
+      in
+      ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
+        : GitHub_subscriptions.remote_ref_info ))
 
 let pull_request_updated
     (pr_info :
@@ -177,7 +196,11 @@ let pull_request_updated
         GitHub_mutations.remove_rebase_label pr_info.issue.issue ~bot_info)
       |> Lwt.async ;
     (* Force push *)
-    git_push (gitlab_ref pr_info.issue.issue) local_head_branch |> execute_cmd )
+    let open Lwt.Infix in
+    gitlab_ref ~issue:pr_info.issue.issue
+    >|= (fun remote_ref ->
+          git_push ~force:true ~remote_ref ~local_ref:local_head_branch)
+    >>= execute_cmd )
   else (
     (* Remove rebase label *)
     (fun () -> GitHub_mutations.add_rebase_label pr_info.issue.issue ~bot_info)
@@ -198,8 +221,10 @@ let pull_request_closed
     (pr_info :
       GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info) ()
     =
-  git_delete (gitlab_ref pr_info.issue.issue)
-  |> execute_cmd >|= ignore
+  let open Lwt.Infix in
+  gitlab_ref ~issue:pr_info.issue.issue
+  >|= (fun remote_ref -> git_delete ~remote_ref)
+  >>= execute_cmd >|= ignore
   <&>
   if not pr_info.merged then
     Lwt_io.printf
