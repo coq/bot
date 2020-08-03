@@ -23,6 +23,7 @@
   (stdio (>= v0.13.0))
   (yojson (>= 1.7.0))
   (bot-components :dev)
+  (toml (>= 5.0.0))
   (odoc (>= 1.4.0)))
 )
 (package

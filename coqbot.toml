@@ -1,0 +1,24 @@
+[bot]
+name="coqbot"
+email="coqbot@users.noreply.github.com"
+
+[server]
+domain="coqbot.heroku.com"
+
+[github]
+hostname = "github.com"
+#webhook_secret = "xxx"
+#api_token = "xxx"
+
+[gitlab]
+hostname = "gitlab.com"
+#api_token = "xxx"
+
+[mappings]
+  [mappings.coq]
+  github = "coq/coq"
+  gitlab = "coq/coq"
+
+  [mappings.math-comp]
+  github = "math-comp/math-comp"
+  gitlab = "math-comp/math-comp"

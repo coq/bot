@@ -25,7 +25,7 @@ FROM alpine:3.10 AS app
 WORKDIR /app
 
 COPY --from=builder /src/opam-install/bin/bot bot.exe
-COPY --from=builder /src/make_ancestor.sh /src/coq_bug_minimizer.sh ./
+COPY --from=builder /src/make_ancestor.sh /src/coq_bug_minimizer.sh /src/coqbot.toml ./
 
 RUN apk update \
   && apk add bash git \
@@ -41,4 +41,4 @@ RUN cat depexts-bot-components | xargs apk --update add
 
 EXPOSE 8000
 
-CMD ["./bot.exe"]
+CMD ["./bot.exe", "coqbot.toml"]

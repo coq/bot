@@ -1,31 +1,36 @@
+open Base
 open Bot_components
 open Cohttp
 open Cohttp_lwt_unix
 open Lwt.Infix
 open Utils
 
-let port = try Sys.getenv "PORT" |> int_of_string with Not_found -> 8000
+let toml_data = Config.toml_of_file (Sys.get_argv ()).(1)
 
-let gitlab_access_token = Sys.getenv "GITLAB_ACCESS_TOKEN"
+let port = Config.port toml_data
 
-let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
+let gitlab_access_token = Config.gitlab_access_token toml_data
 
-let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
+let github_access_token = Config.github_access_token toml_data
 
-let bot_name = try Sys.getenv "BOT_NAME" with Not_found -> "coqbot"
+let github_webhook_secret = Config.github_webhook_secret toml_data
 
-let bot_domain = f "%s.herokuapp.com" bot_name
+let bot_name = Config.bot_name toml_data
 
-let bot_email =
-  try Sys.getenv "BOT_EMAIL"
-  with Not_found -> f "%s@users.noreply.github.com" bot_name
+let bot_domain = Config.bot_domain toml_data bot_name
+
+let bot_email = Config.bot_email toml_data bot_name
 
 let bot_info =
   { github_token= github_access_token
   ; gitlab_token= gitlab_access_token
   ; bot_name }
 
-open Base
+let mappings_table = Config.make_mappings_table toml_data
+
+let github_of_gitlab gh = Config.github_of_gitlab gh mappings_table
+
+let gitlab_of_github gl = Config.gitlab_of_github gl mappings_table
 
 let gitlab_repo ~owner ~name =
   f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
@@ -132,8 +137,18 @@ let extract_commit json =
 
 let gitlab_ref (issue : GitHub_subscriptions.issue) :
     GitHub_subscriptions.remote_ref_info =
-  { name= f "pr-%d" issue.number
-  ; repo_url= gitlab_repo ~owner:issue.owner ~name:issue.repo }
+  let owner, name =
+    match
+      gitlab_of_github (issue.owner ^ "/" ^ issue.repo)
+      |> Str.split (Str.regexp "/")
+    with
+    | [owner; repo] ->
+        (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
+        (owner, repo)
+    | _ ->
+        (issue.owner, issue.repo)
+  in
+  {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
 
 let pull_request_updated
     (pr_info :
@@ -356,6 +371,15 @@ let job_action json =
     (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
   in
   let repo_full_name = owner ^ "/" ^ repo in
+  let github_repo_full_name = github_of_gitlab repo_full_name in
+  let gh_owner, gh_repo =
+    match Str.split (Str.regexp "/") github_repo_full_name with
+    | [owner_; repo_] ->
+        (fun () -> Lwt_io.printf "ok' %s %s\n" owner repo) |> Lwt.async ;
+        (owner_, repo_)
+    | _ ->
+        (owner, repo)
+  in
   let send_url (kind, url) =
     (fun () ->
       let context = Printf.sprintf "%s: %s artifact" build_name kind in
@@ -363,14 +387,14 @@ let job_action json =
       url |> Uri.of_string |> Client.get
       >>= fun (resp, _) ->
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-        GitHub_mutations.send_status_check ~repo_full_name ~commit
-          ~state:"success" ~url ~context ~description:(description_base ^ ".")
-          ~bot_info
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit ~state:"success" ~url ~context
+          ~description:(description_base ^ ".") ~bot_info
       else
         Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
         >>= fun () ->
-        GitHub_mutations.send_status_check ~repo_full_name ~commit
-          ~state:"failure"
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit ~state:"failure"
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
@@ -391,7 +415,8 @@ let job_action json =
            reporting a failed status check. *)
         match pr_num with
         | Some number -> (
-            GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo ~number
+            GitHub_queries.get_pull_request_refs ~bot_info ~owner:gh_owner
+              ~repo:gh_repo ~number
             >>= function
             | Ok {issue= id; head; last_commit_message= Some commit_message}
             (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
@@ -424,8 +449,8 @@ let job_action json =
       else
         Lwt_io.printf "Pushing a status check...\n"
         >>= fun () ->
-        GitHub_mutations.send_status_check ~repo_full_name ~commit
-          ~state:"failure"
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit ~state:"failure"
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
@@ -465,14 +490,15 @@ let job_action json =
     |> Lwt.async
   else if String.equal build_status "success" then (
     (fun () ->
-      GitHub_queries.get_status_check ~repo_full_name ~commit ~context ~bot_info
+      GitHub_queries.get_status_check ~repo_full_name:github_repo_full_name
+        ~commit ~context ~bot_info
       >>= fun b ->
       if b then
         Lwt_io.printf
           "There existed a previous status check for this build, we'll \
            override it.\n"
-        <&> GitHub_mutations.send_status_check ~repo_full_name ~commit
-              ~state:"success"
+        <&> GitHub_mutations.send_status_check
+              ~repo_full_name:github_repo_full_name ~commit ~state:"success"
               ~url:
                 (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                    build_id)
@@ -515,11 +541,7 @@ let pipeline_action json =
   let gitlab_full_name =
     json |> member "project" |> member "path_with_namespace" |> to_string
   in
-  let repo_full_name =
-    if String.equal gitlab_full_name "near-protocol/nearcore" then
-      "nearprotocol/nearcore"
-    else gitlab_full_name
-  in
+  let repo_full_name = github_of_gitlab gitlab_full_name in
   match state with
   | "skipped" ->
       ()
@@ -1024,7 +1046,8 @@ let callback _conn req body =
 
 let server =
   (fun () ->
-    Lwt_io.printf "Initializing repository...\n"
+    Lwt_io.printf "Initializing repository...\n %s\n"
+      (Config.string_of_mapping mappings_table)
     <&> ( "git init --bare"
         |&& f "git config user.email \"%s\"" bot_email
         |&& f "git config user.name \"%s\"" bot_name
