@@ -15,10 +15,8 @@ let list_table_keys toml_table =
     (fun k _ ks -> TomlTypes.Table.Key.to_string k :: ks)
     toml_table []
 
-let string_of_mapping mappings =
-  List.fold_left
-    ~f:(fun s (k, v, v') -> s ^ f "(%s, %s, %s)\n" k v v')
-    ~init:"Mappings: " mappings
+let string_of_mapping =
+  Hashtbl.fold ~init:"" ~f:(fun ~key ~data acc -> acc ^ f "(%s, %s)\n" key data)
 
 let port toml_data =
   Option.value_map
@@ -67,17 +65,29 @@ let bot_email toml_data bot_name =
 
 let parse_mappings mappings =
   let keys = list_table_keys mappings in
-  List.(
-    fold_left
-      ~f:(fun assoc_table k ->
-        (k, subkey_value mappings k "github", subkey_value mappings k "gitlab")
-        :: assoc_table)
-      ~init:[] keys
-    |> filter_map ~f:(function
-         | k, Some v, Some v' ->
-             Some (k, v, v')
-         | _, _, _ ->
-             None))
+  let assoc =
+    List.(
+      fold_left
+        ~f:(fun assoc_table k ->
+          (subkey_value mappings k "github", subkey_value mappings k "gitlab")
+          :: assoc_table)
+        ~init:[] keys
+      |> filter_map ~f:(function
+           | Some gh, Some gl ->
+               Some (gh, gl)
+           | _, _ ->
+               None))
+  in
+  let assoc_rev = List.map assoc ~f:(fun (gh, gl) -> (gl, gh)) in
+  let get_table t =
+    match t with
+    | `Duplicate_key _ ->
+        raise (Failure "Duplicate key in config.")
+    | `Ok t ->
+        t
+  in
+  ( get_table (Hashtbl.of_alist (module String) assoc)
+  , get_table (Hashtbl.of_alist (module String) assoc_rev) )
 
 let make_mappings_table toml_data =
   let toml_mappings =
@@ -91,12 +101,6 @@ let make_mappings_table toml_data =
     ~message:"No mappings field found in toml config file."
   |> parse_mappings
 
-let github_of_gitlab gl mappings_table =
-  Option.Monad_infix.(
-    List.find ~f:(fun (_, _, gl') -> String.equal gl' gl) mappings_table
-    >>= function _, gh, _ -> Some gh)
+let github_of_gitlab gl mapping = Hashtbl.find mapping gl
 
-let gitlab_of_github gh mappings_table =
-  Option.Monad_infix.(
-    List.find ~f:(fun (_, gh', _) -> String.equal gh' gh) mappings_table
-    >>= function _, _, gl -> Some gl)
+let gitlab_of_github gh mapping = Hashtbl.find mapping gh

@@ -26,11 +26,11 @@ let bot_info =
   ; gitlab_token= gitlab_access_token
   ; bot_name }
 
-let mappings_table = Config.make_mappings_table toml_data
+let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 
-let github_of_gitlab gh = Config.github_of_gitlab gh mappings_table
+let github_of_gitlab gl = Config.github_of_gitlab gl gitlab_mapping
 
-let gitlab_of_github gl = Config.gitlab_of_github gl mappings_table
+let gitlab_of_github gh = Config.gitlab_of_github gh github_mapping
 
 let gitlab_repo ~owner ~name =
   f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
@@ -137,39 +137,51 @@ let extract_commit json =
 
 let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
-  Lwt.Infix.( >|= )
-    ( match gitlab_of_github gh_repo with
-    | None -> (
-        Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
-          issue.owner issue.repo ;
-        GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
-          ~repo:issue.repo
-          ~branch:"master" (* TODO: change to default base branch *)
-          ~file_name:"coqbot.toml"
-        >>= function
-        | Ok (Some content) ->
-            Lwt.return
-              (Option.value
-                 (Config.subkey_value
-                    (Config.toml_of_string content)
-                    "mapping" "gitlab")
-                 ~default:gh_repo)
-        | _ ->
-            Lwt.return gh_repo )
-    | Some r ->
-        Lwt.return r )
-    (fun gl_repo ->
-      let owner, name =
-        match Str.split (Str.regexp "/") gl_repo with
-        | [owner; repo] ->
-            (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
-            (owner, repo)
-        | _ ->
-            Stdio.printf "Something unexpected happened.\n" ;
-            (issue.owner, issue.repo)
-      in
-      ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
-        : GitHub_subscriptions.remote_ref_info ))
+  let open Lwt.Infix in
+  ( match gitlab_of_github gh_repo with
+  | None -> (
+      Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
+        issue.owner issue.repo ;
+      GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
+        ~repo:issue.repo
+        ~branch:"master" (* TODO: change to default base branch *)
+        ~file_name:"coqbot.toml"
+      >>= function
+      | Ok (Some content) ->
+          let gl_repo =
+            Option.value
+              (Config.subkey_value
+                 (Config.toml_of_string content)
+                 "mapping" "gitlab")
+              ~default:gh_repo
+          in
+          ( match Hashtbl.add gitlab_mapping ~key:gl_repo ~data:gh_repo with
+          | `Duplicate ->
+              ()
+          | `Ok ->
+              () ) ;
+          ( match Hashtbl.add github_mapping ~key:gh_repo ~data:gl_repo with
+          | `Duplicate ->
+              ()
+          | `Ok ->
+              () ) ;
+          Lwt.return gl_repo
+      | _ ->
+          Lwt.return gh_repo )
+  | Some r ->
+      Lwt.return r )
+  >|= fun gl_repo ->
+  let owner, name =
+    match Str.split (Str.regexp "/") gl_repo with
+    | [owner; repo] ->
+        (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
+        (owner, repo)
+    | _ ->
+        Stdio.printf "Something unexpected happened.\n" ;
+        (issue.owner, issue.repo)
+  in
+  ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
+    : GitHub_subscriptions.remote_ref_info )
 
 let pull_request_updated
     (pr_info :
@@ -1088,7 +1100,7 @@ let callback _conn req body =
 let server =
   (fun () ->
     Lwt_io.printf "Initializing repository...\n %s\n"
-      (Config.string_of_mapping mappings_table)
+      (Config.string_of_mapping github_mapping)
     <&> ( "git init --bare"
         |&& f "git config user.email \"%s\"" bot_email
         |&& f "git config user.name \"%s\"" bot_name
