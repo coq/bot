@@ -52,6 +52,7 @@ type comment_info =
   ; author: string
   ; pull_request: issue_info pull_request_info option
   ; issue: issue_info
+  ; review_comment: bool
   ; id: string }
 
 type check_run_info = {id: int; node_id: string; url: string}
@@ -153,6 +154,7 @@ let comment_info_of_json ?(review_comment = false) json =
           pr_info.issue
       | None ->
           issue_info_of_json json )
+  ; review_comment
   ; id= comment_json |> member "node_id" |> to_string }
 
 let check_run_info_of_json json =
