@@ -142,30 +142,34 @@ let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
   | None -> (
       Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
         issue.owner issue.repo ;
-      GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
+      GitHub_queries.get_default_branch ~bot_info ~owner:issue.owner
         ~repo:issue.repo
-        ~branch:"master" (* TODO: change to default base branch *)
-        ~file_name:"coqbot.toml"
       >>= function
-      | Ok (Some content) ->
-          let gl_repo =
-            Option.value
-              (Config.subkey_value
-                 (Config.toml_of_string content)
-                 "mapping" "gitlab")
-              ~default:gh_repo
-          in
-          ( match Hashtbl.add gitlab_mapping ~key:gl_repo ~data:gh_repo with
-          | `Duplicate ->
-              ()
-          | `Ok ->
-              () ) ;
-          ( match Hashtbl.add github_mapping ~key:gh_repo ~data:gl_repo with
-          | `Duplicate ->
-              ()
-          | `Ok ->
-              () ) ;
-          Lwt.return gl_repo
+      | Ok branch -> (
+          GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
+            ~repo:issue.repo ~branch ~file_name:"coqbot.toml"
+          >>= function
+          | Ok (Some content) ->
+              let gl_repo =
+                Option.value
+                  (Config.subkey_value
+                     (Config.toml_of_string content)
+                     "mapping" "gitlab")
+                  ~default:gh_repo
+              in
+              ( match Hashtbl.add gitlab_mapping ~key:gl_repo ~data:gh_repo with
+              | `Duplicate ->
+                  ()
+              | `Ok ->
+                  () ) ;
+              ( match Hashtbl.add github_mapping ~key:gh_repo ~data:gl_repo with
+              | `Duplicate ->
+                  ()
+              | `Ok ->
+                  () ) ;
+              Lwt.return gl_repo
+          | _ ->
+              Lwt.return gh_repo )
       | _ ->
           Lwt.return gh_repo )
   | Some r ->

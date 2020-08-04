@@ -382,16 +382,17 @@ let default_branch_of_resp ~owner ~repo resp =
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
   | Some repository -> (
-     match repository#defaultBranchRef with 
-     None -> Error ("No default branch found.")
-     |Some default_branch -> Ok (default_branch#name : string)
-    
-     )
+    match repository#defaultBranchRef with
+    | None ->
+        Error "No default branch found."
+    | Some default_branch ->
+        Ok (default_branch#name : string) )
 
 let get_default_branch ~bot_info ~owner ~repo =
   DefaultBranch.make ~owner ~repo ()
   |> send_graphql_query ~bot_info
-  >|= Result.map_error ~f:(fun err -> f "Query get_default_branch failed with %s" err)
+  >|= Result.map_error ~f:(fun err ->
+          f "Query get_default_branch failed with %s" err)
   >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
 
 type closer_info = {pull_request_id: string; milestone_id: string option}
