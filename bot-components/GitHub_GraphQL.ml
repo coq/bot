@@ -167,6 +167,18 @@ module PullRequestReviewsInfo =
   }
 |}]
 
+module DefaultBranch =
+[%graphql
+{|
+  query defaultBranch($owner: String!, $repo: String!) {
+    repository(owner: $owner, name: $repo) {
+      defaultBranchRef {
+        name
+      }
+    }
+  }
+|}]
+
 module FileContent =
 [%graphql
 {|
