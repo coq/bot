@@ -223,6 +223,26 @@ these are configured in your Heroku app:
 - `BOT_NAME` (defaults to `coqbot`)
 - `BOT_EMAIL` (defaults to `BOT_NAME@users.noreply.github.com`)
 
+In the next release of coqbot, the `BOT_NAME` and `BOT_EMAIL`
+environment variables won't have any effect and should be instead
+set from a configuration file (see [`coqbot.toml`](coqbot.toml)).
+The port number must not be set in the configuration file if you're
+deploying the docker image to Heroku, since it uses a custom
+environment variable.
+
+A Dockerfile to build a personalized image based on a release image
+from GitHub packages, using a custom `bot_config.toml` configuration
+file would look like:
+```dockerfile
+FROM docker.pkg.github.com/coq/bot/coqbot:xxx
+
+COPY bot_config.toml ./
+
+EXPOSE 8000 # The port you specified in bot_config.toml
+
+CMD ["./bot.exe", "bot_config.toml"]
+```
+
 ## Building locally ##
 
 Instructions for building and testing locally can be found in the
