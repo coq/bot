@@ -138,6 +138,11 @@ let extract_commit json =
 let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
+  (* First, we check our hashtable for a key named after the GitHub
+     repository and return the associated GitLab repository. If the
+     key is not found, we load the config file from the default branch.
+     Last (backward-compatibility) we assume the GitLab and GitHub
+     projects are named the same. *)
   ( match gitlab_of_github gh_repo with
   | None -> (
       Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
