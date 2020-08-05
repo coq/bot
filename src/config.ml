@@ -100,7 +100,3 @@ let make_mappings_table toml_data =
   Option.value_exn toml_mappings
     ~message:"No mappings field found in toml config file."
   |> parse_mappings
-
-let github_of_gitlab gl mapping = Hashtbl.find mapping gl
-
-let gitlab_of_github gh mapping = Hashtbl.find mapping gh

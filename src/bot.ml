@@ -28,9 +28,9 @@ let bot_info =
 
 let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 
-let github_of_gitlab gl = Config.github_of_gitlab gl gitlab_mapping
+let github_of_gitlab = Hashtbl.find gitlab_mapping
 
-let gitlab_of_github gh = Config.gitlab_of_github gh github_mapping
+let gitlab_of_github = Hashtbl.find github_mapping
 
 let gitlab_repo ~owner ~name =
   f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
