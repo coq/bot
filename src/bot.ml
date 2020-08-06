@@ -1108,8 +1108,7 @@ let callback _conn req body =
 
 let server =
   (fun () ->
-    Lwt_io.printf "Initializing repository...\n %s\n"
-      (Config.string_of_mapping github_mapping)
+    Lwt_io.printf "Initializing repository...\n"
     <&> ( "git init --bare"
         |&& f "git config user.email \"%s\"" bot_email
         |&& f "git config user.name \"%s\"" bot_name
