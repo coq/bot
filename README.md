@@ -127,8 +127,7 @@ you are interested in hearing about it.
 
 To use the bot without deploying your own instance, follow these steps:
 
-- Create a repository on GitLab.com whose URL is *exactly* the same as
-  the one on GitHub except for the "lab" replacing the "hub" part.
+- Create a repository on GitLab.com which will be used to run CI jobs.
 
   The bot will only take care of mirroring the PRs and reporting
   status checks back so you may still want to activate the mirroring
@@ -167,6 +166,17 @@ To use the bot without deploying your own instance, follow these steps:
     at least by pull request events, and if you want to use the issue
     milestone feature, by issue events as well.  Make sure you change
     the "content/type" value to "application/json".
+
+  By default, @coqbot assumes that both GitHub and GitLab repositories
+  share the same URL except for the "lab" replacing the "hub" part. If
+  that is not the case, assuming you created a GitLab repository whose
+  URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
+  the root of your GitHub repository and in its default branch (most
+  of the time named `master`), containing:
+  ```
+  [mapping]
+  gitlab = "owner/repo"
+  ```
 
 ## Architecture ##
 
