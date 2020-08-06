@@ -38,3 +38,7 @@ COPY --from=builder /src/depexts-bot-components depexts-bot-components
 # Install the required dynamic dependencies
 RUN cat depexts-coq-bot | xargs apk --update add
 RUN cat depexts-bot-components | xargs apk --update add
+
+EXPOSE 8000
+
+CMD ["./bot.exe"]
