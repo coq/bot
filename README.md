@@ -242,6 +242,8 @@ EXPOSE 8000 # The port you specified in bot_config.toml (this command is ignored
 
 CMD ["./bot.exe", "bot_config.toml"]
 ```
+Keep in mind that you should login first with your GitHub credentials
+to GitHub packages.
 
 ## Building locally ##
 
