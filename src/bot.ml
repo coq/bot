@@ -186,7 +186,6 @@ let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
         (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
         (owner, repo)
     | _ ->
-        Stdio.printf "Something unexpected happened.\n" ;
         (issue.owner, issue.repo)
   in
   ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
