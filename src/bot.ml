@@ -183,7 +183,6 @@ let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
   let owner, name =
     match Str.split (Str.regexp "/") gl_repo with
     | [owner; repo] ->
-        (fun () -> Lwt_io.printf "ok %s %s\n" owner repo) |> Lwt.async ;
         (owner, repo)
     | _ ->
         (issue.owner, issue.repo)
@@ -429,7 +428,6 @@ let job_action json =
   let gh_owner, gh_repo =
     match Str.split (Str.regexp "/") github_repo_full_name with
     | [owner_; repo_] ->
-        (fun () -> Lwt_io.printf "ok' %s %s\n" owner repo) |> Lwt.async ;
         (owner_, repo_)
     | _ ->
         (owner, repo)
