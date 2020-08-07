@@ -377,6 +377,24 @@ let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
   >|= Result.map_error ~f:(fun err -> f "Query file_content failed with %s" err)
   >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
 
+let default_branch_of_resp ~owner ~repo resp =
+  match resp#repository with
+  | None ->
+      Error (f "Unknown repository %s/%s." owner repo)
+  | Some repository -> (
+    match repository#defaultBranchRef with
+    | None ->
+        Error "No default branch found."
+    | Some default_branch ->
+        Ok (default_branch#name : string) )
+
+let get_default_branch ~bot_info ~owner ~repo =
+  DefaultBranch.make ~owner ~repo ()
+  |> send_graphql_query ~bot_info
+  >|= Result.map_error ~f:(fun err ->
+          f "Query get_default_branch failed with %s" err)
+  >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
+
 type closer_info = {pull_request_id: string; milestone_id: string option}
 
 let closer_info_of_pr pr =

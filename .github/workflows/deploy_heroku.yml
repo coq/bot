@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Build release Docker image
+        run: docker build -f release.Dockerfile . -t coqbot
       - uses: akhileshns/heroku-deploy@v3.1.6
         with:
           heroku_api_key: ${{secrets.HEROKU_API_KEY}}

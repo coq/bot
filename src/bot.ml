@@ -1,31 +1,36 @@
+open Base
 open Bot_components
 open Cohttp
 open Cohttp_lwt_unix
 open Lwt.Infix
 open Utils
 
-let port = try Sys.getenv "PORT" |> int_of_string with Not_found -> 8000
+let toml_data = Config.toml_of_file (Sys.get_argv ()).(1)
 
-let gitlab_access_token = Sys.getenv "GITLAB_ACCESS_TOKEN"
+let port = Config.port toml_data
 
-let github_access_token = Sys.getenv "GITHUB_ACCESS_TOKEN"
+let gitlab_access_token = Config.gitlab_access_token toml_data
 
-let github_webhook_secret = Sys.getenv "GITHUB_WEBHOOK_SECRET"
+let github_access_token = Config.github_access_token toml_data
 
-let bot_name = try Sys.getenv "BOT_NAME" with Not_found -> "coqbot"
+let github_webhook_secret = Config.github_webhook_secret toml_data
 
-let bot_domain = f "%s.herokuapp.com" bot_name
+let bot_name = Config.bot_name toml_data
 
-let bot_email =
-  try Sys.getenv "BOT_EMAIL"
-  with Not_found -> f "%s@users.noreply.github.com" bot_name
+let bot_domain = Config.bot_domain toml_data bot_name
+
+let bot_email = Config.bot_email toml_data bot_name
 
 let bot_info =
   { github_token= github_access_token
   ; gitlab_token= gitlab_access_token
   ; bot_name }
 
-open Base
+let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
+
+let github_of_gitlab = Hashtbl.find gitlab_mapping
+
+let gitlab_of_github = Hashtbl.find github_mapping
 
 let gitlab_repo ~owner ~name =
   f "https://oauth2:%s@gitlab.com/%s/%s.git" gitlab_access_token owner name
@@ -53,13 +58,13 @@ let git_fetch ?(force = true)
     (if force then "+" else "")
     remote_ref.name local_branch_name
 
-let git_push ?(force = true) (remote_ref : GitHub_subscriptions.remote_ref_info)
-    local_ref =
+let git_push ?(force = true)
+    ~(remote_ref : GitHub_subscriptions.remote_ref_info) ~local_ref =
   f "git push %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then " +" else " ")
     local_ref remote_ref.name
 
-let git_delete remote_ref = git_push ~force:false remote_ref ""
+let git_delete ~remote_ref = git_push ~force:false ~remote_ref ~local_ref:""
 
 let git_make_ancestor ~base head =
   f "./make_ancestor.sh %s %s" base head
@@ -130,10 +135,60 @@ let extract_commit json =
         sha )
     |> to_string
 
-let gitlab_ref (issue : GitHub_subscriptions.issue) :
-    GitHub_subscriptions.remote_ref_info =
-  { name= f "pr-%d" issue.number
-  ; repo_url= gitlab_repo ~owner:issue.owner ~name:issue.repo }
+let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
+  let gh_repo = issue.owner ^ "/" ^ issue.repo in
+  let open Lwt.Infix in
+  (* First, we check our hashtable for a key named after the GitHub
+     repository and return the associated GitLab repository. If the
+     key is not found, we load the config file from the default branch.
+     Last (backward-compatibility) we assume the GitLab and GitHub
+     projects are named the same. *)
+  ( match gitlab_of_github gh_repo with
+  | None -> (
+      Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
+        issue.owner issue.repo ;
+      GitHub_queries.get_default_branch ~bot_info ~owner:issue.owner
+        ~repo:issue.repo
+      >>= function
+      | Ok branch -> (
+          GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
+            ~repo:issue.repo ~branch ~file_name:(f "%s.toml" bot_name)
+          >>= function
+          | Ok (Some content) ->
+              let gl_repo =
+                Option.value
+                  (Config.subkey_value
+                     (Config.toml_of_string content)
+                     "mapping" "gitlab")
+                  ~default:gh_repo
+              in
+              ( match Hashtbl.add gitlab_mapping ~key:gl_repo ~data:gh_repo with
+              | `Duplicate ->
+                  ()
+              | `Ok ->
+                  () ) ;
+              ( match Hashtbl.add github_mapping ~key:gh_repo ~data:gl_repo with
+              | `Duplicate ->
+                  ()
+              | `Ok ->
+                  () ) ;
+              Lwt.return gl_repo
+          | _ ->
+              Lwt.return gh_repo )
+      | _ ->
+          Lwt.return gh_repo )
+  | Some r ->
+      Lwt.return r )
+  >|= fun gl_repo ->
+  let owner, name =
+    match Str.split (Str.regexp "/") gl_repo with
+    | [owner; repo] ->
+        (owner, repo)
+    | _ ->
+        (issue.owner, issue.repo)
+  in
+  ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name}
+    : GitHub_subscriptions.remote_ref_info )
 
 let pull_request_updated
     (pr_info :
@@ -160,7 +215,11 @@ let pull_request_updated
         GitHub_mutations.remove_rebase_label pr_info.issue.issue ~bot_info)
       |> Lwt.async ;
     (* Force push *)
-    git_push (gitlab_ref pr_info.issue.issue) local_head_branch |> execute_cmd )
+    let open Lwt.Infix in
+    gitlab_ref ~issue:pr_info.issue.issue
+    >|= (fun remote_ref ->
+          git_push ~force:true ~remote_ref ~local_ref:local_head_branch)
+    >>= execute_cmd )
   else (
     (* Remove rebase label *)
     (fun () -> GitHub_mutations.add_rebase_label pr_info.issue.issue ~bot_info)
@@ -181,8 +240,10 @@ let pull_request_closed
     (pr_info :
       GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info) ()
     =
-  git_delete (gitlab_ref pr_info.issue.issue)
-  |> execute_cmd >|= ignore
+  let open Lwt.Infix in
+  gitlab_ref ~issue:pr_info.issue.issue
+  >|= (fun remote_ref -> git_delete ~remote_ref)
+  >>= execute_cmd >|= ignore
   <&>
   if not pr_info.merged then
     Lwt_io.printf
@@ -356,6 +417,21 @@ let job_action json =
     (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
   in
   let repo_full_name = owner ^ "/" ^ repo in
+  let github_repo_full_name =
+    Option.value
+      (github_of_gitlab repo_full_name)
+      ~default:
+        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
+            repo_full_name ;
+          repo_full_name )
+  in
+  let gh_owner, gh_repo =
+    match Str.split (Str.regexp "/") github_repo_full_name with
+    | [owner_; repo_] ->
+        (owner_, repo_)
+    | _ ->
+        (owner, repo)
+  in
   let send_url (kind, url) =
     (fun () ->
       let context = Printf.sprintf "%s: %s artifact" build_name kind in
@@ -363,14 +439,14 @@ let job_action json =
       url |> Uri.of_string |> Client.get
       >>= fun (resp, _) ->
       if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-        GitHub_mutations.send_status_check ~repo_full_name ~commit
-          ~state:"success" ~url ~context ~description:(description_base ^ ".")
-          ~bot_info
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit ~state:"success" ~url ~context
+          ~description:(description_base ^ ".") ~bot_info
       else
         Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
         >>= fun () ->
-        GitHub_mutations.send_status_check ~repo_full_name ~commit
-          ~state:"failure"
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit ~state:"failure"
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
@@ -391,7 +467,8 @@ let job_action json =
            reporting a failed status check. *)
         match pr_num with
         | Some number -> (
-            GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo ~number
+            GitHub_queries.get_pull_request_refs ~bot_info ~owner:gh_owner
+              ~repo:gh_repo ~number
             >>= function
             | Ok {issue= id; head; last_commit_message= Some commit_message}
             (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
@@ -424,8 +501,8 @@ let job_action json =
       else
         Lwt_io.printf "Pushing a status check...\n"
         >>= fun () ->
-        GitHub_mutations.send_status_check ~repo_full_name ~commit
-          ~state:"failure"
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit ~state:"failure"
           ~url:
             (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                build_id)
@@ -465,14 +542,15 @@ let job_action json =
     |> Lwt.async
   else if String.equal build_status "success" then (
     (fun () ->
-      GitHub_queries.get_status_check ~repo_full_name ~commit ~context ~bot_info
+      GitHub_queries.get_status_check ~repo_full_name:github_repo_full_name
+        ~commit ~context ~bot_info
       >>= fun b ->
       if b then
         Lwt_io.printf
           "There existed a previous status check for this build, we'll \
            override it.\n"
-        <&> GitHub_mutations.send_status_check ~repo_full_name ~commit
-              ~state:"success"
+        <&> GitHub_mutations.send_status_check
+              ~repo_full_name:github_repo_full_name ~commit ~state:"success"
               ~url:
                 (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
                    build_id)
@@ -516,9 +594,12 @@ let pipeline_action json =
     json |> member "project" |> member "path_with_namespace" |> to_string
   in
   let repo_full_name =
-    if String.equal gitlab_full_name "near-protocol/nearcore" then
-      "nearprotocol/nearcore"
-    else gitlab_full_name
+    Option.value
+      (github_of_gitlab gitlab_full_name)
+      ~default:
+        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
+            gitlab_full_name ;
+          gitlab_full_name )
   in
   match state with
   | "skipped" ->

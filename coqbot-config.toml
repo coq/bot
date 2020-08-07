@@ -1,0 +1,15 @@
+[bot]
+name="coqbot"
+email="coqbot@users.noreply.github.com"
+
+[server]
+domain="coqbot.heroku.com"
+
+[mappings]
+  [mappings.coq]
+  github = "coq/coq"
+  gitlab = "coq/coq"
+
+  [mappings.opam-coq-archive]
+  github = "coq/opam-coq-archive"
+  gitlab = "coq/opam-coq-archive"

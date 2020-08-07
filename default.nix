@@ -28,6 +28,7 @@ in stdenv.mkDerivation rec {
     nocrypto
     yojson
     graphql_ppx
+    toml
     # Publishing
     heroku
   ];

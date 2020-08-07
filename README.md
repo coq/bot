@@ -127,8 +127,7 @@ you are interested in hearing about it.
 
 To use the bot without deploying your own instance, follow these steps:
 
-- Create a repository on GitLab.com whose URL is *exactly* the same as
-  the one on GitHub except for the "lab" replacing the "hub" part.
+- Create a repository on GitLab.com which will be used to run CI jobs.
 
   The bot will only take care of mirroring the PRs and reporting
   status checks back so you may still want to activate the mirroring
@@ -167,6 +166,20 @@ To use the bot without deploying your own instance, follow these steps:
     at least by pull request events, and if you want to use the issue
     milestone feature, by issue events as well.  Make sure you change
     the "content/type" value to "application/json".
+
+  By default, **@coqbot** assumes that both GitHub and GitLab repositories
+  share the same URL except for the "lab" replacing the "hub" part. If
+  that is not the case, assuming you created a GitLab repository whose
+  URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
+  the root of your GitHub repository and in its default branch (most often
+  named `master`), containing:
+  ```
+  [mapping]
+  gitlab = "owner/repo"
+  ```
+  If you use an other instance of **@coqbot**, this repository-specific
+  configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
+  of the bot.
 
 ## Architecture ##
 
@@ -222,6 +235,28 @@ these are configured in your Heroku app:
 - `GITHUB_WEBHOOK_SECRET`
 - `BOT_NAME` (defaults to `coqbot`)
 - `BOT_EMAIL` (defaults to `BOT_NAME@users.noreply.github.com`)
+
+In the next release of coqbot, the `BOT_NAME` and `BOT_EMAIL`
+environment variables won't have any effect and should be set from
+a configuration file instead (see [`example-config.toml`](example-config.toml)).
+The port number must not be set in the configuration file if you're
+deploying the docker image to Heroku, since it uses a custom
+environment variable.
+
+A Dockerfile to build a personalized image based on a release image
+from GitHub packages, using a custom `bot_config.toml` configuration
+file would look like:
+```dockerfile
+FROM docker.pkg.github.com/coq/bot/coqbot:xxx
+
+COPY path/to/bot_config.toml ./
+
+EXPOSE 8000 # The port you specified in bot_config.toml (this command is ignored if you deploy to Heroku)
+
+CMD ["./bot.exe", "bot_config.toml"]
+```
+Keep in mind that you should login first to GitHub packages with your
+GitHub credentials.
 
 ## Building locally ##
 

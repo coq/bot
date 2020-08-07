@@ -3,7 +3,7 @@
  (public_name bot)
  (package coq-bot)
  (promote (until-clean))
- (libraries base bot-components cohttp-lwt-unix stdio yojson))
+ (libraries base bot-components cohttp-lwt-unix stdio yojson toml))
 
 (env
  (dev
