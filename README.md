@@ -167,12 +167,12 @@ To use the bot without deploying your own instance, follow these steps:
     milestone feature, by issue events as well.  Make sure you change
     the "content/type" value to "application/json".
 
-  By default, @coqbot assumes that both GitHub and GitLab repositories
+  By default, **@coqbot** assumes that both GitHub and GitLab repositories
   share the same URL except for the "lab" replacing the "hub" part. If
   that is not the case, assuming you created a GitLab repository whose
   URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
-  the root of your GitHub repository and in its default branch (most
-  of the time named `master`), containing:
+  the root of your GitHub repository and in its default branch (most often
+  named `master`), containing:
   ```
   [mapping]
   gitlab = "owner/repo"
@@ -234,8 +234,8 @@ these are configured in your Heroku app:
 - `BOT_EMAIL` (defaults to `BOT_NAME@users.noreply.github.com`)
 
 In the next release of coqbot, the `BOT_NAME` and `BOT_EMAIL`
-environment variables won't have any effect and should be instead
-set from a configuration file (see [`coqbot.toml`](coqbot.toml)).
+environment variables won't have any effect and should be set from
+a configuration file instead (see [`coqbot.toml`](coqbot.toml)).
 The port number must not be set in the configuration file if you're
 deploying the docker image to Heroku, since it uses a custom
 environment variable.
