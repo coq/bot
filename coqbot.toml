@@ -5,13 +5,6 @@ email="coqbot@users.noreply.github.com"
 [server]
 domain="coqbot.heroku.com"
 
-[github]
-#webhook_secret = "xxx"
-#api_token = "xxx"
-
-[gitlab]
-#api_token = "xxx"
-
 [mappings]
   [mappings.coq]
   github = "coq/coq"
