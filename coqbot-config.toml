@@ -3,7 +3,7 @@ name="coqbot"
 email="coqbot@users.noreply.github.com"
 
 [server]
-domain="coqbot.heroku.com"
+domain="coqbot.herokuapp.com"
 
 [mappings]
   [mappings.coq]

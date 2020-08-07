@@ -8,7 +8,7 @@ name="mybot" # The name of your bot.
 email="mybot@users.noreply.github.com"
 
 [server]
-domain="mybot.heroku.com" # URL of the server
+domain="mybot.herokuapp.com" # URL of the server
 port=8000 # The port number the server is listening on.
 # If commented, the port number is read from the
 # PORT environment variable. If this environment
