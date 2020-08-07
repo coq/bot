@@ -1,5 +1,5 @@
 FROM coqbot
 
-COPY coqbot.toml ./
+COPY coqbot-config.toml ./
 
-CMD ["./bot.exe", "coqbot.toml"]
+CMD ["./bot.exe", "coqbot-config.toml"]
