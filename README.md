@@ -177,6 +177,9 @@ To use the bot without deploying your own instance, follow these steps:
   [mapping]
   gitlab = "owner/repo"
   ```
+  If you use an other instance of **@coqbot**, this repository-specific
+  configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
+  of the bot.
 
 ## Architecture ##
 
@@ -246,14 +249,14 @@ file would look like:
 ```dockerfile
 FROM docker.pkg.github.com/coq/bot/coqbot:xxx
 
-COPY bot_config.toml ./
+COPY path/to/bot_config.toml ./
 
 EXPOSE 8000 # The port you specified in bot_config.toml (this command is ignored if you deploy to Heroku)
 
 CMD ["./bot.exe", "bot_config.toml"]
 ```
-Keep in mind that you should login first with your GitHub credentials
-to GitHub packages.
+Keep in mind that you should login first to GitHub packages with your
+GitHub credentials.
 
 ## Building locally ##
 

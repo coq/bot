@@ -152,7 +152,7 @@ let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
       >>= function
       | Ok branch -> (
           GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
-            ~repo:issue.repo ~branch ~file_name:"coqbot.toml"
+            ~repo:issue.repo ~branch ~file_name:(f "%s.toml" bot_name)
           >>= function
           | Ok (Some content) ->
               let gl_repo =
