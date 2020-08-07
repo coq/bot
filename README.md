@@ -238,7 +238,7 @@ these are configured in your Heroku app:
 
 In the next release of coqbot, the `BOT_NAME` and `BOT_EMAIL`
 environment variables won't have any effect and should be set from
-a configuration file instead (see [`coqbot.toml`](coqbot.toml)).
+a configuration file instead (see [`example_config.toml`](example_config.toml)).
 The port number must not be set in the configuration file if you're
 deploying the docker image to Heroku, since it uses a custom
 environment variable.

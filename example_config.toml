@@ -1,0 +1,43 @@
+# Example configuration file
+
+[bot]
+name="mybot" # The name of your bot.
+# You must register a GitHub and GitLab account
+# for your bot with the same name given in this
+# configuration file.
+email="mybot@users.noreply.github.com"
+
+[server]
+domain="mybot.heroku.com" # URL of the server
+port=8000 # The port number the server is listening on.
+# If commented, the port number is read from the
+# PORT environment variable. If this environment
+# variable is not found, the port is set to 8000.
+# If you deployed the server to Heroku this line
+# must be commented, since it provides the PORT
+# environment variable.
+
+# Settings for GitHub
+[github]
+# If commented, these secrets are read from environment
+# variables: GITHUB_ACCESS_TOKEN and GITHUB_WEBHOOK_SECRET
+api_token = "secret"
+webhook_secret = "secret"
+
+# Settings for GitLab
+[gitlab]
+# If commented, this secret is read from the environment
+# variable GITLAB_ACCESS_TOKEN
+api_token = "secret"
+
+# Correspondence between GitHub & GitLab repositories
+[mappings]
+  [mappings.coq]
+  github = "coq/coq"
+  # The GitHub repository URL being https://github.com/coq/coq
+  gitlab = "coq/coq"
+  # The GitLab repository URL being https://gitlab.com/coq/coq
+
+  [mappings.opam-coq-archive]
+  github = "coq/opam-coq-archive"
+  gitlab = "coq/opam-coq-archive"
