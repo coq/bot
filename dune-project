@@ -24,7 +24,6 @@
   (yojson (>= 1.7.0))
   (bot-components :dev)
   (toml (>= 5.0.0))
-  (eqaf (>= 0.7))
   (odoc (>= 1.4.0)))
 )
 (package
@@ -42,6 +41,7 @@
   (stdio (>= v0.13.0))
   (hex (>= 1.3.0))
   (nocrypto (>= 0.5.4))
+  (eqaf (>= 0.7))
   (yojson (>= 1.7.0))
   (graphql_ppx (>= 0.7.1))
   (odoc (>= 1.4.0)))
