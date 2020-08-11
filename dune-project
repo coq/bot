@@ -24,6 +24,7 @@
   (yojson (>= 1.7.0))
   (bot-components :dev)
   (toml (>= 5.0.0))
+  (eqaf (>= 0.7))
   (odoc (>= 1.4.0)))
 )
 (package
