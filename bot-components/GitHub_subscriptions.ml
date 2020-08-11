@@ -227,9 +227,7 @@ let receive_github ~secret headers body =
           (Cstruct.of_string body)
         |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
       in
-      (* TODO: move to constant time equality function, such as https://github.com/mirage/eqaf,
-           as recommended by GitHub *)
-      if String.equal signature expected then return true
+      if Eqaf.equal signature expected then return true
       else fail "Webhook signed but with wrong signature."
   | None ->
       return false )

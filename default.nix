@@ -29,6 +29,8 @@ in stdenv.mkDerivation rec {
     yojson
     graphql_ppx
     toml
+    eqaf
+    odoc
     # Publishing
     heroku
   ];
