@@ -10,7 +10,7 @@ let send_graphql_query ~bot_info query =
   let headers =
     Cohttp.Header.of_list
       [ ("Authorization", "bearer " ^ bot_info.github_token)
-      ; ("User-Agent", bot_info.bot_name) ]
+      ; ("User-Agent", bot_info.name) ]
   in
   let body =
     `Assoc [("query", `String query#query); ("variables", query#variables)]
@@ -46,7 +46,7 @@ let get_backport_info ~bot_info description =
     "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
   in
   let regexp =
-    bot_info.bot_name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
+    bot_info.name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
     ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
     ^ "; move rejected PRs to: "
     ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
@@ -63,7 +63,7 @@ let get_backport_info ~bot_info description =
           [{backport_to; request_inclusion_column; backported_column}]
       ; rejected_milestone }
   else
-    let begin_regexp = bot_info.bot_name ^ ": \\(.*\\)$" in
+    let begin_regexp = bot_info.name ^ ": \\(.*\\)$" in
     let backport_info_unit =
       "backport to \\([^ ]*\\) (request inclusion column: "
       ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp

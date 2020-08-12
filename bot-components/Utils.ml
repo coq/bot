@@ -3,7 +3,8 @@ open Cohttp
 open Cohttp_lwt_unix
 open Lwt
 
-type bot_info = {gitlab_token: string; github_token: string; bot_name: string}
+type bot_info =
+  {gitlab_token: string; github_token: string; name: string; email: string}
 
 let f = Printf.sprintf
 
@@ -27,7 +28,7 @@ let print_response (resp, body) =
 let headers header_list ~bot_info =
   Header.init ()
   |> (fun headers -> Header.add_list headers header_list)
-  |> fun headers -> Header.add headers "User-Agent" bot_info.bot_name
+  |> fun headers -> Header.add headers "User-Agent" bot_info.name
 
 let send_request ~body ~uri ~bot_info header_list =
   let headers = headers header_list ~bot_info in
