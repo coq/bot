@@ -1035,12 +1035,7 @@ let callback _conn req body =
               body
           then (
             run_coq_minimizer ~script:(Str.matched_group 1 body)
-              ~comment_thread_id:
-                ( match comment_info.pull_request with
-                | None ->
-                    comment_info.issue.id
-                | Some pr ->
-                    pr.issue.id )
+              ~comment_thread_id:comment_info.issue.id
               ~comment_author:comment_info.author
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
