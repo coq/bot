@@ -81,15 +81,3 @@ type comment_info =
 type check_run_info = {id: int; node_id: id; url: string}
 
 type push_info = {base_ref: string; commits_msg: string list}
-
-type msg =
-  | IssueOpened of issue_info
-  | IssueClosed of issue_info
-  | RemovedFromProject of project_card_issue
-  | PullRequestUpdated of pull_request_action * issue_info pull_request_info
-  | BranchCreated of remote_ref_info
-  | TagCreated of remote_ref_info
-  | CommentCreated of comment_info
-  | CheckRunCreated of check_run_info
-  | PushEvent of push_info
-  | UnsupportedEvent of string

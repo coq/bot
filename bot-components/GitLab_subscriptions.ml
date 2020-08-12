@@ -60,6 +60,11 @@ let pipeline_info_of_json json =
   in
   {state; id; commit; branch; project_path}
 
+type msg =
+  | JobEvent of job_info
+  | PipelineEvent of pipeline_info
+  | UnsupportedEvent of string
+
 let gitlab_event ~event json =
   match event with
   | "Job Hook" ->

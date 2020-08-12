@@ -11,8 +11,3 @@ type job_info =
 
 type pipeline_info =
   {state: string; id: int; commit: string; branch: string; project_path: string}
-
-type msg =
-  | JobEvent of job_info
-  | PipelineEvent of pipeline_info
-  | UnsupportedEvent of string
