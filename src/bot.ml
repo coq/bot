@@ -3,6 +3,7 @@ open Base
 open Bot_components
 open Cohttp
 open Cohttp_lwt_unix
+open Git_utils
 open Lwt.Infix
 open Utils
 
