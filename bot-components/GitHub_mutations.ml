@@ -139,7 +139,7 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   send_request ~body ~uri github_header ~bot_info
 
-let add_pr_to_column ~bot_info pr_id column_id =
+let add_pr_to_column ~bot_info ~pr_id ~column_id =
   let body =
     "{\"content_id\":" ^ Int.to_string pr_id
     ^ ", \"content_type\": \"PullRequest\"}"

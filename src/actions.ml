@@ -674,14 +674,14 @@ let push_action ~bot_info ~base_ref ~commits_msg =
                    Lwt_io.printf
                      "PR was merged into the backportig branch directly.\n"
                    >>= fun () ->
-                   GitHub_mutations.add_pr_to_column pr_id backported_column
-                     ~bot_info
+                   GitHub_mutations.add_pr_to_column ~pr_id
+                     ~column_id:backported_column ~bot_info
                  else
                    Lwt_io.printf "Backporting to %s was requested.\n"
                      backport_to
                    >>= fun () ->
-                   GitHub_mutations.add_pr_to_column pr_id
-                     request_inclusion_column ~bot_info)
+                   GitHub_mutations.add_pr_to_column ~pr_id
+                     ~column_id:request_inclusion_column ~bot_info)
       | Ok None ->
           Lwt_io.printf "Did not get any backporting info.\n"
       | Error err ->

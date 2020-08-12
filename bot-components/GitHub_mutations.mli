@@ -37,4 +37,5 @@ val send_status_check :
   -> description:string
   -> unit Lwt.t
 
-val add_pr_to_column : bot_info:Utils.bot_info -> int -> int -> unit Lwt.t
+val add_pr_to_column :
+  bot_info:Utils.bot_info -> pr_id:int -> column_id:int -> unit Lwt.t
