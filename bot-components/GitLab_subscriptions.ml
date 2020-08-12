@@ -76,17 +76,10 @@ let gitlab_event ~event json =
 
 let receive_gitlab ~secret headers body =
   let open Result in
-  ( match Header.get headers "X-Hub-Signature" with
-  | Some signature ->
-      let expected =
-        Nocrypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
-          (Cstruct.of_string body)
-        |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
-      in
-      (* TODO: move to constant time equality function, such as https://github.com/mirage/eqaf,
-           as recommended by GitHub *)
-      if String.equal signature expected then return true
-      else fail "Webhook signed but with wrong signature."
+  ( match Header.get headers "X-Gitlab-Token" with
+  | Some header_secret ->
+      if Eqaf.equal secret header_secret then return true
+      else fail "Webhook password mismatch."
   | None ->
       return false )
   >>= fun signed ->
@@ -101,4 +94,4 @@ let receive_gitlab ~secret headers body =
     | Type_error (err, _) ->
         Error (f "Json type error: %s" err) )
   | None ->
-      Error "Not a GitHub webhook."
+      Error "Not a GitLab webhook."
