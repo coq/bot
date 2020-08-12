@@ -58,9 +58,13 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:(f "Unsupported event %s." e)
             ()
-      | Error s ->
+      | Error ("Webhook password mismatch." as e) ->
+          Stdio.print_string e ;
+          Server.respond_string ~status:(Code.status_of_code 401)
+            ~body:(f "Error: %s" e) ()
+      | Error e ->
           Server.respond_string ~status:(Code.status_of_code 400)
-            ~body:(f "Error: %s" s) () )
+            ~body:(f "Error: %s" e) () )
   | "/push" | "/pull_request" (* legacy endpoints *) | "/github" -> (
       body
       >>= fun body ->
@@ -158,9 +162,13 @@ let callback _conn req body =
       | Ok _ ->
           Server.respond_string ~status:`OK
             ~body:"No action taken: event or action is not yet supported." ()
-      | Error s ->
+      | Error ("Webhook signed but with wrong signature." as e) ->
+          Stdio.print_string e ;
+          Server.respond_string ~status:(Code.status_of_code 401)
+            ~body:(f "Error: %s" e) ()
+      | Error e ->
           Server.respond_string ~status:(Code.status_of_code 400)
-            ~body:(f "Error: %s" s) () )
+            ~body:(f "Error: %s" e) () )
   | "/coq-bug-minimizer" ->
       body >>= fun body -> coq_bug_minimizer_results_action body ~bot_info
   | _ ->

@@ -175,7 +175,7 @@ let receive_github ~secret headers body =
         |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
       in
       if Eqaf.equal signature expected then return true
-      else fail "Webhook signed but with wrong signature."
+      else Error "Webhook signed but with wrong signature."
   | None ->
       return false )
   >>= fun signed ->

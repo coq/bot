@@ -74,7 +74,7 @@ let receive_gitlab ~secret headers body =
   ( match Header.get headers "X-Gitlab-Token" with
   | Some header_secret ->
       if Eqaf.equal secret header_secret then return true
-      else fail "Webhook password mismatch."
+      else Error "Webhook password mismatch."
   | None ->
       return false )
   >>= fun signed ->
