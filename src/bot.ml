@@ -622,6 +622,27 @@ let owner_team_map =
     (module String)
     [("martijnbastiaan-test-org", "martijnbastiaan-test-team")]
 
+let coq_bug_minimizer_results_action body =
+  if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
+    let stamp = Str.matched_group 1 body in
+    let message = Str.matched_group 2 body in
+    match Str.split (Str.regexp " ") stamp with
+    | [id; author; repo_name; branch_name] ->
+        (fun () ->
+          GitHub_mutations.post_comment ~bot_info ~id
+            ~message:(f "@%s, %s" author message)
+          <&> ( execute_cmd
+                  (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
+                     bot_name github_access_token repo_name branch_name)
+              >>= function
+              | Ok () -> Lwt.return () | Error f -> Lwt_io.printf "Error: %s" f
+              ))
+        |> Lwt.async ;
+        Server.respond_string ~status:`OK ~body:"" ()
+    | _ ->
+        Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
+  else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
+
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
@@ -1076,31 +1097,7 @@ let callback _conn req body =
           Server.respond_string ~status:(Code.status_of_code 400)
             ~body:(f "Error: %s" s) () )
   | "/coq-bug-minimizer" ->
-      body
-      >>= fun body ->
-      if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
-        let stamp = Str.matched_group 1 body in
-        let message = Str.matched_group 2 body in
-        match Str.split (Str.regexp " ") stamp with
-        | [id; author; repo_name; branch_name] ->
-            (fun () ->
-              GitHub_mutations.post_comment ~bot_info ~id
-                ~message:(f "@%s, %s" author message)
-              <&> ( execute_cmd
-                      (f
-                         "git push https://%s:%s@github.com/%s.git --delete \
-                          '%s'"
-                         bot_name github_access_token repo_name branch_name)
-                  >>= function
-                  | Ok () ->
-                      Lwt.return ()
-                  | Error f ->
-                      Lwt_io.printf "Error: %s" f ))
-            |> Lwt.async ;
-            Server.respond_string ~status:`OK ~body:"" ()
-        | _ ->
-            Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
-      else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
+      body >>= fun body -> coq_bug_minimizer_results_action body
   | _ ->
       Server.respond_not_found ()
 
