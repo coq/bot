@@ -6,8 +6,10 @@ val mv_card_to_column :
 val post_comment :
   bot_info:Utils.bot_info -> id:string -> message:string -> unit Lwt.t
 
+type merge_method = MERGE | REBASE | SQUASH
+
 val merge_pull_request :
-     ?merge_method:[< `MERGE | `REBASE | `SQUASH]
+     ?merge_method:merge_method
   -> ?commit_headline:string
   -> ?commit_body:string
   -> bot_info:Utils.bot_info

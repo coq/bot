@@ -383,7 +383,7 @@ let merge_pull_request ~(comment_info : GitHub_subscriptions.comment_info)
                               ^ List.fold_left reviews_info.comment_reviews
                                   ~init:"" ~f:(fun s r ->
                                     s ^ f "Ack-by: %s\n" r) )
-                            ~merge_method:`MERGE
+                            ~merge_method:MERGE
                           >>= fun () ->
                           match
                             List.fold_left ~init:[] reviews_info.files
