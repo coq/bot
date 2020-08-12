@@ -120,23 +120,6 @@ let run_coq_minimizer ~script ~comment_thread_id ~comment_author () =
   | Error f ->
       Lwt_io.printf "Error: %s" f
 
-let extract_commit json =
-  let open Yojson.Basic.Util in
-  let commit_json = json |> member "commit" in
-  let message = commit_json |> member "message" |> to_string in
-  if string_match ~regexp:"Bot merge .* into \\(.*\\)" message then
-    Str.matched_group 1 message
-  else
-    (* In the case of build webhooks, the id is a number and the sha is the
-       reference of the commit, while in the case of pipeline hooks only id
-       is present and represents the sha. *)
-    ( match commit_json |> member "sha" with
-    | `Null ->
-        commit_json |> member "id"
-    | sha ->
-        sha )
-    |> to_string
-
 let gitlab_ref ~(issue : GitHub_subscriptions.issue) =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
