@@ -137,7 +137,7 @@ let github_action ~event ~action json =
   | "check_run", "created" ->
       Ok (CheckRunCreated (check_run_info_of_json json))
   | _ ->
-      Ok (NoOp "Unhandled GitHub action.")
+      Ok (UnsupportedEvent "Unsupported GitHub action.")
 
 let github_event ~event json =
   match event with
@@ -163,7 +163,7 @@ let github_event ~event json =
       | ref_type ->
           Error (f "Unexpected ref_type: %s" ref_type) )
   | _ ->
-      Ok (NoOp "Unhandled GitHub event.")
+      Ok (UnsupportedEvent "Unsupported GitHub event.")
 
 let receive_github ~secret headers body =
   let open Result in

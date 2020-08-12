@@ -153,7 +153,7 @@ let callback _conn req body =
             Server.respond_string ~status:`OK
               ~body:(f "Unhandled comment: %s." body)
               ()
-      | Ok (_, NoOp s) ->
+      | Ok (_, UnsupportedEvent s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
       | Ok _ ->
           Server.respond_string ~status:`OK
