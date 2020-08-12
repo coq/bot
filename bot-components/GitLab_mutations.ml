@@ -1,6 +1,6 @@
 open Utils
 
-let retry_job ~project_id ~build_id ~bot_info =
+let retry_job ~bot_info ~project_id ~build_id =
   let uri =
     "https://gitlab.com/api/v4/projects/" ^ Int.to_string project_id ^ "/jobs/"
     ^ Int.to_string build_id ^ "/retry"

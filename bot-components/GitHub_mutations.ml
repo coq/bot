@@ -34,7 +34,7 @@ let update_milestone ~bot_info ~issue ~milestone =
 
 type merge_method = MERGE | REBASE | SQUASH
 
-let merge_pull_request ?merge_method ?commit_headline ?commit_body ~bot_info
+let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
     ~pr_id =
   let merge_method =
     Option.map merge_method ~f:(function
@@ -74,7 +74,7 @@ let reflect_pull_request_milestone ~bot_info
 
 (* TODO: use GraphQL API *)
 
-let add_rebase_label (issue : GitHub_subscriptions.issue) ~bot_info =
+let add_rebase_label ~bot_info (issue : GitHub_subscriptions.issue) =
   let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels" issue.owner
@@ -87,7 +87,7 @@ let add_rebase_label (issue : GitHub_subscriptions.issue) ~bot_info =
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   send_request ~body ~uri github_header ~bot_info
 
-let remove_rebase_label (issue : GitHub_subscriptions.issue) ~bot_info =
+let remove_rebase_label ~bot_info (issue : GitHub_subscriptions.issue) =
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   let headers = headers github_header ~bot_info in
   let uri =
@@ -101,8 +101,8 @@ let remove_rebase_label (issue : GitHub_subscriptions.issue) ~bot_info =
   Lwt_io.printf "Sending delete request.\n"
   >>= fun () -> Client.delete ~headers uri >>= print_response
 
-let update_milestone new_milestone (issue : GitHub_subscriptions.issue)
-    ~bot_info =
+let update_milestone ~bot_info new_milestone
+    (issue : GitHub_subscriptions.issue) =
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   let headers = headers github_header ~bot_info in
   let uri =
@@ -121,8 +121,8 @@ let update_milestone new_milestone (issue : GitHub_subscriptions.issue)
 
 let remove_milestone = update_milestone "null"
 
-let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
-    ~bot_info =
+let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
+    ~description =
   Lwt_io.printf "Sending status check to %s (commit %s, state %s)\n"
     repo_full_name commit state
   >>= fun () ->
@@ -142,7 +142,7 @@ let send_status_check ~repo_full_name ~commit ~state ~url ~context ~description
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   send_request ~body ~uri github_header ~bot_info
 
-let add_pr_to_column pr_id column_id ~bot_info =
+let add_pr_to_column ~bot_info pr_id column_id =
   let body =
     "{\"content_id\":" ^ Int.to_string pr_id
     ^ ", \"content_type\": \"PullRequest\"}"

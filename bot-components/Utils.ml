@@ -29,12 +29,12 @@ let print_response (resp, body) =
     body |> Cohttp_lwt.Body.to_string >>= Lwt_io.printf "Body:\n%s\n"
   else Lwt.return ()
 
-let headers header_list ~bot_info =
+let headers ~bot_info header_list =
   Header.init ()
   |> (fun headers -> Header.add_list headers header_list)
   |> fun headers -> Header.add headers "User-Agent" bot_info.name
 
-let send_request ~body ~uri ~bot_info header_list =
+let send_request ~bot_info ~body ~uri header_list =
   let headers = headers header_list ~bot_info in
   Client.post ~body ~headers uri >>= print_response
 
@@ -56,7 +56,7 @@ let handle_json action default body =
 let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
-let generic_get relative_uri ?(header_list = []) ~default json_handler ~bot_info
+let generic_get ~bot_info relative_uri ?(header_list = []) ~default json_handler
     =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in

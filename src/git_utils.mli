@@ -1,14 +1,14 @@
 val gitlab_repo :
-     owner:string
+     bot_info:Bot_components.Utils.bot_info
+  -> owner:string
   -> name:string
-  -> bot_info:Bot_components.Utils.bot_info
   -> string
 
 val report_status : string -> string -> int -> ('a, string) result
 
 val gitlab_ref :
-     issue:Bot_components.GitHub_subscriptions.issue
-  -> bot_info:Bot_components.Utils.bot_info
+     bot_info:Bot_components.Utils.bot_info
+  -> issue:Bot_components.GitHub_subscriptions.issue
   -> gitlab_of_github:(string -> string option)
   -> github_mapping:(string, string) Base.Hashtbl.t
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
@@ -36,19 +36,19 @@ val git_delete :
 val git_make_ancestor : base:string -> string -> (bool, string) result Lwt.t
 
 val git_coq_bug_minimizer :
-     script:string
+     bot_info:Bot_components.Utils.bot_info
+  -> script:string
   -> comment_thread_id:string
   -> comment_author:string
-  -> bot_info:Bot_components.Utils.bot_info
   -> (bool, string) result Lwt.t
 
 val init_git_bare_repository :
   bot_info:Bot_components.Utils.bot_info -> unit Lwt.t
 
 val run_coq_minimizer :
-     script:string
+     bot_info:Bot_components.Utils.bot_info
+  -> script:string
   -> comment_thread_id:string
   -> comment_author:string
-  -> bot_info:Bot_components.Utils.bot_info
   -> unit
   -> unit Lwt.t

@@ -2,7 +2,7 @@ open Cohttp_lwt_unix
 open Lwt
 open Utils
 
-let get_build_trace ~project_id ~build_id ~bot_info =
+let get_build_trace ~bot_info ~project_id ~build_id =
   let uri =
     "https://gitlab.com/api/v4/projects/" ^ Int.to_string project_id ^ "/jobs/"
     ^ Int.to_string build_id ^ "/trace"

@@ -96,7 +96,9 @@ let get_backport_info ~bot_info description =
     else None
 
 type project_card =
-  {id: GitHub_GraphQL.id; column: project_column option; columns: project_column list}
+  { id: GitHub_GraphQL.id
+  ; column: project_column option
+  ; columns: project_column list }
 
 let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
@@ -131,7 +133,8 @@ let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   | Error err ->
       Error err
 
-type mv_card_to_column_input = {card_id: GitHub_GraphQL.id; column_id: GitHub_GraphQL.id}
+type mv_card_to_column_input =
+  {card_id: GitHub_GraphQL.id; column_id: GitHub_GraphQL.id}
 
 let backported_pr_info ~bot_info number base_ref =
   pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq" ~number
@@ -399,7 +402,8 @@ let get_default_branch ~bot_info ~owner ~repo =
           f "Query get_default_branch failed with %s" err)
   >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
 
-type closer_info = {pull_request_id: GitHub_GraphQL.id; milestone_id: GitHub_GraphQL.id option}
+type closer_info =
+  {pull_request_id: GitHub_GraphQL.id; milestone_id: GitHub_GraphQL.id option}
 
 let closer_info_of_pr pr =
   { milestone_id= pr#milestone |> Option.map ~f:(fun milestone -> milestone#id)
@@ -435,7 +439,9 @@ let closer_info_option_of_closer closer =
           Error "Closer query response is not well-formed." ) )
 
 type issue_closer_info =
-  {issue_id: GitHub_GraphQL.id; milestone_id: GitHub_GraphQL.id option; closer: closer_info}
+  { issue_id: GitHub_GraphQL.id
+  ; milestone_id: GitHub_GraphQL.id option
+  ; closer: closer_info }
 
 let issue_closer_info_of_resp ~owner ~repo ~number resp =
   match resp#repository with

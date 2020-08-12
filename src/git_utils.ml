@@ -3,13 +3,13 @@ open Bot_components
 open Bot_components.Utils
 open Lwt.Infix
 
-let gitlab_repo ~owner ~name ~bot_info =
+let gitlab_repo ~bot_info ~owner ~name =
   f "https://oauth2:%s@gitlab.com/%s/%s.git" bot_info.gitlab_token owner name
 
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
 
-let gitlab_ref ~(issue : GitHub_subscriptions.issue) ~bot_info ~gitlab_of_github
+let gitlab_ref ~bot_info ~(issue : GitHub_subscriptions.issue) ~gitlab_of_github
     ~github_mapping ~gitlab_mapping =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
@@ -110,7 +110,7 @@ let git_make_ancestor ~base head =
   | Unix.WSTOPPED signal ->
       Error (f "git_make_ancestor script stopped by signal %d." signal)
 
-let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info =
+let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author =
   f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s" script comment_thread_id
     comment_author bot_info.github_token bot_info.name bot_info.domain
   |> Lwt_unix.system
@@ -133,8 +133,8 @@ let init_git_bare_repository ~bot_info =
   |> execute_cmd >|= ignore
   >>= fun () -> Lwt_io.print "Bare repository initialized.\n"
 
-let run_coq_minimizer ~script ~comment_thread_id ~comment_author ~bot_info () =
-  git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info
+let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author () =
+  git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   >>= function
   | Ok ok ->
       if ok then
