@@ -68,15 +68,13 @@ let callback _conn req body =
         GitHub_subscriptions.receive_github ~secret:github_webhook_secret
           (Request.headers req) body
       with
-      | Ok (_, GitHub_subscriptions.PushEvent {base_ref; commits_msg}) ->
+      | Ok (_, PushEvent {base_ref; commits_msg}) ->
           push_action ~base_ref ~commits_msg ~bot_info |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Processing push event." ()
-      | Ok
-          ( _
-          , GitHub_subscriptions.PullRequestUpdated (PullRequestClosed, pr_info)
-          ) ->
-          pull_request_closed ~bot_info ~gitlab_mapping ~github_mapping
-            ~gitlab_of_github pr_info
+      | Ok (_, PullRequestUpdated (PullRequestClosed, pr_info)) ->
+          (fun () ->
+            pull_request_closed ~bot_info ~gitlab_mapping ~github_mapping
+              ~gitlab_of_github pr_info)
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -86,11 +84,10 @@ let callback _conn req body =
                  pr_info.issue.issue.owner pr_info.issue.issue.repo
                  pr_info.issue.issue.number)
             ()
-      | Ok (signed, GitHub_subscriptions.PullRequestUpdated (action, pr_info))
-        ->
+      | Ok (signed, PullRequestUpdated (action, pr_info)) ->
           pull_request_updated_action ~action ~pr_info ~bot_info ~gitlab_mapping
             ~github_mapping ~gitlab_of_github ~signed
-      | Ok (_, GitHub_subscriptions.IssueClosed {issue}) ->
+      | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           adjust_milestone ~issue ~sleep_time:5. ~bot_info |> Lwt.async ;
           Server.respond_string ~status:`OK
@@ -98,10 +95,7 @@ let callback _conn req body =
               (f "Issue %s/%s#%d was closed: checking its milestone."
                  issue.owner issue.repo issue.number)
             ()
-      | Ok
-          ( _
-          , GitHub_subscriptions.RemovedFromProject
-              ({issue= Some issue; column_id} as card) ) ->
+      | Ok (_, RemovedFromProject ({issue= Some issue; column_id} as card)) ->
           project_action ~issue ~column_id ~bot_info |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -110,12 +104,10 @@ let callback _conn req body =
                   checking if this was a backporting column."
                  issue.owner issue.repo issue.number card.column_id)
             ()
-      | Ok (_, GitHub_subscriptions.RemovedFromProject _) ->
+      | Ok (_, RemovedFromProject _) ->
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
-      | Ok
-          (_, GitHub_subscriptions.IssueOpened ({body= Some body} as issue_info))
-        ->
+      | Ok (_, IssueOpened ({body= Some body} as issue_info)) ->
           let body = trim_comments body in
           if
             string_match
@@ -127,7 +119,7 @@ let callback _conn req body =
               ~bot_info
             |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
-      | Ok (signed, GitHub_subscriptions.CommentCreated comment_info) ->
+      | Ok (signed, CommentCreated comment_info) ->
           let body = trim_comments comment_info.body in
           if
             string_match
@@ -161,7 +153,7 @@ let callback _conn req body =
             Server.respond_string ~status:`OK
               ~body:(f "Unhandled comment: %s." body)
               ()
-      | Ok (_, GitHub_subscriptions.NoOp s) ->
+      | Ok (_, NoOp s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
       | Ok _ ->
           Server.respond_string ~status:`OK

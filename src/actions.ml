@@ -1,5 +1,7 @@
 open Base
 open Bot_components
+open Bot_components.GitHub_types
+open Bot_components.GitLab_types
 open Bot_components.Utils
 open Cohttp
 open Cohttp_lwt_unix
@@ -12,8 +14,7 @@ let owner_team_map =
     (module String)
     [("martijnbastiaan-test-org", "martijnbastiaan-test-team")]
 
-let job_action (job_info : GitLab_subscriptions.job_info) ~bot_info
-    ~github_of_gitlab =
+let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
   let pr_num, branch_or_pr = pr_from_branch job_info.branch in
   let context = f "GitLab CI job %s (%s)" job_info.build_name branch_or_pr in
   let owner, repo =
@@ -192,8 +193,7 @@ let job_action (job_info : GitLab_subscriptions.job_info) ~bot_info
           job_info.build_id )
       |> send_url ) )
 
-let pipeline_action (pipeline_info : GitLab_subscriptions.pipeline_info)
-    ~bot_info ~github_of_gitlab : unit Lwt.t =
+let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
     Option.value
@@ -232,7 +232,7 @@ let pipeline_action (pipeline_info : GitLab_subscriptions.pipeline_info)
              (pr_from_branch pipeline_info.branch |> snd))
         ~description ~bot_info
 
-let coq_bug_minimizer_results_action body ~bot_info =
+let coq_bug_minimizer_results_action ~bot_info body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
@@ -253,8 +253,7 @@ let coq_bug_minimizer_results_action body ~bot_info =
         Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
   else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
 
-let merge_pull_request ~(comment_info : GitHub_subscriptions.comment_info)
-    ~bot_info =
+let merge_pull_request ~bot_info ~comment_info =
   let pr = comment_info.issue in
   if String.equal comment_info.author pr.user then
     GitHub_mutations.post_comment ~bot_info
@@ -423,10 +422,8 @@ let merge_pull_request ~(comment_info : GitHub_subscriptions.comment_info)
                       cc @coq/coqbot-maintainers" comment_info.author e)
                 ~id:pr.id )
 
-let pull_request_updated
-    (pr_info :
-      GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info) ()
-    ~bot_info ~gitlab_mapping ~github_mapping ~gitlab_of_github =
+let pull_request_updated ~bot_info pr_info () ~gitlab_mapping ~github_mapping
+    ~gitlab_of_github =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
@@ -470,8 +467,8 @@ let pull_request_updated
       ~bot_info
     |> Lwt_result.ok )
 
-let run_ci ~(comment_info : GitHub_subscriptions.comment_info) ~bot_info
-    ~gitlab_mapping ~github_mapping ~gitlab_of_github ~signed =
+let run_ci ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
+    ~gitlab_of_github ~signed =
   match Map.find owner_team_map comment_info.issue.issue.owner with
   | Some team when signed ->
       (fun () ->
@@ -486,9 +483,7 @@ let run_ci ~(comment_info : GitHub_subscriptions.comment_info) ~bot_info
                     pull_request_updated pr_info ~bot_info ~gitlab_mapping
                       ~github_mapping ~gitlab_of_github ()
                 | None ->
-                    let {GitHub_subscriptions.owner; repo; number} =
-                      comment_info.issue.issue
-                    in
+                    let {owner; repo; number} = comment_info.issue.issue in
                     GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
                       ~number
                     >>= fun pr_info ->
@@ -523,10 +518,9 @@ let run_ci ~(comment_info : GitHub_subscriptions.comment_info) ~bot_info
              comment_info.issue.issue.owner)
         ()
 
-let pull_request_closed
-    (pr_info :
-      GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info) ()
-    ~bot_info ~gitlab_mapping ~github_mapping ~gitlab_of_github =
+let pull_request_closed ~bot_info
+    (pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
+    ~gitlab_mapping ~github_mapping ~gitlab_of_github =
   let open Lwt.Infix in
   gitlab_ref ~issue:pr_info.issue.issue ~gitlab_mapping ~github_mapping
     ~gitlab_of_github ~bot_info
@@ -542,11 +536,10 @@ let pull_request_closed
     (* TODO: if PR was merged in master without a milestone, post an alert *)
     Lwt.return ()
 
-let pull_request_updated_action
-    ~(action : GitHub_subscriptions.pull_request_action)
-    ~(pr_info :
-       GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info)
-    ~bot_info ~gitlab_mapping ~github_mapping ~gitlab_of_github ~signed =
+let pull_request_updated_action ~bot_info
+    ~(action : GitHub_types.pull_request_action)
+    ~(pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
+    ~gitlab_mapping ~github_mapping ~gitlab_of_github ~signed =
   ( match (action, pr_info.base.branch.repo_url) with
   | PullRequestOpened, "https://github.com/coq/coq"
     when String.equal pr_info.base.branch.name pr_info.head.branch.name ->
@@ -606,15 +599,15 @@ let pull_request_updated_action
              pr_info.issue.issue.number)
         ()
 
-let rec adjust_milestone ~issue ~sleep_time ~bot_info () =
+let rec adjust_milestone ~bot_info ~issue ~sleep_time () =
   (* We implement an exponential backoff strategy to try again
      after 5, 25, and 125 seconds, if the issue was closed by a
      commit not yet associated to a pull request. *)
   GitHub_queries.get_issue_closer_info ~bot_info issue
   >>= function
-  | Ok (GitHub_queries.ClosedByPullRequest result) ->
+  | Ok (ClosedByPullRequest result) ->
       GitHub_mutations.reflect_pull_request_milestone ~bot_info result
-  | Ok GitHub_queries.ClosedByCommit ->
+  | Ok ClosedByCommit ->
       (* May be worth trying again later. *)
       if Float.(sleep_time > 200.) then
         Lwt_io.print "Closed by commit not associated to any pull request.\n"
@@ -625,14 +618,13 @@ let rec adjust_milestone ~issue ~sleep_time ~bot_info () =
           sleep_time
         >>= (fun () -> Lwt_unix.sleep sleep_time)
         >>= adjust_milestone ~issue ~sleep_time:(sleep_time *. 5.) ~bot_info
-  | Ok GitHub_queries.ClosedByOther ->
+  | Ok ClosedByOther ->
       (* Not worth trying again *)
       Lwt_io.print "Not closed by pull request or commit.\n"
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
-let project_action ~(issue : GitHub_subscriptions.issue) ~column_id ~bot_info ()
-    =
+let project_action ~bot_info ~issue ~column_id () =
   GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
     ~repo:"coq" ~number:issue.number
   >>= function
@@ -657,7 +649,7 @@ let project_action ~(issue : GitHub_subscriptions.issue) ~column_id ~bot_info ()
   | _ ->
       Lwt_io.printf "This was not a request inclusion column: ignoring.\n"
 
-let push_action ~base_ref ~commits_msg ~bot_info =
+let push_action ~bot_info ~base_ref ~commits_msg =
   Stdio.printf "Merge and backport commit messages:\n" ;
   let commit_action commit_msg =
     if string_match ~regexp:"^Merge PR #\\([0-9]*\\):" commit_msg then
@@ -671,10 +663,7 @@ let push_action ~base_ref ~commits_msg ~bot_info =
       | Ok (Some (_, pr_id, {backport_info})) ->
           backport_info
           |> Lwt_list.iter_p
-               (fun
-                 { GitHub_queries.backport_to
-                 ; request_inclusion_column
-                 ; backported_column }
+               (fun {backport_to; request_inclusion_column; backported_column}
                ->
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
                    Lwt_io.printf

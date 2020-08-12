@@ -1,75 +1,8 @@
 open Base
 open Cohttp
+open GitHub_types
 open Utils
 open Yojson.Basic.Util
-
-type issue = {owner: string; repo: string; number: int}
-
-type comment = {id: GitHub_GraphQL.id; author: string; created_by_email: bool}
-
-type issue_info =
-  { issue: issue
-  ; title: string
-  ; id: GitHub_GraphQL.id
-  ; user: string
-  ; labels: string list
-  ; milestoned: bool
-  ; pull_request: bool
-  ; body: string option
-  ; assignees: string list }
-
-type remote_ref_info = {repo_url: string; name: string}
-
-type commit_info = {branch: remote_ref_info; sha: string}
-
-type review_decision = CHANGES_REQUESTED | APPROVED | REVIEW_REQUIRED | NONE
-
-type pull_request_action =
-  | PullRequestOpened
-  | PullRequestClosed
-  | PullRequestReopened
-  | PullRequestSynchronized
-
-type 'a pull_request_info =
-  { issue: 'a
-  ; base: commit_info
-  ; head: commit_info
-  ; merged: bool
-  ; last_commit_message: string option }
-
-type pull_request_reviews_info =
-  { baseRef: string
-  ; files: string list
-  ; approved_reviews: string list
-  ; comment_reviews: string list
-  ; review_decision: review_decision
-  ; last_comments: comment list }
-
-type project_card = {issue: issue option; column_id: int}
-
-type comment_info =
-  { body: string
-  ; author: string
-  ; pull_request: issue_info pull_request_info option
-  ; issue: issue_info
-  ; review_comment: bool
-  ; id: GitHub_GraphQL.id }
-
-type check_run_info = {id: int; node_id: GitHub_GraphQL.id; url: string}
-
-type push_info = {base_ref: string; commits_msg: string list}
-
-type msg =
-  | NoOp of string
-  | IssueOpened of issue_info
-  | IssueClosed of issue_info
-  | RemovedFromProject of project_card
-  | PullRequestUpdated of pull_request_action * issue_info pull_request_info
-  | BranchCreated of remote_ref_info
-  | TagCreated of remote_ref_info
-  | CommentCreated of comment_info
-  | CheckRunCreated of check_run_info
-  | PushEvent of push_info
 
 let issue_info_of_json ?issue_json json =
   let issue_json =

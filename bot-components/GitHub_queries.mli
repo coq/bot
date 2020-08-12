@@ -1,39 +1,29 @@
-type backport_info =
-  {backport_to: string; request_inclusion_column: int; backported_column: int}
-
-type full_backport_info =
-  {backport_info: backport_info list; rejected_milestone: string}
-
 val get_backport_info :
-  bot_info:Utils.bot_info -> string -> full_backport_info option
-
-type project_card =
-  { id: GitHub_GraphQL.id
-  ; column: GitHub_GraphQL.project_column option
-  ; columns: GitHub_GraphQL.project_column list }
+  bot_info:Utils.bot_info -> string -> GitHub_types.full_backport_info option
 
 val pull_request_milestone_and_cards :
      bot_info:Utils.bot_info
   -> owner:string
   -> repo:string
   -> number:int
-  -> (project_card list * GitHub_GraphQL.milestone option, string) result Lwt.t
-
-type mv_card_to_column_input =
-  {card_id: GitHub_GraphQL.id; column_id: GitHub_GraphQL.id}
+  -> ( GitHub_types.project_card list * GitHub_GraphQL.milestone option
+     , string )
+     result
+     Lwt.t
 
 val backported_pr_info :
      bot_info:Utils.bot_info
   -> int
   -> string
-  -> mv_card_to_column_input option Lwt.t
+  -> GitHub_types.mv_card_to_column_input option Lwt.t
 
 val get_pull_request_id_and_milestone :
      bot_info:Utils.bot_info
   -> owner:string
   -> repo:string
   -> number:int
-  -> ((string * int * full_backport_info) option, string) result Lwt.t
+  -> ((string * int * GitHub_types.full_backport_info) option, string) result
+     Lwt.t
 
 val get_team_membership :
      bot_info:Utils.bot_info
@@ -47,14 +37,14 @@ val get_pull_request_refs :
   -> owner:string
   -> repo:string
   -> number:int
-  -> (string GitHub_subscriptions.pull_request_info, string) result Lwt.t
+  -> (string GitHub_types.pull_request_info, string) result Lwt.t
 
 val get_pull_request_reviews_refs :
      bot_info:Utils.bot_info
   -> owner:string
   -> repo:string
   -> number:int
-  -> (GitHub_subscriptions.pull_request_reviews_info, string) result Lwt.t
+  -> (GitHub_types.pull_request_reviews_info, string) result Lwt.t
 
 val get_file_content :
      bot_info:Utils.bot_info
@@ -70,24 +60,11 @@ val get_default_branch :
   -> repo:string
   -> (string, string) result Lwt.t
 
-type closer_info =
-  {pull_request_id: GitHub_GraphQL.id; milestone_id: GitHub_GraphQL.id option}
-
-type 'a closed_by =
-  | ClosedByPullRequest of 'a
-  | ClosedByCommit
-  (* Only used when commit is not associated to a PR *)
-  | ClosedByOther
-
-type issue_closer_info =
-  { issue_id: GitHub_GraphQL.id
-  ; milestone_id: GitHub_GraphQL.id option
-  ; closer: closer_info }
-
 val get_issue_closer_info :
      bot_info:Utils.bot_info
-  -> GitHub_subscriptions.issue
-  -> (issue_closer_info closed_by, string) result Lwt.t
+  -> GitHub_types.issue
+  -> (GitHub_types.issue_closer_info GitHub_types.closed_by, string) result
+     Lwt.t
 
 val get_status_check :
      repo_full_name:string

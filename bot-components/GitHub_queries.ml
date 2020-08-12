@@ -2,14 +2,9 @@
 
 open Base
 open GitHub_GraphQL
+open GitHub_types
 open Lwt
 open Utils
-
-type backport_info =
-  {backport_to: string; request_inclusion_column: int; backported_column: int}
-
-type full_backport_info =
-  {backport_info: backport_info list; rejected_milestone: string}
 
 let get_backport_info ~bot_info description =
   let project_column_regexp =
@@ -65,11 +60,6 @@ let get_backport_info ~bot_info description =
       Str.matched_group 1 description |> aux
     else None
 
-type project_card =
-  { id: GitHub_GraphQL.id
-  ; column: project_column option
-  ; columns: project_column list }
-
 let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
@@ -102,9 +92,6 @@ let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
         Error (f "Repository %s/%s does not exist." owner repo) )
   | Error err ->
       Error err
-
-type mv_card_to_column_input =
-  {card_id: GitHub_GraphQL.id; column_id: GitHub_GraphQL.id}
 
 let backported_pr_info ~bot_info number base_ref =
   pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq" ~number
@@ -200,7 +187,7 @@ let get_team_membership ~bot_info ~org ~team ~user =
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
 
 let pull_request_info_of_resp ~owner ~repo ~number resp :
-    (string GitHub_subscriptions.pull_request_info, string) Result.t =
+    (string pull_request_info, string) Result.t =
   let repo_url = f "https://github.com/%s/%s" owner repo in
   match resp#repository with
   | None ->
@@ -241,7 +228,7 @@ let get_pull_request_refs ~bot_info ~owner ~repo ~number =
   >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
 
 let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
-    (GitHub_subscriptions.pull_request_reviews_info, string) Result.t =
+    (pull_request_reviews_info, string) Result.t =
   match resp#repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -295,12 +282,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                     comments |> Array.to_list |> List.filter_opt
                     |> List.filter_map ~f:(fun c ->
                            c#author
-                           |> Option.map
-                                ~f:(fun
-                                     (`Actor a)
-                                     :
-                                     GitHub_subscriptions.comment
-                                   ->
+                           |> Option.map ~f:(fun (`Actor a) : comment ->
                                   { id= c#id
                                   ; author= a#login
                                   ; created_by_email= c#createdViaEmail })) )
@@ -372,18 +354,9 @@ let get_default_branch ~bot_info ~owner ~repo =
           f "Query get_default_branch failed with %s" err)
   >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
 
-type closer_info =
-  {pull_request_id: GitHub_GraphQL.id; milestone_id: GitHub_GraphQL.id option}
-
 let closer_info_of_pr pr =
   { milestone_id= pr#milestone |> Option.map ~f:(fun milestone -> milestone#id)
   ; pull_request_id= pr#id }
-
-type 'a closed_by =
-  | ClosedByPullRequest of 'a
-  | ClosedByCommit
-  (* Only used when commit is not associated to a PR *)
-  | ClosedByOther
 
 let closer_info_option_of_closer closer =
   match closer with
@@ -407,11 +380,6 @@ let closer_info_option_of_closer closer =
           Error "Closing commit associated to several pull requests."
       | _ ->
           Error "Closer query response is not well-formed." ) )
-
-type issue_closer_info =
-  { issue_id: GitHub_GraphQL.id
-  ; milestone_id: GitHub_GraphQL.id option
-  ; closer: closer_info }
 
 let issue_closer_info_of_resp ~owner ~repo ~number resp =
   match resp#repository with
@@ -438,8 +406,7 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
       | _ ->
           Error (f "No close event for issue %s/%s#%d." owner repo number) ) )
 
-let get_issue_closer_info ~bot_info
-    ({owner; repo; number} : GitHub_subscriptions.issue) =
+let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
   Issue_Milestone.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->

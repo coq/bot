@@ -3,6 +3,7 @@
  (public_name bot-components)
  (libraries base cohttp-lwt-unix eqaf hex nocrypto stdio str yojson)
  (private_modules GraphQL_query)
+ (modules_without_implementation GitHub_types GitLab_types)
  (preprocess
   (pps graphql_ppx -- -schema bot-components/schema.json))
  (preprocessor_deps

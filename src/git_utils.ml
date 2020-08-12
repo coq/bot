@@ -1,5 +1,6 @@
 open Base
 open Bot_components
+open Bot_components.GitHub_types
 open Bot_components.Utils
 open Lwt.Infix
 
@@ -9,8 +10,8 @@ let gitlab_repo ~bot_info ~owner ~name =
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
 
-let gitlab_ref ~bot_info ~(issue : GitHub_subscriptions.issue) ~gitlab_of_github
-    ~github_mapping ~gitlab_mapping =
+let gitlab_ref ~bot_info ~issue ~gitlab_of_github ~github_mapping
+    ~gitlab_mapping =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
   (* First, we check our hashtable for a key named after the GitHub
@@ -64,7 +65,7 @@ let gitlab_ref ~bot_info ~(issue : GitHub_subscriptions.issue) ~gitlab_of_github
         (issue.owner, issue.repo)
   in
   ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name ~bot_info}
-    : GitHub_subscriptions.remote_ref_info )
+    : remote_ref_info )
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
@@ -80,14 +81,12 @@ let execute_cmd command =
   | Unix.WSTOPPED signal ->
       report_status command "was stopped by signal number" signal
 
-let git_fetch ?(force = true)
-    (remote_ref : GitHub_subscriptions.remote_ref_info) local_branch_name =
+let git_fetch ?(force = true) remote_ref local_branch_name =
   f "git fetch -fu %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then "+" else "")
     remote_ref.name local_branch_name
 
-let git_push ?(force = true)
-    ~(remote_ref : GitHub_subscriptions.remote_ref_info) ~local_ref =
+let git_push ?(force = true) ~remote_ref ~local_ref =
   f "git push %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then " +" else " ")
     local_ref remote_ref.name
