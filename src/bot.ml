@@ -648,15 +648,68 @@ let callback _conn req body =
       handle_request job_action
   | "/pipeline" ->
       handle_request pipeline_action
-  | "/push" ->
-      handle_request push_action
-  | "/pull_request" | "/github" -> (
+  | "/push" | "/pull_request" | "/github" -> (
       body
       >>= fun body ->
       match
         GitHub_subscriptions.receive_github ~secret:github_webhook_secret
           (Request.headers req) body
       with
+      | Ok (_, GitHub_subscriptions.PushEvent {base_ref; commits_msg}) ->
+          Stdio.printf "Merge and backport commit messages:\n" ;
+          let commit_action commit_msg =
+            if string_match ~regexp:"^Merge PR #\\([0-9]*\\):" commit_msg then
+              let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
+              Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
+              >>= fun () ->
+              GitHub_queries.get_pull_request_id_and_milestone ~bot_info
+                ~owner:"coq" ~repo:"coq" ~number:pr_number
+              >>= fun pr_info ->
+              match pr_info with
+              | Ok (Some (_, pr_id, {backport_info})) ->
+                  backport_info
+                  |> Lwt_list.iter_p
+                       (fun { GitHub_queries.backport_to
+                            ; request_inclusion_column
+                            ; backported_column }
+                            ->
+                         if "refs/heads/" ^ backport_to |> String.equal base_ref
+                         then
+                           Lwt_io.printf
+                             "PR was merged into the backportig branch directly.\n"
+                           >>= fun () ->
+                           GitHub_mutations.add_pr_to_column pr_id
+                             backported_column ~bot_info
+                         else
+                           Lwt_io.printf "Backporting to %s was requested.\n"
+                             backport_to
+                           >>= fun () ->
+                           GitHub_mutations.add_pr_to_column pr_id
+                             request_inclusion_column ~bot_info)
+              | Ok None ->
+                  Lwt_io.printf "Did not get any backporting info.\n"
+              | Error err ->
+                  Lwt_io.printf "Error: %s\n" err
+            else if
+              string_match ~regexp:"^Backport PR #\\([0-9]*\\):" commit_msg
+            then
+              let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
+              Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
+              >>= fun () ->
+              GitHub_queries.backported_pr_info ~bot_info pr_number base_ref
+              >>= function
+              | Some ({card_id; column_id} as input) ->
+                  Lwt_io.printf "Moving card %s to column %s.\n" card_id
+                    column_id
+                  >>= fun () ->
+                  GitHub_mutations.mv_card_to_column ~bot_info input
+              | None ->
+                  Lwt_io.printf
+                    "Could not find backporting info for backported PR.\n"
+            else Lwt.return ()
+          in
+          (fun () -> Lwt_list.iter_s commit_action commits_msg) |> Lwt.async ;
+          Server.respond_string ~status:`OK ~body:"Processing push event." ()
       | Ok
           ( _
           , GitHub_subscriptions.PullRequestUpdated (PullRequestClosed, pr_info)

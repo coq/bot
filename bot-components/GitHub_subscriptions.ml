@@ -57,6 +57,8 @@ type comment_info =
 
 type check_run_info = {id: int; node_id: string; url: string}
 
+type push_info = {base_ref: string; commits_msg: string list}
+
 type msg =
   | NoOp of string
   | IssueOpened of issue_info
@@ -67,6 +69,7 @@ type msg =
   | TagCreated of remote_ref_info
   | CommentCreated of comment_info
   | CheckRunCreated of check_run_info
+  | PushEvent of push_info
 
 let issue_info_of_json ?issue_json json =
   let issue_json =
@@ -163,6 +166,15 @@ let check_run_info_of_json json =
   ; node_id= check_run |> member "node_id" |> to_string
   ; url= check_run |> member "url" |> to_string }
 
+let push_event_info_of_json json =
+  let open Yojson.Basic.Util in
+  let base_ref = json |> member "ref" |> to_string in
+  let commits = json |> member "commits" |> to_list in
+  let commits_msg =
+    List.map commits ~f:(fun c -> c |> member "message" |> to_string)
+  in
+  {base_ref; commits_msg}
+
 let github_action ~event ~action json =
   match (event, action) with
   | "pull_request", "opened" ->
@@ -203,6 +215,8 @@ let github_event ~event json =
   | "pull_request_review"
   | "check_run" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
+  | "push" ->
+      Ok (PushEvent (push_event_info_of_json json))
   | "create" -> (
       let ref_info =
         { repo_url= json |> member "repository" |> member "html_url" |> to_string
