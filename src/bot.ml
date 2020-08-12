@@ -643,6 +643,175 @@ let coq_bug_minimizer_results_action body =
         Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
   else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
 
+let merge_pull_request ~(comment_info : GitHub_subscriptions.comment_info) =
+  let pr = comment_info.issue in
+  if String.equal comment_info.author pr.user then
+    GitHub_mutations.post_comment ~bot_info
+      ~message:
+        (f "@%s: You can't merge the PR because you are the author."
+           comment_info.author)
+      ~id:pr.id
+  else
+    match
+      List.find comment_info.issue.labels ~f:(fun label ->
+          string_match ~regexp:"needs:.*" label)
+    with
+    | Some l ->
+        GitHub_mutations.post_comment ~bot_info
+          ~message:
+            (f
+               "@%s: This PR cannot be merged because there is still a `%s` \
+                label."
+               comment_info.author l)
+          ~id:pr.id
+    | None -> (
+        if
+          not
+            (List.exists comment_info.issue.labels ~f:(fun label ->
+                 string_match ~regexp:"kind:.*" label))
+        then
+          GitHub_mutations.post_comment ~bot_info
+            ~message:
+              (f
+                 "@%s: This PR cannot be merged because there is no `kind:` \
+                  label."
+                 comment_info.author)
+            ~id:pr.id
+        else if not comment_info.issue.milestoned then
+          GitHub_mutations.post_comment ~bot_info
+            ~message:
+              (f "@%s: This PR cannot be merged because no milestone is set."
+                 comment_info.author)
+            ~id:pr.id
+        else
+          GitHub_queries.get_pull_request_reviews_refs ~bot_info
+            ~owner:pr.issue.owner ~repo:pr.issue.repo ~number:pr.issue.number
+          >>= function
+          | Ok reviews_info -> (
+              let comment =
+                List.find reviews_info.last_comments ~f:(fun c ->
+                    String.equal comment_info.id c.id)
+              in
+              if (not comment_info.review_comment) && Option.is_none comment
+              then
+                GitHub_mutations.post_comment ~bot_info
+                  ~message:
+                    (f
+                       "@%s: Could not find merge comment because too many \
+                        comments were posted since."
+                       comment_info.author)
+                  ~id:pr.id
+              else if
+                (not comment_info.review_comment)
+                && (Option.value_exn comment).created_by_email
+                (* Option.value_exn doesn't raise an exception because comment isn't None at this point*)
+              then
+                GitHub_mutations.post_comment ~bot_info
+                  ~message:
+                    (f
+                       "@%s: Merge requests sent over e-mail are not accepted \
+                        because this put less guarantee on the authenticity of \
+                        the author of the request."
+                       comment_info.author)
+                  ~id:pr.id
+              else if not (String.equal reviews_info.baseRef "master") then
+                GitHub_mutations.post_comment ~bot_info
+                  ~message:
+                    (f
+                       "@%s: This PR targets branch `%s` instead of `master`. \
+                        Only release managers can merge in release branches. \
+                        Merging with the bot is not supported."
+                       comment_info.author reviews_info.baseRef)
+                  ~id:pr.id
+              else
+                match reviews_info.review_decision with
+                | NONE | REVIEW_REQUIRED ->
+                    GitHub_mutations.post_comment ~bot_info
+                      ~message:
+                        (f
+                           "@%s: This PR cannot be merged because it hasn't \
+                            been approved yet."
+                           comment_info.author)
+                      ~id:pr.id
+                | CHANGES_REQUESTED ->
+                    GitHub_mutations.post_comment ~bot_info
+                      ~message:
+                        (f
+                           "@%s: This PR cannot be merged because some changes \
+                            are requested."
+                           comment_info.author)
+                      ~id:pr.id
+                | APPROVED -> (
+                    if
+                      not
+                        (List.exists comment_info.issue.assignees
+                           ~f:(fun login ->
+                             String.equal login comment_info.author))
+                    then
+                      GitHub_mutations.post_comment ~bot_info
+                        ~message:
+                          (f
+                             "@%s: You can't merge the PR because you're not \
+                              among the assignees."
+                             comment_info.author)
+                        ~id:pr.id
+                    else
+                      GitHub_queries.get_team_membership ~bot_info ~org:"coq"
+                        ~team:"pushers" ~user:comment_info.author
+                      >>= function
+                      | Ok _ -> (
+                          GitHub_mutations.merge_pull_request ~bot_info
+                            ~pr_id:pr.id
+                            ~commit_headline:
+                              (f "Merge PR #%d: %s" pr.issue.number
+                                 comment_info.issue.title)
+                            ~commit_body:
+                              ( List.fold_left reviews_info.approved_reviews
+                                  ~init:"" ~f:(fun s r ->
+                                    s ^ f "Reviewed-by: %s\n" r)
+                              ^ List.fold_left reviews_info.comment_reviews
+                                  ~init:"" ~f:(fun s r ->
+                                    s ^ f "Ack-by: %s\n" r) )
+                            ~merge_method:`MERGE
+                          >>= fun () ->
+                          match
+                            List.fold_left ~init:[] reviews_info.files
+                              ~f:(fun acc f ->
+                                if
+                                  string_match
+                                    ~regexp:"dev/ci/user-overlays/\\(.*\\)" f
+                                then Str.matched_group 1 f :: acc
+                                else acc)
+                          with
+                          | [] ->
+                              Lwt.return ()
+                          | overlays ->
+                              GitHub_mutations.post_comment ~bot_info
+                                ~message:
+                                  (f
+                                     "@%s: Please take care of the following \
+                                      overlays:\n\
+                                      %s"
+                                     comment_info.author
+                                     (List.fold_left overlays ~init:""
+                                        ~f:(fun s o -> s ^ f "- %s\n" o)))
+                                ~id:pr.id )
+                      | Error _ ->
+                          GitHub_mutations.post_comment ~bot_info
+                            ~message:
+                              (f
+                                 "@%s: You can't merge this PR because you're \
+                                  not a member of the `@coq/pushers` team."
+                                 comment_info.author)
+                            ~id:pr.id ) )
+          | Error e ->
+              GitHub_mutations.post_comment ~bot_info
+                ~message:
+                  (f
+                     "@%s: Something unexpected happend: %s\n\
+                      cc @coq/coqbot-maintainers" comment_info.author e)
+                ~id:pr.id )
+
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
@@ -894,193 +1063,7 @@ let callback _conn req body =
             && String.equal comment_info.issue.issue.repo "coq"
             && signed
           then (
-            (fun () ->
-              let pr = comment_info.issue in
-              if String.equal comment_info.author pr.user then
-                GitHub_mutations.post_comment ~bot_info
-                  ~message:
-                    (f "@%s: You can't merge the PR because you are the author."
-                       comment_info.author)
-                  ~id:pr.id
-              else
-                match
-                  List.find comment_info.issue.labels ~f:(fun label ->
-                      string_match ~regexp:"needs:.*" label)
-                with
-                | Some l ->
-                    GitHub_mutations.post_comment ~bot_info
-                      ~message:
-                        (f
-                           "@%s: This PR cannot be merged because there is \
-                            still a `%s` label."
-                           comment_info.author l)
-                      ~id:pr.id
-                | None -> (
-                    if
-                      not
-                        (List.exists comment_info.issue.labels ~f:(fun label ->
-                             string_match ~regexp:"kind:.*" label))
-                    then
-                      GitHub_mutations.post_comment ~bot_info
-                        ~message:
-                          (f
-                             "@%s: This PR cannot be merged because there is \
-                              no `kind:` label."
-                             comment_info.author)
-                        ~id:pr.id
-                    else if not comment_info.issue.milestoned then
-                      GitHub_mutations.post_comment ~bot_info
-                        ~message:
-                          (f
-                             "@%s: This PR cannot be merged because no \
-                              milestone is set."
-                             comment_info.author)
-                        ~id:pr.id
-                    else
-                      GitHub_queries.get_pull_request_reviews_refs ~bot_info
-                        ~owner:pr.issue.owner ~repo:pr.issue.repo
-                        ~number:pr.issue.number
-                      >>= function
-                      | Ok reviews_info -> (
-                          let comment =
-                            List.find reviews_info.last_comments ~f:(fun c ->
-                                String.equal comment_info.id c.id)
-                          in
-                          if
-                            (not comment_info.review_comment)
-                            && Option.is_none comment
-                          then
-                            GitHub_mutations.post_comment ~bot_info
-                              ~message:
-                                (f
-                                   "@%s: Could not find merge comment because \
-                                    too many comments were posted since."
-                                   comment_info.author)
-                              ~id:pr.id
-                          else if
-                            (not comment_info.review_comment)
-                            && (Option.value_exn comment).created_by_email
-                            (* Option.value_exn doesn't raise an exception because comment isn't None at this point*)
-                          then
-                            GitHub_mutations.post_comment ~bot_info
-                              ~message:
-                                (f
-                                   "@%s: Merge requests sent over e-mail are \
-                                    not accepted because this put less \
-                                    guarantee on the authenticity of the \
-                                    author of the request."
-                                   comment_info.author)
-                              ~id:pr.id
-                          else if
-                            not (String.equal reviews_info.baseRef "master")
-                          then
-                            GitHub_mutations.post_comment ~bot_info
-                              ~message:
-                                (f
-                                   "@%s: This PR targets branch `%s` instead \
-                                    of `master`. Only release managers can \
-                                    merge in release branches. Merging with \
-                                    the bot is not supported."
-                                   comment_info.author reviews_info.baseRef)
-                              ~id:pr.id
-                          else
-                            match reviews_info.review_decision with
-                            | NONE | REVIEW_REQUIRED ->
-                                GitHub_mutations.post_comment ~bot_info
-                                  ~message:
-                                    (f
-                                       "@%s: This PR cannot be merged because \
-                                        it hasn't been approved yet."
-                                       comment_info.author)
-                                  ~id:pr.id
-                            | CHANGES_REQUESTED ->
-                                GitHub_mutations.post_comment ~bot_info
-                                  ~message:
-                                    (f
-                                       "@%s: This PR cannot be merged because \
-                                        some changes are requested."
-                                       comment_info.author)
-                                  ~id:pr.id
-                            | APPROVED -> (
-                                if
-                                  not
-                                    (List.exists comment_info.issue.assignees
-                                       ~f:(fun login ->
-                                         String.equal login comment_info.author))
-                                then
-                                  GitHub_mutations.post_comment ~bot_info
-                                    ~message:
-                                      (f
-                                         "@%s: You can't merge the PR because \
-                                          you're not among the assignees."
-                                         comment_info.author)
-                                    ~id:pr.id
-                                else
-                                  GitHub_queries.get_team_membership ~bot_info
-                                    ~org:"coq" ~team:"pushers"
-                                    ~user:comment_info.author
-                                  >>= function
-                                  | Ok _ -> (
-                                      GitHub_mutations.merge_pull_request
-                                        ~bot_info ~pr_id:pr.id
-                                        ~commit_headline:
-                                          (f "Merge PR #%d: %s" pr.issue.number
-                                             comment_info.issue.title)
-                                        ~commit_body:
-                                          ( List.fold_left
-                                              reviews_info.approved_reviews
-                                              ~init:"" ~f:(fun s r ->
-                                                s ^ f "Reviewed-by: %s\n" r)
-                                          ^ List.fold_left
-                                              reviews_info.comment_reviews
-                                              ~init:"" ~f:(fun s r ->
-                                                s ^ f "Ack-by: %s\n" r) )
-                                        ~merge_method:`MERGE
-                                      >>= fun () ->
-                                      match
-                                        List.fold_left ~init:[]
-                                          reviews_info.files ~f:(fun acc f ->
-                                            if
-                                              string_match
-                                                ~regexp:
-                                                  "dev/ci/user-overlays/\\(.*\\)"
-                                                f
-                                            then Str.matched_group 1 f :: acc
-                                            else acc)
-                                      with
-                                      | [] ->
-                                          Lwt.return ()
-                                      | overlays ->
-                                          GitHub_mutations.post_comment
-                                            ~bot_info
-                                            ~message:
-                                              (f
-                                                 "@%s: Please take care of the \
-                                                  following overlays:\n\
-                                                  %s"
-                                                 comment_info.author
-                                                 (List.fold_left overlays
-                                                    ~init:"" ~f:(fun s o ->
-                                                      s ^ f "- %s\n" o)))
-                                            ~id:pr.id )
-                                  | Error _ ->
-                                      GitHub_mutations.post_comment ~bot_info
-                                        ~message:
-                                          (f
-                                             "@%s: You can't merge this PR \
-                                              because you're not a member of \
-                                              the `@coq/pushers` team."
-                                             comment_info.author)
-                                        ~id:pr.id ) )
-                      | Error e ->
-                          GitHub_mutations.post_comment ~bot_info
-                            ~message:
-                              (f
-                                 "@%s: Something unexpected happend: %s\n\
-                                  cc @coq/coqbot-maintainers"
-                                 comment_info.author e)
-                            ~id:pr.id ))
-            |> Lwt.async ;
+            (fun () -> merge_pull_request ~comment_info) |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:(f "Received a request to merge the PR.")
               () )
