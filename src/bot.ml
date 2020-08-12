@@ -853,6 +853,66 @@ let run_ci ~(comment_info : GitHub_subscriptions.comment_info) ~signed =
              comment_info.issue.issue.owner)
         ()
 
+let pull_request_updated_action
+    ~(action : GitHub_subscriptions.pull_request_action)
+    ~(pr_info :
+       GitHub_subscriptions.issue_info GitHub_subscriptions.pull_request_info)
+    ~signed =
+  ( match (action, pr_info.base.branch.repo_url) with
+  | PullRequestOpened, "https://github.com/coq/coq"
+    when String.equal pr_info.base.branch.name pr_info.head.branch.name ->
+      (fun () ->
+        GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
+          ~message:
+            (f
+               "Hello, thanks for your pull request!\n\
+                In the future, we strongly recommend that you *do not* use %s \
+                as the name of your branch when submitting a pull request.\n\
+                By the way, you may be interested in reading [our contributing \
+                guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
+               pr_info.base.branch.name))
+      |> Lwt.async
+  | _ ->
+      () ) ;
+  match Map.find owner_team_map pr_info.issue.issue.owner with
+  | Some team when signed ->
+      (fun () ->
+        (let open Lwt_result.Infix in
+        GitHub_queries.get_team_membership ~bot_info
+          ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
+        >>= (fun is_member ->
+              if is_member then (
+                Stdio.printf "Authorized user: pushing to GitLab.\n" ;
+                pull_request_updated pr_info () )
+              else
+                Lwt_io.print "Unauthorized user: doing nothing.\n"
+                |> Lwt_result.ok)
+        |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+               Lwt_io.printf "Error: %s\n" err))
+        >>= fun _ -> Lwt.return ())
+      |> Lwt.async ;
+      Server.respond_string ~status:`OK
+        ~body:
+          (f
+             "Pull request was (re)opened / synchronized. Checking that user \
+              %s is a member of @%s/%s before pushing to GitLab."
+             pr_info.issue.user pr_info.issue.issue.owner team)
+        ()
+  | Some _ ->
+      Server.respond_string ~status:(Code.status_of_code 403)
+        ~body:"Webhook requires secret." ()
+  | None ->
+      (fun () -> pull_request_updated pr_info () >>= fun _ -> Lwt.return ())
+      |> Lwt.async ;
+      Server.respond_string ~status:`OK
+        ~body:
+          (f
+             "Pull request %s/%s#%d was (re)opened / synchronized: \
+              (force-)pushing to GitLab."
+             pr_info.issue.issue.owner pr_info.issue.issue.repo
+             pr_info.issue.issue.number)
+        ()
+
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
@@ -903,66 +963,8 @@ let callback _conn req body =
                  pr_info.issue.issue.number)
             ()
       | Ok (signed, GitHub_subscriptions.PullRequestUpdated (action, pr_info))
-        -> (
-          ( match (action, pr_info.base.branch.repo_url) with
-          | PullRequestOpened, "https://github.com/coq/coq"
-            when String.equal pr_info.base.branch.name pr_info.head.branch.name
-            ->
-              (fun () ->
-                GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
-                  ~message:
-                    (f
-                       "Hello, thanks for your pull request!\n\
-                        In the future, we strongly recommend that you *do not* \
-                        use %s as the name of your branch when submitting a \
-                        pull request.\n\
-                        By the way, you may be interested in reading [our \
-                        contributing \
-                        guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
-                       pr_info.base.branch.name))
-              |> Lwt.async
-          | _ ->
-              () ) ;
-          match Map.find owner_team_map pr_info.issue.issue.owner with
-          | Some team when signed ->
-              (fun () ->
-                (let open Lwt_result.Infix in
-                GitHub_queries.get_team_membership ~bot_info
-                  ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
-                >>= (fun is_member ->
-                      if is_member then (
-                        Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                        pull_request_updated pr_info () )
-                      else
-                        Lwt_io.print "Unauthorized user: doing nothing.\n"
-                        |> Lwt_result.ok)
-                |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                       Lwt_io.printf "Error: %s\n" err))
-                >>= fun _ -> Lwt.return ())
-              |> Lwt.async ;
-              Server.respond_string ~status:`OK
-                ~body:
-                  (f
-                     "Pull request was (re)opened / synchronized. Checking \
-                      that user %s is a member of @%s/%s before pushing to \
-                      GitLab."
-                     pr_info.issue.user pr_info.issue.issue.owner team)
-                ()
-          | Some _ ->
-              Server.respond_string ~status:(Code.status_of_code 403)
-                ~body:"Webhook requires secret." ()
-          | None ->
-              (fun () ->
-                pull_request_updated pr_info () >>= fun _ -> Lwt.return ())
-              |> Lwt.async ;
-              Server.respond_string ~status:`OK
-                ~body:
-                  (f
-                     "Pull request %s/%s#%d was (re)opened / synchronized: \
-                      (force-)pushing to GitLab."
-                     pr_info.issue.issue.owner pr_info.issue.issue.repo
-                     pr_info.issue.issue.number)
-                () )
+        ->
+          pull_request_updated_action ~action ~pr_info ~signed
       | Ok (_, GitHub_subscriptions.IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (* We implement an exponential backoff strategy to try again
