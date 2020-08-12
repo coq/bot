@@ -3,6 +3,25 @@ open Cohttp
 open Utils
 open Yojson.Basic.Util
 
+type job_info =
+  { build_status: string
+  ; build_id: int
+  ; build_name: string
+  ; commit: string
+  ; branch: string
+  ; repo_url: string
+  ; project_id: int
+  ; failure_reason: string option
+  ; allow_fail: bool option }
+
+type pipeline_info =
+  {state: string; id: int; commit: string; branch: string; project_path: string}
+
+type msg =
+  | JobEvent of job_info
+  | PipelineEvent of pipeline_info
+  | UnsupportedEvent of string
+
 let extract_commit json =
   let open Yojson.Basic.Util in
   let commit_json = json |> member "commit" in
@@ -24,20 +43,6 @@ let pr_from_branch branch =
   if string_match ~regexp:"^pr-\\([0-9]*\\)$" branch then
     (Some (Str.matched_group 1 branch |> Int.of_string), "pull request")
   else (None, "branch")
-
-type job_info =
-  { build_status: string
-  ; build_id: int
-  ; build_name: string
-  ; commit: string
-  ; branch: string
-  ; repo_url: string
-  ; project_id: int
-  ; failure_reason: string option
-  ; allow_fail: bool option }
-
-type pipeline_info =
-  {state: string; id: int; commit: string; branch: string; project_path: string}
 
 let job_info_of_json json =
   let open Yojson.Basic.Util in
@@ -81,11 +86,11 @@ let pipeline_info_of_json json =
 let gitlab_event ~event json =
   match event with
   | "Job Hook" ->
-      Ok (`JobEvent (job_info_of_json json))
+      Ok (JobEvent (job_info_of_json json))
   | "Pipeline Hook" ->
-      Ok (`PipelineEvent (pipeline_info_of_json json))
+      Ok (PipelineEvent (pipeline_info_of_json json))
   | e ->
-      Ok (`UnsupportedEvent e)
+      Ok (UnsupportedEvent e)
 
 let receive_gitlab ~secret headers body =
   let open Result in

@@ -866,13 +866,13 @@ let callback _conn req body =
         GitLab_subscriptions.receive_gitlab ~secret:gitlab_webhook_secret
           (Request.headers req) body
       with
-      | Ok (_, `JobEvent job_info) ->
+      | Ok (_, JobEvent job_info) ->
           job_action job_info ;
           Server.respond_string ~status:`OK ~body:"Job event." ()
-      | Ok (_, `PipelineEvent pipeline_info) ->
+      | Ok (_, PipelineEvent pipeline_info) ->
           (fun () -> pipeline_action pipeline_info) |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Pipeline event." ()
-      | Ok (_, `UnsupportedEvent e) ->
+      | Ok (_, UnsupportedEvent e) ->
           Server.respond_string ~status:`OK
             ~body:(f "Unsupported event %s." e)
             ()
