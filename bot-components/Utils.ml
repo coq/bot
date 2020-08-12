@@ -4,7 +4,11 @@ open Cohttp_lwt_unix
 open Lwt
 
 type bot_info =
-  {gitlab_token: string; github_token: string; name: string; email: string}
+  { gitlab_token: string
+  ; github_token: string
+  ; name: string
+  ; email: string
+  ; domain: string }
 
 let f = Printf.sprintf
 

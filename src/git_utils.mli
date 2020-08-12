@@ -40,7 +40,6 @@ val git_coq_bug_minimizer :
   -> comment_thread_id:string
   -> comment_author:string
   -> bot_info:Bot_components.Utils.bot_info
-  -> bot_domain:string
   -> (bool, string) result Lwt.t
 
 val init_git_bare_repository :
@@ -51,6 +50,5 @@ val run_coq_minimizer :
   -> comment_thread_id:string
   -> comment_author:string
   -> bot_info:Bot_components.Utils.bot_info
-  -> bot_domain:string
   -> unit
   -> unit Lwt.t

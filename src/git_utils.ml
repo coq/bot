@@ -110,10 +110,9 @@ let git_make_ancestor ~base head =
   | Unix.WSTOPPED signal ->
       Error (f "git_make_ancestor script stopped by signal %d." signal)
 
-let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info
-    ~bot_domain =
+let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info =
   f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s" script comment_thread_id
-    comment_author bot_info.github_token bot_info.name bot_domain
+    comment_author bot_info.github_token bot_info.name bot_info.domain
   |> Lwt_unix.system
   >|= fun status ->
   match status with
@@ -134,10 +133,8 @@ let init_git_bare_repository ~bot_info =
   |> execute_cmd >|= ignore
   >>= fun () -> Lwt_io.print "Bare repository initialized.\n"
 
-let run_coq_minimizer ~script ~comment_thread_id ~comment_author ~bot_info
-    ~bot_domain () =
+let run_coq_minimizer ~script ~comment_thread_id ~comment_author ~bot_info () =
   git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info
-    ~bot_domain
   >>= function
   | Ok ok ->
       if ok then

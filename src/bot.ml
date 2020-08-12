@@ -21,15 +21,12 @@ let gitlab_webhook_secret = Config.gitlab_webhook_secret toml_data
 
 let bot_name = Config.bot_name toml_data
 
-let bot_domain = Config.bot_domain toml_data bot_name
-
-let bot_email = Config.bot_email toml_data bot_name
-
 let bot_info =
   { github_token= github_access_token
   ; gitlab_token= gitlab_access_token
   ; name= bot_name
-  ; email= bot_email }
+  ; email= Config.bot_email toml_data bot_name
+  ; domain= Config.bot_domain toml_data bot_name }
 
 let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 
@@ -127,7 +124,7 @@ let callback _conn req body =
           then
             run_coq_minimizer ~script:(Str.matched_group 1 body)
               ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
-              ~bot_info ~bot_domain
+              ~bot_info
             |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok (signed, GitHub_subscriptions.CommentCreated comment_info) ->
@@ -139,7 +136,7 @@ let callback _conn req body =
           then (
             run_coq_minimizer ~script:(Str.matched_group 1 body)
               ~comment_thread_id:comment_info.issue.id
-              ~comment_author:comment_info.author ~bot_info ~bot_domain
+              ~comment_author:comment_info.author ~bot_info
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )
