@@ -5,36 +5,6 @@ open GitHub_GraphQL
 open Lwt
 open Utils
 
-let send_graphql_query ~bot_info query =
-  let uri = Uri.of_string "https://api.github.com/graphql" in
-  let headers =
-    Cohttp.Header.of_list
-      [ ("Authorization", "bearer " ^ bot_info.github_token)
-      ; ("User-Agent", bot_info.name) ]
-  in
-  let body =
-    `Assoc [("query", `String query#query); ("variables", query#variables)]
-  in
-  let serialized_body = Yojson.Basic.to_string body in
-  Cohttp_lwt_unix.Client.post ~headers ~body:(`String serialized_body) uri
-  >>= fun (rsp, body) ->
-  Cohttp_lwt.Body.to_string body
-  >|= fun body ->
-  match Cohttp.Code.(code_of_status rsp.status |> is_success) with
-  | false ->
-      Error body
-  | true -> (
-    try
-      Ok
-        ( Yojson.Basic.from_string body
-        |> Yojson.Basic.Util.member "data"
-        |> query#parse )
-    with
-    | Yojson.Json_error err ->
-        Error (f "Json error: %s" err)
-    | Yojson.Basic.Util.Type_error (err, _) ->
-        Error (f "Json type error: %s" err) )
-
 type backport_info =
   {backport_to: string; request_inclusion_column: int; backported_column: int}
 
@@ -102,7 +72,7 @@ type project_card =
 
 let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok result -> (
     match result#repository with
@@ -169,7 +139,7 @@ let backported_pr_info ~bot_info number base_ref =
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   PullRequest_ID_and_Milestone.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.bind ~f:(fun result ->
           match result#repository with
           | None ->
@@ -224,7 +194,7 @@ let team_membership_of_resp ~org ~team ~user resp =
 
 let get_team_membership ~bot_info ~org ~team ~user =
   TeamMembership.make ~org ~team ~user ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_team_membership failed with %s" err)
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
@@ -265,7 +235,7 @@ let pull_request_info_of_resp ~owner ~repo ~number resp :
 
 let get_pull_request_refs ~bot_info ~owner ~repo ~number =
   PullRequest_Refs.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
@@ -360,7 +330,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
 
 let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   PullRequestReviewsInfo.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_reviews_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_reviews_info_of_resp ~owner ~repo ~number)
@@ -380,7 +350,7 @@ let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
 
 let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
   FileContent.make ~owner ~repo ~file:(branch ^ ":" ^ file_name) ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err -> f "Query file_content failed with %s" err)
   >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
 
@@ -397,7 +367,7 @@ let default_branch_of_resp ~owner ~repo resp =
 
 let get_default_branch ~bot_info ~owner ~repo =
   DefaultBranch.make ~owner ~repo ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_default_branch failed with %s" err)
   >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
@@ -471,7 +441,7 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
 let get_issue_closer_info ~bot_info
     ({owner; repo; number} : GitHub_subscriptions.issue) =
   Issue_Milestone.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)

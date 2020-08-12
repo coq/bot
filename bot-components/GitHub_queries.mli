@@ -1,11 +1,3 @@
-val send_graphql_query :
-     bot_info:Utils.bot_info
-  -> < parse: Yojson.Basic.t -> 'a
-     ; query: string
-     ; variables: Yojson.Basic.t
-     ; .. >
-  -> ('a, string) result Lwt.t
-
 type backport_info =
   {backport_to: string; request_inclusion_column: int; backported_column: int}
 

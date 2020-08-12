@@ -7,7 +7,7 @@ open Utils
 let mv_card_to_column ~bot_info
     ({card_id; column_id} : GitHub_queries.mv_card_to_column_input) =
   MoveCardToColumn.make ~card_id ~column_id ()
-  |> GitHub_queries.send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
       ()
@@ -16,7 +16,7 @@ let mv_card_to_column ~bot_info
 
 let post_comment ~bot_info ~id ~message =
   PostComment.make ~id ~message ()
-  |> GitHub_queries.send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
       ()
@@ -25,7 +25,7 @@ let post_comment ~bot_info ~id ~message =
 
 let update_milestone ~bot_info ~issue ~milestone =
   UpdateMilestone.make ~issue ~milestone ()
-  |> GitHub_queries.send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
       ()
@@ -46,7 +46,7 @@ let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
           `SQUASH)
   in
   MergePullRequest.make ~pr_id ?commit_headline ?commit_body ?merge_method ()
-  |> GitHub_queries.send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
       ()
