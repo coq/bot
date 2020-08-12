@@ -818,7 +818,7 @@ let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
   match Uri.path (Request.uri req) with
-  | "/gitlab" -> (
+  | "/job" | "/pipeline" (* legacy endpoints *) | "/gitlab" -> (
       body
       >>= fun body ->
       match
@@ -838,7 +838,7 @@ let callback _conn req body =
       | Error s ->
           Server.respond_string ~status:(Code.status_of_code 400)
             ~body:(f "Error: %s" s) () )
-  | "/github" -> (
+  | "/push" | "/pull_request" (* legacy endpoints *) | "/github" -> (
       body
       >>= fun body ->
       match
