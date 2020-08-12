@@ -812,6 +812,56 @@ let merge_pull_request ~(comment_info : GitHub_subscriptions.comment_info) =
                       cc @coq/coqbot-maintainers" comment_info.author e)
                 ~id:pr.id )
 
+let run_ci ~(comment_info : GitHub_subscriptions.comment_info) ~signed =
+  match Map.find owner_team_map comment_info.issue.issue.owner with
+  | Some team when signed ->
+      (fun () ->
+        (let open Lwt_result.Infix in
+        GitHub_queries.get_team_membership ~bot_info
+          ~org:comment_info.issue.issue.owner ~team ~user:comment_info.author
+        >>= (fun is_member ->
+              if is_member then (
+                Stdio.printf "Authorized user: pushing to GitLab.\n" ;
+                match comment_info.pull_request with
+                | Some pr_info ->
+                    pull_request_updated pr_info ()
+                | None ->
+                    let {GitHub_subscriptions.owner; repo; number} =
+                      comment_info.issue.issue
+                    in
+                    GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
+                      ~number
+                    >>= fun pr_info ->
+                    pull_request_updated
+                      {pr_info with issue= comment_info.issue}
+                      () )
+              else
+                Lwt_io.print "Unauthorized user: doing nothing.\n"
+                |> Lwt_result.ok)
+        |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+               Lwt_io.printf "Error: %s\n" err))
+        >>= fun _ -> Lwt.return ())
+      |> Lwt.async ;
+      Server.respond_string ~status:`OK
+        ~body:
+          (f
+             "Received a request to run CI: checking that @%s is a member of \
+              @%s/%s before doing so."
+             comment_info.issue.user comment_info.issue.issue.owner team)
+        ()
+  | Some _ ->
+      Server.respond_string ~status:(Code.status_of_code 403)
+        ~body:"Webhook requires secret." ()
+  | None ->
+      (* TODO: check if user is member of the host organization. *)
+      Server.respond_string ~status:`OK
+        ~body:
+          (f
+             "Received a request to run CI but no team defined for \
+              organization %s: nothing to do."
+             comment_info.issue.issue.owner)
+        ()
+
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
@@ -1005,57 +1055,7 @@ let callback _conn req body =
           else if
             string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
             && comment_info.issue.pull_request
-          then
-            match Map.find owner_team_map comment_info.issue.issue.owner with
-            | Some team when signed ->
-                (fun () ->
-                  (let open Lwt_result.Infix in
-                  GitHub_queries.get_team_membership ~bot_info
-                    ~org:comment_info.issue.issue.owner ~team
-                    ~user:comment_info.author
-                  >>= (fun is_member ->
-                        if is_member then (
-                          Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                          match comment_info.pull_request with
-                          | Some pr_info ->
-                              pull_request_updated pr_info ()
-                          | None ->
-                              let {GitHub_subscriptions.owner; repo; number} =
-                                comment_info.issue.issue
-                              in
-                              GitHub_queries.get_pull_request_refs ~bot_info
-                                ~owner ~repo ~number
-                              >>= fun pr_info ->
-                              pull_request_updated
-                                {pr_info with issue= comment_info.issue}
-                                () )
-                        else
-                          Lwt_io.print "Unauthorized user: doing nothing.\n"
-                          |> Lwt_result.ok)
-                  |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-                         Lwt_io.printf "Error: %s\n" err))
-                  >>= fun _ -> Lwt.return ())
-                |> Lwt.async ;
-                Server.respond_string ~status:`OK
-                  ~body:
-                    (f
-                       "Received a request to run CI: checking that @%s is a \
-                        member of @%s/%s before doing so."
-                       comment_info.issue.user comment_info.issue.issue.owner
-                       team)
-                  ()
-            | Some _ ->
-                Server.respond_string ~status:(Code.status_of_code 403)
-                  ~body:"Webhook requires secret." ()
-            | None ->
-                (* TODO: check if user is member of the host organization. *)
-                Server.respond_string ~status:`OK
-                  ~body:
-                    (f
-                       "Received a request to run CI but no team defined for \
-                        organization %s: nothing to do."
-                       comment_info.issue.issue.owner)
-                  ()
+          then run_ci ~comment_info ~signed
           else if
             string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
             && comment_info.issue.pull_request
