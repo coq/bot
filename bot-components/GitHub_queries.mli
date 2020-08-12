@@ -16,7 +16,7 @@ val get_backport_info :
   bot_info:Utils.bot_info -> string -> full_backport_info option
 
 type project_card =
-  { id: string
+  { id: GitHub_GraphQL.id
   ; column: GitHub_GraphQL.project_column option
   ; columns: GitHub_GraphQL.project_column list }
 
@@ -27,7 +27,7 @@ val pull_request_milestone_and_cards :
   -> number:int
   -> (project_card list * GitHub_GraphQL.milestone option, string) result Lwt.t
 
-type mv_card_to_column_input = {card_id: string; column_id: string}
+type mv_card_to_column_input = {card_id: GitHub_GraphQL.id; column_id: GitHub_GraphQL.id}
 
 val backported_pr_info :
      bot_info:Utils.bot_info
@@ -77,7 +77,7 @@ val get_default_branch :
   -> repo:string
   -> (string, string) result Lwt.t
 
-type closer_info = {pull_request_id: string; milestone_id: string option}
+type closer_info = {pull_request_id: GitHub_GraphQL.id; milestone_id: GitHub_GraphQL.id option}
 
 type 'a closed_by =
   | ClosedByPullRequest of 'a
@@ -86,7 +86,7 @@ type 'a closed_by =
   | ClosedByOther
 
 type issue_closer_info =
-  {issue_id: string; milestone_id: string option; closer: closer_info}
+  {issue_id: GitHub_GraphQL.id; milestone_id: GitHub_GraphQL.id option; closer: closer_info}
 
 val get_issue_closer_info :
      bot_info:Utils.bot_info

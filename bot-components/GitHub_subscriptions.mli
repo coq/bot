@@ -1,11 +1,11 @@
 type issue = {owner: string; repo: string; number: int}
 
-type comment = {id: string; author: string; created_by_email: bool}
+type comment = {id: GitHub_GraphQL.id; author: string; created_by_email: bool}
 
 type issue_info =
   { issue: issue
   ; title: string
-  ; id: string
+  ; id: GitHub_GraphQL.id
   ; user: string
   ; labels: string list
   ; milestoned: bool
@@ -48,9 +48,9 @@ type comment_info =
   ; pull_request: issue_info pull_request_info option
   ; issue: issue_info
   ; review_comment: bool
-  ; id: string }
+  ; id: GitHub_GraphQL.id }
 
-type check_run_info = {id: int; node_id: string; url: string}
+type check_run_info = {id: int; node_id: GitHub_GraphQL.id; url: string}
 
 type push_info = {base_ref: string; commits_msg: string list}
 

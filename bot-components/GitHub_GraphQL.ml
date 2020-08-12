@@ -1,8 +1,10 @@
-(* Queries *)
+type id = string
 
 type milestone = {title: string; description: string option}
 
 type project_column = {id: string; databaseId: int option}
+
+(* Queries *)
 
 module PullRequest_Milestone_and_Cards =
 [%graphql

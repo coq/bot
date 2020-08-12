@@ -4,7 +4,7 @@ val mv_card_to_column :
   -> unit Lwt.t
 
 val post_comment :
-  bot_info:Utils.bot_info -> id:string -> message:string -> unit Lwt.t
+  bot_info:Utils.bot_info -> id:GitHub_GraphQL.id -> message:string -> unit Lwt.t
 
 type merge_method = MERGE | REBASE | SQUASH
 
@@ -13,7 +13,7 @@ val merge_pull_request :
   -> ?commit_headline:string
   -> ?commit_body:string
   -> bot_info:Utils.bot_info
-  -> pr_id:string
+  -> pr_id:GitHub_GraphQL.id
   -> unit Lwt.t
 
 val reflect_pull_request_milestone :
