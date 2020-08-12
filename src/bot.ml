@@ -913,6 +913,31 @@ let pull_request_updated_action
              pr_info.issue.issue.number)
         ()
 
+let rec adjust_milestone ~issue ~sleep_time () =
+  (* We implement an exponential backoff strategy to try again
+     after 5, 25, and 125 seconds, if the issue was closed by a
+     commit not yet associated to a pull request. *)
+  GitHub_queries.get_issue_closer_info ~bot_info issue
+  >>= function
+  | Ok (GitHub_queries.ClosedByPullRequest result) ->
+      GitHub_mutations.reflect_pull_request_milestone ~bot_info result
+  | Ok GitHub_queries.ClosedByCommit ->
+      (* May be worth trying again later. *)
+      if Float.(sleep_time > 200.) then
+        Lwt_io.print "Closed by commit not associated to any pull request.\n"
+      else
+        Lwt_io.printf
+          "Closed by commit not yet associated to any pull request... Trying \
+           again in %f seconds.\n"
+          sleep_time
+        >>= (fun () -> Lwt_unix.sleep sleep_time)
+        >>= adjust_milestone ~issue ~sleep_time:(sleep_time *. 5.)
+  | Ok GitHub_queries.ClosedByOther ->
+      (* Not worth trying again *)
+      Lwt_io.print "Not closed by pull request or commit.\n"
+  | Error err ->
+      Lwt_io.print (f "Error: %s\n" err)
+
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
@@ -967,33 +992,7 @@ let callback _conn req body =
           pull_request_updated_action ~action ~pr_info ~signed
       | Ok (_, GitHub_subscriptions.IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
-          (* We implement an exponential backoff strategy to try again
-             after 5, 25, and 125 seconds, if the issue was closed by a
-             commit not yet associated to a pull request. *)
-          let rec adjust_milestone sleep_time () =
-            GitHub_queries.get_issue_closer_info ~bot_info issue
-            >>= function
-            | Ok (GitHub_queries.ClosedByPullRequest result) ->
-                GitHub_mutations.reflect_pull_request_milestone ~bot_info result
-            | Ok GitHub_queries.ClosedByCommit ->
-                (* May be worth trying again later. *)
-                if Float.(sleep_time > 200.) then
-                  Lwt_io.print
-                    "Closed by commit not associated to any pull request.\n"
-                else
-                  Lwt_io.printf
-                    "Closed by commit not yet associated to any pull \
-                     request... Trying again in %f seconds.\n"
-                    sleep_time
-                  >>= (fun () -> Lwt_unix.sleep sleep_time)
-                  >>= adjust_milestone (sleep_time *. 5.)
-            | Ok GitHub_queries.ClosedByOther ->
-                (* Not worth trying again *)
-                Lwt_io.print "Not closed by pull request or commit.\n"
-            | Error err ->
-                Lwt_io.print (f "Error: %s\n" err)
-          in
-          adjust_milestone 5. |> Lwt.async ;
+          adjust_milestone ~issue ~sleep_time:5. |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Issue %s/%s#%d was closed: checking its milestone."
