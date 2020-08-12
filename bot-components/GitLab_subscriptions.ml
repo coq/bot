@@ -21,11 +21,6 @@ let extract_commit json =
         sha )
     |> to_string
 
-let pr_from_branch branch =
-  if string_match ~regexp:"^pr-\\([0-9]*\\)$" branch then
-    (Some (Str.matched_group 1 branch |> Int.of_string), "pull request")
-  else (None, "branch")
-
 let job_info_of_json json =
   let open Yojson.Basic.Util in
   let build_status = json |> member "build_status" |> to_string in
