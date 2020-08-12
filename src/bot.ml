@@ -100,6 +100,14 @@ let git_coq_bug_minimizer ~script ~comment_thread_id ~comment_author ~bot_info
   | Unix.WSTOPPED signal ->
       Error (f "coq_bug_minimizer script stopped by signal %d." signal)
 
+let init_git_bare_repository =
+  Stdio.printf "Initializing repository...\n" ;
+  "git init --bare"
+  |&& f "git config user.email \"%s\"" bot_email
+  |&& f "git config user.name \"%s\"" bot_name
+  |> execute_cmd >|= ignore
+  >>= fun () -> Lwt_io.print "Bare repository initialized.\n"
+
 let first_line_of_string s =
   if string_match ~regexp:"\\(.*\\)\n" s then Str.matched_group 1 s else s
 
@@ -1068,13 +1076,9 @@ let callback _conn req body =
       Server.respond_not_found ()
 
 let server =
-  (fun () ->
-    Lwt_io.printf "Initializing repository...\n"
-    <&> ( "git init --bare"
-        |&& f "git config user.email \"%s\"" bot_email
-        |&& f "git config user.name \"%s\"" bot_name
-        |> execute_cmd >|= ignore ))
-  |> Lwt.async ;
+  init_git_bare_repository
+  >>= fun () ->
+  Stdio.printf "Starting server.\n" ;
   let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
 
