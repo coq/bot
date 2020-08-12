@@ -322,11 +322,15 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                     comments |> Array.to_list |> List.filter_opt
                     |> List.filter_map ~f:(fun c ->
                            c#author
-                           |> Option.map ~f:(fun (`Actor a) ->
-                                  ( { id= c#id
-                                    ; author= a#login
-                                    ; created_by_email= c#createdViaEmail }
-                                    : GitHub_subscriptions.comment ))) )
+                           |> Option.map
+                                ~f:(fun
+                                     (`Actor a)
+                                     :
+                                     GitHub_subscriptions.comment
+                                   ->
+                                  { id= c#id
+                                  ; author= a#login
+                                  ; created_by_email= c#createdViaEmail })) )
             ; approved_reviews
             ; comment_reviews=
                 ( match comment_reviews#nodes with
