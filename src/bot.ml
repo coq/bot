@@ -4,8 +4,8 @@ open Bot_components
 open Cohttp
 open Cohttp_lwt_unix
 open Git_utils
+open Helpers
 open Lwt.Infix
-open Utils
 
 let toml_data = Config.toml_of_file (Sys.get_argv ()).(1)
 
@@ -21,7 +21,7 @@ let gitlab_webhook_secret = Config.gitlab_webhook_secret toml_data
 
 let bot_name = Config.bot_name toml_data
 
-let bot_info =
+let bot_info : Bot_components.Bot_info.bot_info =
   { github_token= github_access_token
   ; gitlab_token= gitlab_access_token
   ; name= bot_name
@@ -113,7 +113,7 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) ->
-          let body = trim_comments body in
+          let body = Helpers.trim_comments body in
           if
             string_match
               ~regexp:(f "@%s:? [Mm]inimize[^```]*```\\([^```]+\\)```" bot_name)
@@ -125,7 +125,7 @@ let callback _conn req body =
             |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok (signed, CommentCreated comment_info) ->
-          let body = trim_comments comment_info.body in
+          let body = Helpers.trim_comments comment_info.body in
           if
             string_match
               ~regexp:(f "@%s:? [Mm]inimize[^```]*```\\([^```]+\\)```" bot_name)

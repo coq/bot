@@ -1,4 +1,4 @@
-open Utils
+open Bot_info
 
 let retry_job ~bot_info ~project_id ~build_id =
   let uri =
@@ -10,4 +10,4 @@ let retry_job ~bot_info ~project_id ~build_id =
     |> Uri.of_string
   in
   let gitlab_header = [("Private-Token", bot_info.gitlab_token)] in
-  send_request ~body:Cohttp_lwt.Body.empty ~uri gitlab_header ~bot_info
+  Utils.send_request ~body:Cohttp_lwt.Body.empty ~uri gitlab_header ~bot_info

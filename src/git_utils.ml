@@ -1,7 +1,8 @@
 open Base
 open Bot_components
+open Bot_components.Bot_info
 open Bot_components.GitHub_types
-open Bot_components.Utils
+open Helpers
 open Lwt.Infix
 
 let gitlab_repo ~bot_info ~owner ~name =

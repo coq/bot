@@ -1,3 +1,4 @@
+open Bot_info
 open Lwt.Infix
 open Utils
 

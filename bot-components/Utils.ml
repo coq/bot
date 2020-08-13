@@ -1,15 +1,9 @@
 open Base
+open Bot_info
 open Cohttp
 open Cohttp_lwt_unix
 open GitHub_types
 open Lwt
-
-type bot_info =
-  { gitlab_token: string
-  ; github_token: string
-  ; name: string
-  ; email: string
-  ; domain: string }
 
 let f = Printf.sprintf
 
@@ -18,6 +12,11 @@ let string_match ~regexp string =
     let _ = Str.search_forward (Str.regexp regexp) string 0 in
     true
   with Stdlib.Not_found -> false
+
+let headers ~(bot_info : bot_info) header_list =
+  Header.init ()
+  |> (fun headers -> Header.add_list headers header_list)
+  |> fun headers -> Header.add headers "User-Agent" bot_info.name
 
 let print_response (resp, body) =
   let code = resp |> Response.status |> Code.code_of_status in
@@ -29,11 +28,6 @@ let print_response (resp, body) =
     >>= fun () ->
     body |> Cohttp_lwt.Body.to_string >>= Lwt_io.printf "Body:\n%s\n"
   else Lwt.return ()
-
-let headers ~bot_info header_list =
-  Header.init ()
-  |> (fun headers -> Header.add_list headers header_list)
-  |> fun headers -> Header.add headers "User-Agent" bot_info.name
 
 let send_request ~bot_info ~body ~uri header_list =
   let headers = headers header_list ~bot_info in
@@ -54,7 +48,8 @@ let handle_json action default body =
 
 (* GitHub specific *)
 
-let get_backport_info ~bot_info description : full_backport_info option =
+let get_backport_info ~(bot_info : bot_info) description :
+    full_backport_info option =
   let project_column_regexp =
     "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
   in
@@ -119,21 +114,3 @@ let generic_get ~bot_info relative_uri ?(header_list = []) ~default json_handler
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
   >|= handle_json json_handler default
-
-let remove_between s i j =
-  String.sub ~pos:0 ~len:i s ^ String.sub s ~pos:j ~len:(String.length s - j)
-
-let trim_comments comment =
-  let rec aux comment begin_ in_comment =
-    if not in_comment then
-      try
-        let begin_ = Str.search_forward (Str.regexp "<!--") comment 0 in
-        aux comment begin_ true
-      with Stdlib.Not_found -> comment
-    else
-      try
-        let end_ = Str.search_forward (Str.regexp "-->") comment begin_ in
-        aux (remove_between comment begin_ (end_ + 3)) 0 false
-      with Stdlib.Not_found -> comment
-  in
-  aux comment 0 false

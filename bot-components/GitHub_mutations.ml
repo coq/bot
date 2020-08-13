@@ -1,4 +1,5 @@
 open Base
+open Bot_info
 open GitHub_GraphQL
 open GitHub_types
 open Cohttp_lwt_unix
