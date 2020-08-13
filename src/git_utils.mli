@@ -1,8 +1,5 @@
 val gitlab_repo :
-     bot_info:Bot_components.Bot_info.t
-  -> owner:string
-  -> name:string
-  -> string
+  bot_info:Bot_components.Bot_info.t -> owner:string -> name:string -> string
 
 val report_status : string -> string -> int -> ('a, string) result
 
@@ -39,8 +36,7 @@ val git_coq_bug_minimizer :
   -> comment_author:string
   -> (bool, string) result Lwt.t
 
-val init_git_bare_repository :
-  bot_info:Bot_components.Bot_info.t -> unit Lwt.t
+val init_git_bare_repository : bot_info:Bot_components.Bot_info.t -> unit Lwt.t
 
 val run_coq_minimizer :
      bot_info:Bot_components.Bot_info.t

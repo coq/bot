@@ -1,13 +1,8 @@
 val mv_card_to_column :
-     bot_info:Bot_info.t
-  -> GitHub_types.mv_card_to_column_input
-  -> unit Lwt.t
+  bot_info:Bot_info.t -> GitHub_types.mv_card_to_column_input -> unit Lwt.t
 
 val post_comment :
-     bot_info:Bot_info.t
-  -> id:GitHub_types.id
-  -> message:string
-  -> unit Lwt.t
+  bot_info:Bot_info.t -> id:GitHub_types.id -> message:string -> unit Lwt.t
 
 val merge_pull_request :
      bot_info:Bot_info.t
@@ -20,8 +15,7 @@ val merge_pull_request :
 val reflect_pull_request_milestone :
   bot_info:Bot_info.t -> GitHub_types.issue_closer_info -> unit Lwt.t
 
-val add_rebase_label :
-  bot_info:Bot_info.t -> GitHub_types.issue -> unit Lwt.t
+val add_rebase_label : bot_info:Bot_info.t -> GitHub_types.issue -> unit Lwt.t
 
 val remove_rebase_label :
   bot_info:Bot_info.t -> GitHub_types.issue -> unit Lwt.t
@@ -29,8 +23,7 @@ val remove_rebase_label :
 val update_milestone :
   bot_info:Bot_info.t -> string -> GitHub_types.issue -> unit Lwt.t
 
-val remove_milestone :
-  bot_info:Bot_info.t -> GitHub_types.issue -> unit Lwt.t
+val remove_milestone : bot_info:Bot_info.t -> GitHub_types.issue -> unit Lwt.t
 
 val send_status_check :
      bot_info:Bot_info.t

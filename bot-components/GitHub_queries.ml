@@ -1,5 +1,3 @@
-(* Define GraphQL queries before opening Base *)
-
 open Base
 open Bot_info
 open GitHub_GraphQL

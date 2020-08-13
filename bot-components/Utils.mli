@@ -2,8 +2,7 @@ val f : ('a, unit, string) format -> 'a
 
 val string_match : regexp:string -> string -> bool
 
-val headers :
-  bot_info:Bot_info.t -> (string * string) list -> Cohttp.Header.t
+val headers : bot_info:Bot_info.t -> (string * string) list -> Cohttp.Header.t
 
 val print_response : Cohttp.Response.t * Cohttp_lwt.Body.t -> unit Lwt.t
 

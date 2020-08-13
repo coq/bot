@@ -1,5 +1,9 @@
 type id = string
 
+type milestone = {title: string; description: string option}
+
+type project_column = {id: string; databaseId: int option}
+
 type merge_method = MERGE | REBASE | SQUASH
 
 type backport_info =
@@ -9,9 +13,7 @@ type full_backport_info =
   {backport_info: backport_info list; rejected_milestone: string}
 
 type project_card =
-  { id: id
-  ; column: GitHub_GraphQL.project_column option
-  ; columns: GitHub_GraphQL.project_column list }
+  {id: id; column: project_column option; columns: project_column list}
 
 type mv_card_to_column_input = {card_id: id; column_id: id}
 

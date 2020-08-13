@@ -1,6 +1,4 @@
-type milestone = {title: string; description: string option}
-
-type project_column = {id: string; databaseId: int option}
+open GitHub_types
 
 (* Queries *)
 

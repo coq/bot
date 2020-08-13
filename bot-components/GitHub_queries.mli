@@ -3,7 +3,7 @@ val pull_request_milestone_and_cards :
   -> owner:string
   -> repo:string
   -> number:int
-  -> ( GitHub_types.project_card list * GitHub_GraphQL.milestone option
+  -> ( GitHub_types.project_card list * GitHub_types.milestone option
      , string )
      result
      Lwt.t
