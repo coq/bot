@@ -48,7 +48,8 @@ let callback _conn req body =
           (Request.headers req) body
       with
       | Ok (_, JobEvent job_info) ->
-          job_action ~bot_info ~github_of_gitlab job_info ;
+          (fun () -> job_action ~bot_info ~github_of_gitlab job_info)
+          |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Job event." ()
       | Ok (_, PipelineEvent pipeline_info) ->
           (fun () -> pipeline_action ~bot_info ~github_of_gitlab pipeline_info)

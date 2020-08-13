@@ -2,7 +2,7 @@ val job_action :
      bot_info:Bot_components.Utils.bot_info
   -> Bot_components.GitLab_types.job_info
   -> github_of_gitlab:(string -> string option)
-  -> unit
+  -> unit Lwt.t
 
 val pipeline_action :
      bot_info:Bot_components.Utils.bot_info
