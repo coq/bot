@@ -2,7 +2,6 @@ open Base
 open Bot_info
 open Cohttp
 open Cohttp_lwt_unix
-open GitHub_types
 open Lwt
 
 let f = Printf.sprintf
@@ -47,61 +46,6 @@ let handle_json action default body =
       default
 
 (* GitHub specific *)
-
-let get_backport_info ~(bot_info : bot_info) description :
-    full_backport_info option =
-  let project_column_regexp =
-    "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
-  in
-  let regexp =
-    bot_info.name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
-    ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
-    ^ "; move rejected PRs to: "
-    ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
-  in
-  if string_match ~regexp description then
-    let backport_to = Str.matched_group 1 description in
-    let request_inclusion_column =
-      Str.matched_group 2 description |> Int.of_string
-    in
-    let backported_column = Str.matched_group 3 description |> Int.of_string in
-    let rejected_milestone = Str.matched_group 4 description in
-    Some
-      { backport_info=
-          [{backport_to; request_inclusion_column; backported_column}]
-      ; rejected_milestone }
-  else
-    let begin_regexp = bot_info.name ^ ": \\(.*\\)$" in
-    let backport_info_unit =
-      "backport to \\([^ ]*\\) (request inclusion column: "
-      ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
-      ^ "); \\(.*\\)$"
-    in
-    let end_regexp =
-      "move rejected PRs to: \
-       https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)"
-    in
-    let rec aux string =
-      if string_match ~regexp:backport_info_unit string then
-        let backport_to = Str.matched_group 1 string in
-        let request_inclusion_column =
-          Str.matched_group 2 string |> Int.of_string
-        in
-        let backported_column = Str.matched_group 3 string |> Int.of_string in
-        Str.matched_group 4 string |> aux
-        |> Option.map ~f:(fun {backport_info; rejected_milestone} ->
-               { backport_info=
-                   {backport_to; request_inclusion_column; backported_column}
-                   :: backport_info
-               ; rejected_milestone })
-      else if string_match ~regexp:end_regexp string then
-        let rejected_milestone = Str.matched_group 1 string in
-        Some {backport_info= []; rejected_milestone}
-      else None
-    in
-    if string_match ~regexp:begin_regexp description then
-      Str.matched_group 1 description |> aux
-    else None
 
 let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]

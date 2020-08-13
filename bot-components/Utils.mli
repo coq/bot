@@ -14,9 +14,6 @@ val send_request :
   -> (string * string) list
   -> unit Lwt.t
 
-val get_backport_info :
-  bot_info:Bot_info.bot_info -> string -> GitHub_types.full_backport_info option
-
 val project_api_preview_header : (string * string) list
 
 val generic_get :
