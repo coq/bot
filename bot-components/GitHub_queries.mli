@@ -1,6 +1,3 @@
-val get_backport_info :
-  bot_info:Utils.bot_info -> string -> GitHub_types.full_backport_info option
-
 val pull_request_milestone_and_cards :
      bot_info:Utils.bot_info
   -> owner:string
