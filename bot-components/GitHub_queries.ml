@@ -1,12 +1,13 @@
 (* Define GraphQL queries before opening Base *)
 
 open Base
+open Bot_info
 open GitHub_GraphQL
 open GitHub_types
 open Lwt
 open Utils
 
-let extract_backport_info ~(bot_info : Bot_info.bot_info) description :
+let extract_backport_info ~(bot_info : Bot_info.t) description :
     full_backport_info option =
   let project_column_regexp =
     "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"

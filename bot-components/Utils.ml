@@ -12,7 +12,7 @@ let string_match ~regexp string =
     true
   with Stdlib.Not_found -> false
 
-let headers ~(bot_info : bot_info) header_list =
+let headers ~bot_info header_list =
   Header.init ()
   |> (fun headers -> Header.add_list headers header_list)
   |> fun headers -> Header.add headers "User-Agent" bot_info.name

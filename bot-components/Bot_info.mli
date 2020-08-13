@@ -1,4 +1,4 @@
-type bot_info =
+type t =
   { gitlab_token: string
   ; github_token: string
   ; name: string

@@ -1,5 +1,5 @@
 val send_graphql_query :
-     bot_info:Bot_info.bot_info
+     bot_info:Bot_info.t
   -> < parse: Yojson.Basic.t -> 'a
      ; query: string
      ; variables: Yojson.Basic.t
