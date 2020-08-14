@@ -705,7 +705,7 @@ let push_action ~bot_info ~base_ref ~commits_msg =
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.backported_pr_info ~bot_info pr_number base_ref
+      GitHub_queries.get_backported_pr_info ~bot_info pr_number base_ref
       >>= function
       | Some ({card_id; column_id} as input) ->
           Lwt_io.printf "Moving card %s to column %s.\n" card_id column_id

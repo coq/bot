@@ -60,7 +60,7 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
       Str.matched_group 1 description |> aux
     else None
 
-let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
+let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
@@ -93,8 +93,9 @@ let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   | Error err ->
       Error err
 
-let backported_pr_info ~bot_info number base_ref =
-  pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq" ~number
+let get_backported_pr_info ~bot_info number base_ref =
+  get_pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq"
+    ~number
   >|= function
   | Ok (cards, milestone) ->
       let open Option in

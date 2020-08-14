@@ -1,13 +1,13 @@
 open GitHub_types
 
-val pull_request_milestone_and_cards :
+val get_pull_request_milestone_and_cards :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
   -> (project_card list * milestone option, string) result Lwt.t
 
-val backported_pr_info :
+val get_backported_pr_info :
   bot_info:Bot_info.t -> int -> string -> mv_card_to_column_input option Lwt.t
 
 val get_pull_request_id_and_milestone :
