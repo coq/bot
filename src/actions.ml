@@ -123,6 +123,69 @@ let push_status_check ~bot_info job_info github_repo_full_name repo_full_name =
   | _ ->
       Lwt.return ()
 
+let _repeat_request request =
+  let rec aux t =
+    request
+    >>= fun body ->
+    if String.is_empty body then Lwt_unix.sleep t >>= fun () -> aux (t *. 2.)
+    else Lwt.return body
+  in
+  aux 2.
+
+type build_failure = Warn | Retry | Ignore
+
+let _trace_action ~repo_full_name trace =
+  let trace_size = String.length trace in
+  Stdio.printf "Trace size: %d.\n" trace_size ;
+  let test regexp = string_match ~regexp trace in
+  if test "Job failed: exit code 137" then (
+    Stdio.printf "Exit code 137. Retrying...\n" ;
+    Retry )
+  else if test "Job failed: exit status 255" then (
+    Stdio.printf "Exit status 255. Retrying...\n" ;
+    Retry )
+  else if test "Job failed (system failure)" then (
+    Stdio.printf "System failure. Retrying...\n" ;
+    Retry )
+  else if
+    ( test "Uploading artifacts to coordinator... failed"
+    || test "Uploading artifacts to coordinator... error" )
+    && not (test "Uploading artifacts to coordinator... ok")
+  then (
+    Stdio.printf "Artifact uploading failure. Retrying...\n" ;
+    Retry )
+  else if
+    test "ERROR: Downloading artifacts from coordinator... error"
+    && test "FATAL: invalid argument"
+  then (
+    Stdio.printf "Artifact downloading failure. Retrying...\n" ;
+    Retry )
+  else if
+    test "transfer closed with outstanding read data remaining"
+    || test "HTTP request sent, awaiting response... 50[0-9]"
+    || test "The requested URL returned error: 502"
+    || test "The remote end hung up unexpectedly"
+    || test "error: unable to download 'https://cache.nixos.org/"
+  then (
+    Stdio.printf "Connectivity issue. Retrying...\n" ;
+    Retry )
+  else if test "fatal: reference is not a tree" then (
+    Stdio.printf "Normal failure: pull request was force-pushed.\n" ;
+    Ignore )
+  else if
+    test "fatal: Remote branch pr-[0-9]* not found in upstream origin"
+    || test "fatal: Couldn't find remote ref refs/heads/pr-"
+  then (
+    Stdio.printf "Normal failure: pull request was closed.\n" ;
+    Ignore )
+  else if
+    String.equal repo_full_name "coq/coq"
+    && test "Error response from daemon: manifest for .* not found"
+  then (
+    Stdio.printf "Docker image not found. Do not report anything specific.\n" ;
+    Ignore )
+  else Warn
+
 let job_failure ~bot_info job_info pr_num (gh_owner, gh_repo)
     github_repo_full_name repo_full_name context failure_reason =
   Lwt_io.printf "Failed job %d of project %d.\nFailure reason: %s\n"
@@ -722,66 +785,3 @@ let push_action ~bot_info ~base_ref ~commits_msg =
     else Lwt.return ()
   in
   fun () -> Lwt_list.iter_s commit_action commits_msg
-
-let repeat_request request =
-  let rec aux t =
-    request
-    >>= fun body ->
-    if String.is_empty body then Lwt_unix.sleep t >>= fun () -> aux (t *. 2.)
-    else Lwt.return body
-  in
-  aux 2.
-
-type build_failure = Warn | Retry | Ignore
-
-let trace_action ~repo_full_name trace =
-  let trace_size = String.length trace in
-  Stdio.printf "Trace size: %d.\n" trace_size ;
-  let test regexp = string_match ~regexp trace in
-  if test "Job failed: exit code 137" then (
-    Stdio.printf "Exit code 137. Retrying...\n" ;
-    Retry )
-  else if test "Job failed: exit status 255" then (
-    Stdio.printf "Exit status 255. Retrying...\n" ;
-    Retry )
-  else if test "Job failed (system failure)" then (
-    Stdio.printf "System failure. Retrying...\n" ;
-    Retry )
-  else if
-    ( test "Uploading artifacts to coordinator... failed"
-    || test "Uploading artifacts to coordinator... error" )
-    && not (test "Uploading artifacts to coordinator... ok")
-  then (
-    Stdio.printf "Artifact uploading failure. Retrying...\n" ;
-    Retry )
-  else if
-    test "ERROR: Downloading artifacts from coordinator... error"
-    && test "FATAL: invalid argument"
-  then (
-    Stdio.printf "Artifact downloading failure. Retrying...\n" ;
-    Retry )
-  else if
-    test "transfer closed with outstanding read data remaining"
-    || test "HTTP request sent, awaiting response... 50[0-9]"
-    || test "The requested URL returned error: 502"
-    || test "The remote end hung up unexpectedly"
-    || test "error: unable to download 'https://cache.nixos.org/"
-  then (
-    Stdio.printf "Connectivity issue. Retrying...\n" ;
-    Retry )
-  else if test "fatal: reference is not a tree" then (
-    Stdio.printf "Normal failure: pull request was force-pushed.\n" ;
-    Ignore )
-  else if
-    test "fatal: Remote branch pr-[0-9]* not found in upstream origin"
-    || test "fatal: Couldn't find remote ref refs/heads/pr-"
-  then (
-    Stdio.printf "Normal failure: pull request was closed.\n" ;
-    Ignore )
-  else if
-    String.equal repo_full_name "coq/coq"
-    && test "Error response from daemon: manifest for .* not found"
-  then (
-    Stdio.printf "Docker image not found. Do not report anything specific.\n" ;
-    Ignore )
-  else Warn

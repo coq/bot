@@ -70,9 +70,3 @@ val push_action :
   -> commits_msg:string list
   -> unit
   -> unit Lwt.t
-
-val repeat_request : string Lwt.t -> string Lwt.t
-
-type build_failure = Warn | Retry | Ignore
-
-val trace_action : repo_full_name:string -> string -> build_failure
