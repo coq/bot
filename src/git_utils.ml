@@ -130,8 +130,12 @@ let init_git_bare_repository ~bot_info =
   "git init --bare"
   |&& f "git config user.email \"%s\"" bot_info.email
   |&& f "git config user.name \"%s\"" bot_info.name
-  |> execute_cmd >|= ignore
-  >>= fun () -> Lwt_io.print "Bare repository initialized.\n"
+  |> execute_cmd
+  >|= function
+  | Ok _ ->
+      Stdio.printf "Bare repository initialized.\n"
+  | Error e ->
+      Stdio.printf "%s.\n" e
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author =
   git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author

@@ -74,10 +74,15 @@ let callback _conn req body =
           (Request.headers req) body
       with
       | Ok (_, PushEvent {base_ref; commits_msg}) ->
-          (fun () -> push_action ~base_ref ~commits_msg ~bot_info) |> Lwt.async ;
+          (fun () ->
+            init_git_bare_repository ~bot_info
+            >>= fun () -> push_action ~base_ref ~commits_msg ~bot_info)
+          |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Processing push event." ()
       | Ok (_, PullRequestUpdated (PullRequestClosed, pr_info)) ->
           (fun () ->
+            init_git_bare_repository ~bot_info
+            >>= fun () ->
             pull_request_closed ~bot_info ~gitlab_mapping ~github_mapping
               ~gitlab_of_github pr_info)
           |> Lwt.async ;
@@ -90,6 +95,8 @@ let callback _conn req body =
                  pr_info.issue.issue.number)
             ()
       | Ok (signed, PullRequestUpdated (action, pr_info)) ->
+          init_git_bare_repository ~bot_info
+          >>= fun () ->
           pull_request_updated_action ~action ~pr_info ~bot_info ~gitlab_mapping
             ~github_mapping ~gitlab_of_github ~signed
       | Ok (_, IssueClosed {issue}) ->
@@ -121,6 +128,8 @@ let callback _conn req body =
               body
           then
             (fun () ->
+              init_git_bare_repository ~bot_info
+              >>= fun () ->
               run_coq_minimizer ~script:(Str.matched_group 1 body)
                 ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
                 ~bot_info)
@@ -134,6 +143,8 @@ let callback _conn req body =
               body
           then (
             (fun () ->
+              init_git_bare_repository ~bot_info
+              >>= fun () ->
               run_coq_minimizer ~script:(Str.matched_group 1 body)
                 ~comment_thread_id:comment_info.issue.id
                 ~comment_author:comment_info.author ~bot_info)
@@ -144,6 +155,8 @@ let callback _conn req body =
             string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
             && comment_info.issue.pull_request
           then
+            init_git_bare_repository ~bot_info
+            >>= fun () ->
             run_ci ~comment_info ~bot_info ~gitlab_mapping ~github_mapping
               ~gitlab_of_github ~signed
           else if
@@ -179,8 +192,6 @@ let callback _conn req body =
       Server.respond_not_found ()
 
 let launch =
-  init_git_bare_repository ~bot_info
-  >>= fun () ->
   Stdio.printf "Starting server.\n" ;
   let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
