@@ -1,8 +1,3 @@
-val gitlab_repo :
-  bot_info:Bot_components.Bot_info.t -> owner:string -> name:string -> string
-
-val report_status : string -> string -> int -> ('a, string) result
-
 val gitlab_ref :
      bot_info:Bot_components.Bot_info.t
   -> issue:Bot_components.GitHub_types.issue
@@ -28,13 +23,6 @@ val git_delete :
   remote_ref:Bot_components.GitHub_types.remote_ref_info -> string
 
 val git_make_ancestor : base:string -> string -> (bool, string) result Lwt.t
-
-val git_coq_bug_minimizer :
-     bot_info:Bot_components.Bot_info.t
-  -> script:string
-  -> comment_thread_id:string
-  -> comment_author:string
-  -> (bool, string) result Lwt.t
 
 val init_git_bare_repository : bot_info:Bot_components.Bot_info.t -> unit Lwt.t
 

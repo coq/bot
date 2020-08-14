@@ -20,16 +20,6 @@ val merge_pull_request :
   -> comment_info:Bot_components.GitHub_types.comment_info
   -> unit Lwt.t
 
-val pull_request_updated :
-     bot_info:Bot_components.Bot_info.t
-  -> Bot_components.GitHub_types.issue_info
-     Bot_components.GitHub_types.pull_request_info
-  -> unit
-  -> gitlab_mapping:(string, string) Base.Hashtbl.t
-  -> github_mapping:(string, string) Base.Hashtbl.t
-  -> gitlab_of_github:(string -> string option)
-  -> (unit, string) Lwt_result.t
-
 val run_ci :
      bot_info:Bot_components.Bot_info.t
   -> comment_info:Bot_components.GitHub_types.comment_info
