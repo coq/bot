@@ -1,52 +1,17 @@
-(* Define GraphQL queries before opening Base *)
-
 open Base
+open Bot_info
 open GitHub_GraphQL
+open GitHub_types
 open Lwt
 open Utils
 
-let send_graphql_query ~bot_info query =
-  let uri = Uri.of_string "https://api.github.com/graphql" in
-  let headers =
-    Cohttp.Header.of_list
-      [ ("Authorization", "bearer " ^ bot_info.github_token)
-      ; ("User-Agent", bot_info.bot_name) ]
-  in
-  let body =
-    `Assoc [("query", `String query#query); ("variables", query#variables)]
-  in
-  let serialized_body = Yojson.Basic.to_string body in
-  Cohttp_lwt_unix.Client.post ~headers ~body:(`String serialized_body) uri
-  >>= fun (rsp, body) ->
-  Cohttp_lwt.Body.to_string body
-  >|= fun body ->
-  match Cohttp.Code.(code_of_status rsp.status |> is_success) with
-  | false ->
-      Error body
-  | true -> (
-    try
-      Ok
-        ( Yojson.Basic.from_string body
-        |> Yojson.Basic.Util.member "data"
-        |> query#parse )
-    with
-    | Yojson.Json_error err ->
-        Error (f "Json error: %s" err)
-    | Yojson.Basic.Util.Type_error (err, _) ->
-        Error (f "Json type error: %s" err) )
-
-type backport_info =
-  {backport_to: string; request_inclusion_column: int; backported_column: int}
-
-type full_backport_info =
-  {backport_info: backport_info list; rejected_milestone: string}
-
-let get_backport_info ~bot_info description =
+let extract_backport_info ~(bot_info : Bot_info.t) description :
+    full_backport_info option =
   let project_column_regexp =
     "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
   in
   let regexp =
-    bot_info.bot_name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
+    bot_info.name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
     ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
     ^ "; move rejected PRs to: "
     ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
@@ -63,7 +28,7 @@ let get_backport_info ~bot_info description =
           [{backport_to; request_inclusion_column; backported_column}]
       ; rejected_milestone }
   else
-    let begin_regexp = bot_info.bot_name ^ ": \\(.*\\)$" in
+    let begin_regexp = bot_info.name ^ ": \\(.*\\)$" in
     let backport_info_unit =
       "backport to \\([^ ]*\\) (request inclusion column: "
       ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
@@ -95,12 +60,9 @@ let get_backport_info ~bot_info description =
       Str.matched_group 1 description |> aux
     else None
 
-type project_card =
-  {id: string; column: project_column option; columns: project_column list}
-
-let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
+let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok result -> (
     match result#repository with
@@ -131,17 +93,16 @@ let pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   | Error err ->
       Error err
 
-type mv_card_to_column_input = {card_id: string; column_id: string}
-
-let backported_pr_info ~bot_info number base_ref =
-  pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq" ~number
+let get_backported_pr_info ~bot_info number base_ref =
+  get_pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq"
+    ~number
   >|= function
   | Ok (cards, milestone) ->
-      let open Option in
+      (let open Option in
       milestone
       >>= fun milestone ->
       milestone.description
-      >>= get_backport_info ~bot_info
+      >>= extract_backport_info ~bot_info
       >>= (fun full_backport_info ->
             full_backport_info.backport_info
             |> List.find ~f:(fun {backport_to} ->
@@ -159,14 +120,14 @@ let backported_pr_info ~bot_info number base_ref =
                     column.databaseId
                 then Some {card_id= card.id; column_id= column.id}
                 else None)
-          else None)
+          else None))
+      |> fun res -> Ok res
   | Error err ->
-      Stdio.printf "Error in backported_pr_info: %s\n" err ;
-      None
+      Error (f "Error in backported_pr_info: %s." err)
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   PullRequest_ID_and_Milestone.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.bind ~f:(fun result ->
           match result#repository with
           | None ->
@@ -190,7 +151,7 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                   Ok
                     ( match milestone#description with
                     | Some description -> (
-                      match get_backport_info ~bot_info description with
+                      match extract_backport_info ~bot_info description with
                       | Some bp_info ->
                           Some (pr#id, db_id, bp_info)
                       | _ ->
@@ -221,13 +182,13 @@ let team_membership_of_resp ~org ~team ~user resp =
 
 let get_team_membership ~bot_info ~org ~team ~user =
   TeamMembership.make ~org ~team ~user ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_team_membership failed with %s" err)
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
 
 let pull_request_info_of_resp ~owner ~repo ~number resp :
-    (string GitHub_subscriptions.pull_request_info, string) Result.t =
+    (string pull_request_info, string) Result.t =
   let repo_url = f "https://github.com/%s/%s" owner repo in
   match resp#repository with
   | None ->
@@ -262,13 +223,13 @@ let pull_request_info_of_resp ~owner ~repo ~number resp :
 
 let get_pull_request_refs ~bot_info ~owner ~repo ~number =
   PullRequest_Refs.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
 
 let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
-    (GitHub_subscriptions.pull_request_reviews_info, string) Result.t =
+    (pull_request_reviews_info, string) Result.t =
   match resp#repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -322,11 +283,10 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                     comments |> Array.to_list |> List.filter_opt
                     |> List.filter_map ~f:(fun c ->
                            c#author
-                           |> Option.map ~f:(fun (`Actor a) ->
-                                  ( { id= c#id
-                                    ; author= a#login
-                                    ; created_by_email= c#createdViaEmail }
-                                    : GitHub_subscriptions.comment ))) )
+                           |> Option.map ~f:(fun (`Actor a) : comment ->
+                                  { id= c#id
+                                  ; author= a#login
+                                  ; created_by_email= c#createdViaEmail })) )
             ; approved_reviews
             ; comment_reviews=
                 ( match comment_reviews#nodes with
@@ -353,7 +313,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
 
 let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   PullRequestReviewsInfo.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_reviews_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_reviews_info_of_resp ~owner ~repo ~number)
@@ -373,7 +333,7 @@ let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
 
 let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
   FileContent.make ~owner ~repo ~file:(branch ^ ":" ^ file_name) ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err -> f "Query file_content failed with %s" err)
   >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
 
@@ -390,22 +350,14 @@ let default_branch_of_resp ~owner ~repo resp =
 
 let get_default_branch ~bot_info ~owner ~repo =
   DefaultBranch.make ~owner ~repo ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_default_branch failed with %s" err)
   >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
 
-type closer_info = {pull_request_id: string; milestone_id: string option}
-
 let closer_info_of_pr pr =
   { milestone_id= pr#milestone |> Option.map ~f:(fun milestone -> milestone#id)
   ; pull_request_id= pr#id }
-
-type 'a closed_by =
-  | ClosedByPullRequest of 'a
-  | ClosedByCommit
-  (* Only used when commit is not associated to a PR *)
-  | ClosedByOther
 
 let closer_info_option_of_closer closer =
   match closer with
@@ -429,9 +381,6 @@ let closer_info_option_of_closer closer =
           Error "Closing commit associated to several pull requests."
       | _ ->
           Error "Closer query response is not well-formed." ) )
-
-type issue_closer_info =
-  {issue_id: string; milestone_id: string option; closer: closer_info}
 
 let issue_closer_info_of_resp ~owner ~repo ~number resp =
   match resp#repository with
@@ -458,10 +407,9 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
       | _ ->
           Error (f "No close event for issue %s/%s#%d." owner repo number) ) )
 
-let get_issue_closer_info ~bot_info
-    ({owner; repo; number} : GitHub_subscriptions.issue) =
+let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
   Issue_Milestone.make ~owner ~repo ~number ()
-  |> send_graphql_query ~bot_info
+  |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
@@ -471,7 +419,7 @@ let get_issue_closer_info ~bot_info
 let get_status_check ~repo_full_name ~commit ~context =
   generic_get
     (Printf.sprintf "repos/%s/commits/%s/statuses" repo_full_name commit)
-    ~default:false (fun json ->
+    (fun json ->
       let open Yojson.Basic.Util in
       json |> to_list
       |> List.exists ~f:(fun json ->
@@ -480,7 +428,7 @@ let get_status_check ~repo_full_name ~commit ~context =
 let get_cards_in_column column_id =
   generic_get
     ("projects/columns/" ^ Int.to_string column_id ^ "/cards")
-    ~header_list:project_api_preview_header ~default:[]
+    ~header_list:project_api_preview_header
     (fun json ->
       let open Yojson.Basic.Util in
       json |> to_list

@@ -1,72 +1,8 @@
 open Base
 open Cohttp
+open GitHub_types
 open Utils
 open Yojson.Basic.Util
-
-type issue = {owner: string; repo: string; number: int}
-
-type comment = {id: string; author: string; created_by_email: bool}
-
-type issue_info =
-  { issue: issue
-  ; title: string
-  ; id: string
-  ; user: string
-  ; labels: string list
-  ; milestoned: bool
-  ; pull_request: bool
-  ; body: string option
-  ; assignees: string list }
-
-type remote_ref_info = {repo_url: string; name: string}
-
-type commit_info = {branch: remote_ref_info; sha: string}
-
-type review_decision = CHANGES_REQUESTED | APPROVED | REVIEW_REQUIRED | NONE
-
-type pull_request_action =
-  | PullRequestOpened
-  | PullRequestClosed
-  | PullRequestReopened
-  | PullRequestSynchronized
-
-type 'a pull_request_info =
-  { issue: 'a
-  ; base: commit_info
-  ; head: commit_info
-  ; merged: bool
-  ; last_commit_message: string option }
-
-type pull_request_reviews_info =
-  { baseRef: string
-  ; files: string list
-  ; approved_reviews: string list
-  ; comment_reviews: string list
-  ; review_decision: review_decision
-  ; last_comments: comment list }
-
-type project_card = {issue: issue option; column_id: int}
-
-type comment_info =
-  { body: string
-  ; author: string
-  ; pull_request: issue_info pull_request_info option
-  ; issue: issue_info
-  ; review_comment: bool
-  ; id: string }
-
-type check_run_info = {id: int; node_id: string; url: string}
-
-type msg =
-  | NoOp of string
-  | IssueOpened of issue_info
-  | IssueClosed of issue_info
-  | RemovedFromProject of project_card
-  | PullRequestUpdated of pull_request_action * issue_info pull_request_info
-  | BranchCreated of remote_ref_info
-  | TagCreated of remote_ref_info
-  | CommentCreated of comment_info
-  | CheckRunCreated of check_run_info
 
 let issue_info_of_json ?issue_json json =
   let issue_json =
@@ -163,6 +99,27 @@ let check_run_info_of_json json =
   ; node_id= check_run |> member "node_id" |> to_string
   ; url= check_run |> member "url" |> to_string }
 
+let push_event_info_of_json json =
+  let open Yojson.Basic.Util in
+  let base_ref = json |> member "ref" |> to_string in
+  let commits = json |> member "commits" |> to_list in
+  let commits_msg =
+    List.map commits ~f:(fun c -> c |> member "message" |> to_string)
+  in
+  {base_ref; commits_msg}
+
+type msg =
+  | IssueOpened of issue_info
+  | IssueClosed of issue_info
+  | RemovedFromProject of project_card_issue
+  | PullRequestUpdated of pull_request_action * issue_info pull_request_info
+  | BranchCreated of remote_ref_info
+  | TagCreated of remote_ref_info
+  | CommentCreated of comment_info
+  | CheckRunCreated of check_run_info
+  | PushEvent of push_info
+  | UnsupportedEvent of string
+
 let github_action ~event ~action json =
   match (event, action) with
   | "pull_request", "opened" ->
@@ -192,7 +149,7 @@ let github_action ~event ~action json =
   | "check_run", "created" ->
       Ok (CheckRunCreated (check_run_info_of_json json))
   | _ ->
-      Ok (NoOp "Unhandled GitHub action.")
+      Ok (UnsupportedEvent "Unsupported GitHub action.")
 
 let github_event ~event json =
   match event with
@@ -203,6 +160,8 @@ let github_event ~event json =
   | "pull_request_review"
   | "check_run" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
+  | "push" ->
+      Ok (PushEvent (push_event_info_of_json json))
   | "create" -> (
       let ref_info =
         { repo_url= json |> member "repository" |> member "html_url" |> to_string
@@ -216,7 +175,7 @@ let github_event ~event json =
       | ref_type ->
           Error (f "Unexpected ref_type: %s" ref_type) )
   | _ ->
-      Ok (NoOp "Unhandled GitHub event.")
+      Ok (UnsupportedEvent "Unsupported GitHub event.")
 
 let receive_github ~secret headers body =
   let open Result in
@@ -228,7 +187,7 @@ let receive_github ~secret headers body =
         |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
       in
       if Eqaf.equal signature expected then return true
-      else fail "Webhook signed but with wrong signature."
+      else Error "Webhook signed but with wrong signature."
   | None ->
       return false )
   >>= fun signed ->
