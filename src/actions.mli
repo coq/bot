@@ -54,19 +54,16 @@ val adjust_milestone :
      bot_info:Bot_components.Bot_info.t
   -> issue:Bot_components.GitHub_types.issue
   -> sleep_time:float
-  -> unit
   -> unit Lwt.t
 
 val project_action :
      bot_info:Bot_components.Bot_info.t
   -> issue:Bot_components.GitHub_types.issue
   -> column_id:int
-  -> unit
   -> unit Lwt.t
 
 val push_action :
      bot_info:Bot_components.Bot_info.t
   -> base_ref:string
   -> commits_msg:string list
-  -> unit
   -> unit Lwt.t

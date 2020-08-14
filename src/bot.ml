@@ -74,7 +74,7 @@ let callback _conn req body =
           (Request.headers req) body
       with
       | Ok (_, PushEvent {base_ref; commits_msg}) ->
-          push_action ~base_ref ~commits_msg ~bot_info |> Lwt.async ;
+          (fun () -> push_action ~base_ref ~commits_msg ~bot_info) |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Processing push event." ()
       | Ok (_, PullRequestUpdated (PullRequestClosed, pr_info)) ->
           (fun () ->
@@ -94,14 +94,15 @@ let callback _conn req body =
             ~github_mapping ~gitlab_of_github ~signed
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
-          adjust_milestone ~issue ~sleep_time:5. ~bot_info |> Lwt.async ;
+          (fun () -> adjust_milestone ~issue ~sleep_time:5. ~bot_info)
+          |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Issue %s/%s#%d was closed: checking its milestone."
                  issue.owner issue.repo issue.number)
             ()
       | Ok (_, RemovedFromProject ({issue= Some issue; column_id} as card)) ->
-          project_action ~issue ~column_id ~bot_info |> Lwt.async ;
+          (fun () -> project_action ~issue ~column_id ~bot_info) |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f
@@ -119,9 +120,10 @@ let callback _conn req body =
               ~regexp:(f "@%s:? [Mm]inimize[^```]*```\\([^```]+\\)```" bot_name)
               body
           then
-            run_coq_minimizer ~script:(Str.matched_group 1 body)
-              ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
-              ~bot_info
+            (fun () ->
+              run_coq_minimizer ~script:(Str.matched_group 1 body)
+                ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
+                ~bot_info)
             |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok (signed, CommentCreated comment_info) ->
@@ -131,9 +133,10 @@ let callback _conn req body =
               ~regexp:(f "@%s:? [Mm]inimize[^```]*```\\([^```]+\\)```" bot_name)
               body
           then (
-            run_coq_minimizer ~script:(Str.matched_group 1 body)
-              ~comment_thread_id:comment_info.issue.id
-              ~comment_author:comment_info.author ~bot_info
+            (fun () ->
+              run_coq_minimizer ~script:(Str.matched_group 1 body)
+                ~comment_thread_id:comment_info.issue.id
+                ~comment_author:comment_info.author ~bot_info)
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )

@@ -687,7 +687,7 @@ let pull_request_updated_action ~bot_info
              pr_info.issue.issue.number)
         ()
 
-let rec adjust_milestone ~bot_info ~issue ~sleep_time () =
+let rec adjust_milestone ~bot_info ~issue ~sleep_time =
   (* We implement an exponential backoff strategy to try again
      after 5, 25, and 125 seconds, if the issue was closed by a
      commit not yet associated to a pull request. *)
@@ -705,14 +705,15 @@ let rec adjust_milestone ~bot_info ~issue ~sleep_time () =
            again in %f seconds.\n"
           sleep_time
         >>= (fun () -> Lwt_unix.sleep sleep_time)
-        >>= adjust_milestone ~issue ~sleep_time:(sleep_time *. 5.) ~bot_info
+        >>= fun () ->
+        adjust_milestone ~issue ~sleep_time:(sleep_time *. 5.) ~bot_info
   | Ok ClosedByOther ->
       (* Not worth trying again *)
       Lwt_io.print "Not closed by pull request or commit.\n"
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
-let project_action ~bot_info ~issue ~column_id () =
+let project_action ~bot_info ~issue ~column_id =
   GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
     ~repo:"coq" ~number:issue.number
   >>= function
@@ -784,4 +785,4 @@ let push_action ~bot_info ~base_ref ~commits_msg =
           Lwt_io.printf "%s\n" e
     else Lwt.return ()
   in
-  fun () -> Lwt_list.iter_s commit_action commits_msg
+  Lwt_list.iter_s commit_action commits_msg

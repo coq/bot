@@ -133,7 +133,7 @@ let init_git_bare_repository ~bot_info =
   |> execute_cmd >|= ignore
   >>= fun () -> Lwt_io.print "Bare repository initialized.\n"
 
-let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author () =
+let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author =
   git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   >>= function
   | Ok ok ->
