@@ -15,12 +15,12 @@ val coq_bug_minimizer_results_action :
   -> string
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 
-val merge_pull_request :
+val merge_pull_request_action :
      bot_info:Bot_components.Bot_info.t
   -> comment_info:Bot_components.GitHub_types.comment_info
   -> unit Lwt.t
 
-val run_ci :
+val run_ci_action :
      bot_info:Bot_components.Bot_info.t
   -> comment_info:Bot_components.GitHub_types.comment_info
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
@@ -29,7 +29,7 @@ val run_ci :
   -> signed:bool
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 
-val pull_request_closed :
+val pull_request_closed_action :
      bot_info:Bot_components.Bot_info.t
   -> Bot_components.GitHub_types.issue_info
      Bot_components.GitHub_types.pull_request_info

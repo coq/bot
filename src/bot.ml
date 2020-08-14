@@ -83,7 +83,7 @@ let callback _conn req body =
           (fun () ->
             init_git_bare_repository ~bot_info
             >>= fun () ->
-            pull_request_closed ~bot_info ~gitlab_mapping ~github_mapping
+            pull_request_closed_action ~bot_info ~gitlab_mapping ~github_mapping
               ~gitlab_of_github pr_info)
           |> Lwt.async ;
           Server.respond_string ~status:`OK
@@ -157,8 +157,8 @@ let callback _conn req body =
           then
             init_git_bare_repository ~bot_info
             >>= fun () ->
-            run_ci ~comment_info ~bot_info ~gitlab_mapping ~github_mapping
-              ~gitlab_of_github ~signed
+            run_ci_action ~comment_info ~bot_info ~gitlab_mapping
+              ~github_mapping ~gitlab_of_github ~signed
           else if
             string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
             && comment_info.issue.pull_request
@@ -166,7 +166,8 @@ let callback _conn req body =
             && String.equal comment_info.issue.issue.repo "coq"
             && signed
           then (
-            (fun () -> merge_pull_request ~comment_info ~bot_info) |> Lwt.async ;
+            (fun () -> merge_pull_request_action ~comment_info ~bot_info)
+            |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:(f "Received a request to merge the PR.")
               () )

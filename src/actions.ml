@@ -341,7 +341,7 @@ let coq_bug_minimizer_results_action ~bot_info body =
         Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
   else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
 
-let merge_pull_request ~bot_info ~comment_info =
+let merge_pull_request_action ~bot_info ~comment_info =
   let pr = comment_info.issue in
   if String.equal comment_info.author pr.user then
     GitHub_mutations.post_comment ~bot_info
@@ -510,7 +510,7 @@ let merge_pull_request ~bot_info ~comment_info =
                       cc @coq/coqbot-maintainers" comment_info.author e)
                 ~id:pr.id )
 
-let pull_request_updated ~bot_info pr_info () ~gitlab_mapping ~github_mapping
+let update_pr ~bot_info pr_info ~gitlab_mapping ~github_mapping
     ~gitlab_of_github =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
@@ -555,7 +555,7 @@ let pull_request_updated ~bot_info pr_info () ~gitlab_mapping ~github_mapping
       ~bot_info
     |> Lwt_result.ok )
 
-let run_ci ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
+let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
     ~gitlab_of_github ~signed =
   match Map.find owner_team_map comment_info.issue.issue.owner with
   | Some team when signed ->
@@ -568,17 +568,17 @@ let run_ci ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
                 Stdio.printf "Authorized user: pushing to GitLab.\n" ;
                 match comment_info.pull_request with
                 | Some pr_info ->
-                    pull_request_updated pr_info ~bot_info ~gitlab_mapping
-                      ~github_mapping ~gitlab_of_github ()
+                    update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
+                      ~gitlab_of_github
                 | None ->
                     let {owner; repo; number} = comment_info.issue.issue in
                     GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
                       ~number
                     >>= fun pr_info ->
-                    pull_request_updated
+                    update_pr
                       {pr_info with issue= comment_info.issue}
                       ~bot_info ~gitlab_mapping ~github_mapping
-                      ~gitlab_of_github () )
+                      ~gitlab_of_github )
               else
                 Lwt_io.print "Unauthorized user: doing nothing.\n"
                 |> Lwt_result.ok)
@@ -606,7 +606,7 @@ let run_ci ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
              comment_info.issue.issue.owner)
         ()
 
-let pull_request_closed ~bot_info
+let pull_request_closed_action ~bot_info
     (pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
     ~gitlab_mapping ~github_mapping ~gitlab_of_github =
   let open Lwt.Infix in
@@ -653,8 +653,8 @@ let pull_request_updated_action ~bot_info
         >>= (fun is_member ->
               if is_member then (
                 Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                pull_request_updated pr_info ~bot_info ~gitlab_mapping
-                  ~github_mapping ~gitlab_of_github () )
+                update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
+                  ~gitlab_of_github )
               else
                 Lwt_io.print "Unauthorized user: doing nothing.\n"
                 |> Lwt_result.ok)
@@ -674,8 +674,8 @@ let pull_request_updated_action ~bot_info
         ~body:"Webhook requires secret." ()
   | None ->
       (fun () ->
-        pull_request_updated pr_info ~bot_info ~gitlab_mapping ~github_mapping
-          ~gitlab_of_github ()
+        update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
+          ~gitlab_of_github
         >>= fun _ -> Lwt.return ())
       |> Lwt.async ;
       Server.respond_string ~status:`OK
