@@ -19,6 +19,5 @@ val generic_get :
      bot_info:Bot_info.t
   -> string
   -> ?header_list:(string * string) list
-  -> default:'a
   -> (Yojson.Basic.t -> 'a)
-  -> 'a Lwt.t
+  -> ('a, string) result Lwt.t

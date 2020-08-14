@@ -8,7 +8,10 @@ val get_pull_request_milestone_and_cards :
   -> (project_card list * milestone option, string) result Lwt.t
 
 val get_backported_pr_info :
-  bot_info:Bot_info.t -> int -> string -> mv_card_to_column_input option Lwt.t
+     bot_info:Bot_info.t
+  -> int
+  -> string
+  -> (mv_card_to_column_input option, string) result Lwt.t
 
 val get_pull_request_id_and_milestone :
      bot_info:Bot_info.t
@@ -62,7 +65,7 @@ val get_status_check :
   -> commit:string
   -> context:string
   -> bot_info:Bot_info.t
-  -> bool Lwt.t
+  -> (bool, string) result Lwt.t
 
 val get_cards_in_column :
-  int -> bot_info:Bot_info.t -> (string * int) list Lwt.t
+  int -> bot_info:Bot_info.t -> ((string * int) list, string) result Lwt.t

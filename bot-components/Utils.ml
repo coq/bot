@@ -32,29 +32,26 @@ let send_request ~bot_info ~body ~uri header_list =
   let headers = headers header_list ~bot_info in
   Client.post ~body ~headers uri >>= print_response
 
-let handle_json action default body =
+let handle_json action body =
   try
     let json = Yojson.Basic.from_string body in
     (* print_endline "JSON decoded."; *)
-    action json
+    Ok (action json)
   with
   | Yojson.Json_error err ->
-      Stdio.printf "Json error: %s\n" err ;
-      default
+      Error (f "Json error: %s\n" err)
   | Yojson.Basic.Util.Type_error (err, _) ->
-      Stdio.printf "Json type error: %s\n" err ;
-      default
+      Error (f "Json type error: %s\n" err)
 
 (* GitHub specific *)
 
 let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
-let generic_get ~bot_info relative_uri ?(header_list = []) ~default json_handler
-    =
+let generic_get ~bot_info relative_uri ?(header_list = []) json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   let headers = headers (header_list @ github_header) ~bot_info in
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
-  >|= handle_json json_handler default
+  >|= handle_json json_handler

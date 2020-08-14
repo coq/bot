@@ -164,19 +164,24 @@ let job_success ~bot_info (job_info : job_info) github_repo_full_name
     repo_full_name context =
   GitHub_queries.get_status_check ~repo_full_name:github_repo_full_name
     ~commit:job_info.commit ~context ~bot_info
-  >>= fun b ->
-  if b then
-    Lwt_io.printf
-      "There existed a previous status check for this build, we'll override it.\n"
-    <&> GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
-          ~commit:job_info.commit ~state:"success"
-          ~url:
-            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-               job_info.build_id)
-          ~context
-          ~description:"Test succeeded on GitLab CI after being retried"
-          ~bot_info
-  else Lwt.return ()
+  >>= function
+  | Ok true ->
+      Lwt_io.printf
+        "There existed a previous status check for this build, we'll override \
+         it.\n"
+      <&> GitHub_mutations.send_status_check
+            ~repo_full_name:github_repo_full_name ~commit:job_info.commit
+            ~state:"success"
+            ~url:
+              (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+                 job_info.build_id)
+            ~context
+            ~description:"Test succeeded on GitLab CI after being retried"
+            ~bot_info
+  | Ok _ ->
+      Lwt.return ()
+  | Error e ->
+      Lwt_io.printf "%s\n" e
 
 let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
   let pr_num, branch_or_pr = pr_from_branch job_info.branch in
@@ -707,11 +712,13 @@ let push_action ~bot_info ~base_ref ~commits_msg =
       >>= fun () ->
       GitHub_queries.get_backported_pr_info ~bot_info pr_number base_ref
       >>= function
-      | Some ({card_id; column_id} as input) ->
+      | Ok (Some ({card_id; column_id} as input)) ->
           Lwt_io.printf "Moving card %s to column %s.\n" card_id column_id
           >>= fun () -> GitHub_mutations.mv_card_to_column ~bot_info input
-      | None ->
+      | Ok None ->
           Lwt_io.printf "Could not find backporting info for backported PR.\n"
+      | Error e ->
+          Lwt_io.printf "%s\n" e
     else Lwt.return ()
   in
   fun () -> Lwt_list.iter_s commit_action commits_msg
