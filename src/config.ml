@@ -60,17 +60,17 @@ let bot_name toml_data =
     (subkey_value toml_data "bot" "name")
     ~f:String.of_string ~default:"coqbot"
 
-let bot_domain toml_data bot_name =
+let bot_domain toml_data =
   Option.value_map
     (subkey_value toml_data "server" "domain")
     ~f:String.of_string
-    ~default:(f "%s.herokuapp.com" bot_name)
+    ~default:(f "%s.herokuapp.com" (bot_name toml_data))
 
-let bot_email toml_data bot_name =
+let bot_email toml_data =
   Option.value_map
     (subkey_value toml_data "bot" "email")
     ~f:String.of_string
-    ~default:(f "%s@users.noreply.github.com" bot_name)
+    ~default:(f "%s@users.noreply.github.com" (bot_name toml_data))
 
 let parse_mappings mappings =
   let keys = list_table_keys mappings in

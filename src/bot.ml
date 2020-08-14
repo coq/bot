@@ -25,8 +25,8 @@ let bot_info : Bot_components.Bot_info.t =
   { github_token= github_access_token
   ; gitlab_token= gitlab_access_token
   ; name= bot_name
-  ; email= Config.bot_email toml_data bot_name
-  ; domain= Config.bot_domain toml_data bot_name }
+  ; email= Config.bot_email toml_data
+  ; domain= Config.bot_domain toml_data }
 
 let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 
