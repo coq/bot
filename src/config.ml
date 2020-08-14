@@ -49,7 +49,9 @@ let github_webhook_secret toml_data =
 let gitlab_webhook_secret toml_data =
   match subkey_value toml_data "gitlab" "webhook_secret" with
   | None ->
-      Sys.getenv_exn "GITLAB_WEBHOOK_SECRET"
+      Option.value
+        ~default:(github_webhook_secret toml_data)
+        (Sys.getenv "GITLAB_WEBHOOK_SECRET")
   | Some secret ->
       secret
 
