@@ -1,6 +1,8 @@
+open GitLab_types
+
 type msg =
-  | JobEvent of GitLab_types.job_info
-  | PipelineEvent of GitLab_types.pipeline_info
+  | JobEvent of job_info
+  | PipelineEvent of pipeline_info
   | UnsupportedEvent of string
 
 val receive_gitlab :

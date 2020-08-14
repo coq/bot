@@ -1,26 +1,21 @@
+open GitHub_types
+
 val pull_request_milestone_and_cards :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
-  -> ( GitHub_types.project_card list * GitHub_types.milestone option
-     , string )
-     result
-     Lwt.t
+  -> (project_card list * milestone option, string) result Lwt.t
 
 val backported_pr_info :
-     bot_info:Bot_info.t
-  -> int
-  -> string
-  -> GitHub_types.mv_card_to_column_input option Lwt.t
+  bot_info:Bot_info.t -> int -> string -> mv_card_to_column_input option Lwt.t
 
 val get_pull_request_id_and_milestone :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
-  -> ((string * int * GitHub_types.full_backport_info) option, string) result
-     Lwt.t
+  -> ((string * int * full_backport_info) option, string) result Lwt.t
 
 val get_team_membership :
      bot_info:Bot_info.t
@@ -34,14 +29,14 @@ val get_pull_request_refs :
   -> owner:string
   -> repo:string
   -> number:int
-  -> (string GitHub_types.pull_request_info, string) result Lwt.t
+  -> (string pull_request_info, string) result Lwt.t
 
 val get_pull_request_reviews_refs :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
-  -> (GitHub_types.pull_request_reviews_info, string) result Lwt.t
+  -> (pull_request_reviews_info, string) result Lwt.t
 
 val get_file_content :
      bot_info:Bot_info.t
@@ -59,9 +54,8 @@ val get_default_branch :
 
 val get_issue_closer_info :
      bot_info:Bot_info.t
-  -> GitHub_types.issue
-  -> (GitHub_types.issue_closer_info GitHub_types.closed_by, string) result
-     Lwt.t
+  -> issue
+  -> (issue_closer_info closed_by, string) result Lwt.t
 
 val get_status_check :
      repo_full_name:string
