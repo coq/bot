@@ -96,7 +96,7 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
 let get_backported_pr_info ~bot_info number base_ref =
   get_pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq"
     ~number
-  >>= function
+  >|= function
   | Ok (cards, milestone) ->
       (let open Option in
       milestone
@@ -121,9 +121,9 @@ let get_backported_pr_info ~bot_info number base_ref =
                 then Some {card_id= card.id; column_id= column.id}
                 else None)
           else None))
-      |> fun res -> Lwt.return (Ok res)
+      |> fun res -> Ok res
   | Error err ->
-      Lwt.return (Error (f "Error in backported_pr_info: %s." err))
+      Error (f "Error in backported_pr_info: %s." err)
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   PullRequest_ID_and_Milestone.make ~owner ~repo ~number ()
