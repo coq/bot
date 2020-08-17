@@ -30,6 +30,8 @@ in stdenv.mkDerivation rec {
     graphql_ppx
     toml
     eqaf
+    x509
+    cstruct
     odoc
     # Publishing
     heroku
