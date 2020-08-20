@@ -320,7 +320,8 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
              (pr_from_branch pipeline_info.branch |> snd))
         ~description ~bot_info
 
-let coq_bug_minimizer_results_action ~bot_info ~key ~app_id body =
+let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
+    ~app_id body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
@@ -337,7 +338,7 @@ let coq_bug_minimizer_results_action ~bot_info ~key ~app_id body =
                       (f
                          "git push https://%s:%s@github.com/%s.git --delete \
                           '%s'"
-                         bot_info.name bot_info.github_token repo_name
+                         bot_info.name coq_minimizer_repo_token repo_name
                          branch_name)
                   >>= function
                   | Ok () ->
@@ -351,7 +352,7 @@ let coq_bug_minimizer_results_action ~bot_info ~key ~app_id body =
                       (f
                          "git push https://%s:%s@github.com/%s.git --delete \
                           '%s'"
-                         bot_info.name bot_info.github_token repo_name
+                         bot_info.name coq_minimizer_repo_token repo_name
                          branch_name)
                   >>= function
                   | Ok () ->

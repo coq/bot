@@ -139,10 +139,11 @@ let init_git_bare_repository ~bot_info =
   | Error e ->
       Stdio.printf "%s.\n" e
 
-let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo =
-  git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo
+let run_coq_minimizer ~bot_info ~coq_minimizer_repo_token ~script
+    ~comment_thread_id ~comment_author ~owner ~repo =
+  git_coq_bug_minimizer
+    ~bot_info:{bot_info with github_token= coq_minimizer_repo_token}
+    ~script ~comment_thread_id ~comment_author ~owner ~repo
   >>= function
   | Ok ok ->
       if ok then

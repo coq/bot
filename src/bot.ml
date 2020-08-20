@@ -197,6 +197,7 @@ let callback _conn req body =
               action_as_github_app ~bot_info ~key ~app_id
                 ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
                 (run_coq_minimizer ~script:(Str.matched_group 1 body)
+                   ~coq_minimizer_repo_token:bot_info.github_token
                    ~comment_thread_id:issue_info.id
                    ~comment_author:issue_info.user ~owner:issue_info.issue.owner
                    ~repo:issue_info.issue.repo))
@@ -216,6 +217,7 @@ let callback _conn req body =
                 ~owner:comment_info.issue.issue.owner
                 ~repo:comment_info.issue.issue.repo
                 (run_coq_minimizer ~script:(Str.matched_group 1 body)
+                   ~coq_minimizer_repo_token:bot_info.github_token
                    ~comment_thread_id:comment_info.issue.id
                    ~comment_author:comment_info.author
                    ~owner:comment_info.issue.issue.owner
@@ -270,6 +272,7 @@ let callback _conn req body =
       body
       >>= fun body ->
       coq_bug_minimizer_results_action body ~bot_info ~key ~app_id
+        ~coq_minimizer_repo_token:bot_info.github_token
   | _ ->
       Server.respond_not_found ()
 
