@@ -63,7 +63,7 @@ let gitlab_ref ~bot_info ~(issue : issue) ~gitlab_of_github ~github_mapping
     | [owner; repo] ->
         (owner, repo)
     | _ ->
-        (issue.owner, issue.repo)
+        raise (Failure (f "Str.split"))
   in
   ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name ~bot_info}
     : remote_ref_info )

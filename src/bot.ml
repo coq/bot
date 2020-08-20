@@ -51,40 +51,13 @@ let string_of_installation_tokens =
       ^ f "Owner: %s, token: %s,  expire at: %s\n" key (fst data)
           (snd data |> Float.to_string))
 
-let github_repo_of_gitlab_project_path gitlab_project_path =
-  let gitlab_full_name = gitlab_project_path in
-  let repo_full_name =
-    Option.value
-      (github_of_gitlab gitlab_full_name)
-      ~default:
-        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
-            gitlab_full_name ;
-          gitlab_full_name )
-  in
-  match Str.split (Str.regexp "/") repo_full_name with
-  | [owner_; repo_] ->
-      (owner_, repo_)
-  | _ ->
-      (* Shouldn't happen *)
-      ("owner", "repo")
-
-let github_repo_of_gitlab_url gitlab_repo_url =
-  let owner, repo =
-    let repo_url = gitlab_repo_url in
-    if not (string_match ~regexp:".*:\\(.*\\)/\\(.*\\).git" repo_url) then
-      Stdio.printf "Could not match project name on repository url.\n" ;
-    (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
-  in
-  let repo_full_name = owner ^ "/" ^ repo in
-  github_repo_of_gitlab_project_path repo_full_name
-
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
-  Lwt_io.printf "%s" (string_of_installation_tokens installation_tokens) >>=
-  fun () ->
+  Lwt_io.printf "%s" (string_of_installation_tokens installation_tokens)
+  >>= fun () ->
   match Uri.path (Request.uri req) with
   | "/job" | "/pipeline" (* legacy endpoints *) | "/gitlab" -> (
       body
@@ -96,7 +69,7 @@ let callback _conn req body =
       | Ok (_, JobEvent job_info) ->
           (fun () ->
             let gh_owner, gh_repo =
-              github_repo_of_gitlab_url job_info.repo_url
+              github_repo_of_gitlab_url ~github_of_gitlab job_info.repo_url
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
               ~repo:gh_repo ~installation_tokens
@@ -106,7 +79,8 @@ let callback _conn req body =
       | Ok (_, PipelineEvent pipeline_info) ->
           (fun () ->
             let owner, repo =
-              github_repo_of_gitlab_project_path pipeline_info.project_path
+              github_repo_of_gitlab_project_path ~github_of_gitlab
+                pipeline_info.project_path
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
               ~installation_tokens

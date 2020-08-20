@@ -21,3 +21,9 @@ val action_as_github_app :
   -> installation_tokens:(string, string * float) Base.Hashtbl.t
   -> (bot_info:Bot_info.t -> 'a Lwt.t)
   -> 'a Lwt.t
+
+val github_repo_of_gitlab_project_path :
+  github_of_gitlab:(string -> string option) -> string -> string * string
+
+val github_repo_of_gitlab_url :
+  github_of_gitlab:(string -> string option) -> string -> string * string
