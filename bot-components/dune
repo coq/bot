@@ -1,8 +1,8 @@
 (library
  (name Bot_components)
  (public_name bot-components)
- (libraries base cohttp-lwt-unix eqaf hex mirage-crypto stdio str yojson
-   cstruct x509)
+ (libraries base cohttp-lwt-unix cstruct eqaf hex mirage-crypto stdio str
+   x509 yojson)
  (private_modules GraphQL_query GitHub_GraphQL Utils)
  (modules_without_implementation GitHub_types GitLab_types Bot_info)
  (preprocess
