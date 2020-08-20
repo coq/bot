@@ -25,7 +25,7 @@ in stdenv.mkDerivation rec {
     cohttp
     cohttp-lwt-unix
     hex
-    nocrypto
+    mirage-crypto
     yojson
     graphql_ppx
     toml

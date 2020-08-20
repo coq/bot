@@ -183,7 +183,7 @@ let receive_github ~secret headers body =
   ( match Header.get headers "X-Hub-Signature" with
   | Some signature ->
       let expected =
-        Nocrypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
+        Mirage_crypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
           (Cstruct.of_string body)
         |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
       in

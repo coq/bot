@@ -6,9 +6,9 @@ open Utils
 let rs256_sign ~key ~data =
   (* Taken from https://github.com/mmaker/ocaml-letsencrypt *)
   let data = Cstruct.of_string data in
-  let h = Nocrypto.Hash.SHA256.digest data in
+  let h = Mirage_crypto.Hash.SHA256.digest data in
   let pkcs1_digest = X509.Certificate.encode_pkcs1_digest_info (`SHA256, h) in
-  Nocrypto.Rsa.PKCS1.sig_encode ~key pkcs1_digest |> Cstruct.to_string
+  Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key pkcs1_digest |> Cstruct.to_string
 
 let base64 = Base64.encode ~pad:false ~alphabet:Base64.uri_safe_alphabet
 
