@@ -102,12 +102,16 @@ let check_run_info_of_json json =
 
 let push_event_info_of_json json =
   let open Yojson.Basic.Util in
+  let owner =
+    json |> member "repository" |> member "owner" |> member "login" |> to_string
+  in
+  let repo = json |> member "repository" |> member "name" |> to_string in
   let base_ref = json |> member "ref" |> to_string in
   let commits = json |> member "commits" |> to_list in
   let commits_msg =
     List.map commits ~f:(fun c -> c |> member "message" |> to_string)
   in
-  {base_ref; commits_msg}
+  {owner; repo; base_ref; commits_msg}
 
 type msg =
   | IssueOpened of issue_info

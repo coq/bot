@@ -38,6 +38,42 @@ let github_of_gitlab = Hashtbl.find gitlab_mapping
 
 let gitlab_of_github = Hashtbl.find github_mapping
 
+let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
+  GitHub_app.get_installation_token ~bot_info ~key ~app_id ~owner ~repo
+  >>= function
+  | Ok github_token ->
+      let bot_info = {bot_info with github_token} in
+      action ~bot_info
+  | Error _ ->
+      action ~bot_info
+
+let github_repo_of_gitlab_project_path gitlab_project_path =
+  let gitlab_full_name = gitlab_project_path in
+  let repo_full_name =
+    Option.value
+      (github_of_gitlab gitlab_full_name)
+      ~default:
+        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
+            gitlab_full_name ;
+          gitlab_full_name )
+  in
+  match Str.split (Str.regexp "/") repo_full_name with
+  | [owner_; repo_] ->
+      (owner_, repo_)
+  | _ ->
+      (* Shouldn't happen *)
+      ("owner", "repo")
+
+let github_repo_of_gitlab_url gitlab_repo_url =
+  let owner, repo =
+    let repo_url = gitlab_repo_url in
+    if not (string_match ~regexp:".*:\\(.*\\)/\\(.*\\).git" repo_url) then
+      Stdio.printf "Could not match project name on repository url.\n" ;
+    (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
+  in
+  let repo_full_name = owner ^ "/" ^ repo in
+  github_repo_of_gitlab_project_path repo_full_name
+
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
@@ -52,11 +88,22 @@ let callback _conn req body =
           (Request.headers req) body
       with
       | Ok (_, JobEvent job_info) ->
-          (fun () -> job_action ~bot_info ~github_of_gitlab job_info)
+          (fun () ->
+            let gh_owner, gh_repo =
+              github_repo_of_gitlab_url job_info.repo_url
+            in
+            action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
+              ~repo:gh_repo
+              (job_action ~github_of_gitlab job_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Job event." ()
       | Ok (_, PipelineEvent pipeline_info) ->
-          (fun () -> pipeline_action ~bot_info ~github_of_gitlab pipeline_info)
+          (fun () ->
+            let owner, repo =
+              github_repo_of_gitlab_project_path pipeline_info.project_path
+            in
+            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              (pipeline_action ~github_of_gitlab pipeline_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Pipeline event." ()
       | Ok (_, UnsupportedEvent e) ->
@@ -77,18 +124,22 @@ let callback _conn req body =
         GitHub_subscriptions.receive_github ~secret:github_webhook_secret
           (Request.headers req) body
       with
-      | Ok (_, PushEvent {base_ref; commits_msg}) ->
+      | Ok (_, PushEvent {owner; repo; base_ref; commits_msg}) ->
           (fun () ->
             init_git_bare_repository ~bot_info
-            >>= fun () -> push_action ~base_ref ~commits_msg ~bot_info)
+            >>= fun () ->
+            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              (push_action ~base_ref ~commits_msg))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Processing push event." ()
       | Ok (_, PullRequestUpdated (PullRequestClosed, pr_info)) ->
           (fun () ->
             init_git_bare_repository ~bot_info
             >>= fun () ->
-            pull_request_closed_action ~bot_info ~gitlab_mapping ~github_mapping
-              ~gitlab_of_github pr_info)
+            action_as_github_app ~bot_info ~key ~app_id
+              ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
+              (pull_request_closed_action ~gitlab_mapping ~github_mapping
+                 ~gitlab_of_github pr_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -101,11 +152,16 @@ let callback _conn req body =
       | Ok (signed, PullRequestUpdated (action, pr_info)) ->
           init_git_bare_repository ~bot_info
           >>= fun () ->
-          pull_request_updated_action ~action ~pr_info ~bot_info ~gitlab_mapping
-            ~github_mapping ~gitlab_of_github ~signed
+          action_as_github_app ~bot_info ~key ~app_id
+            ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
+            (pull_request_updated_action ~action ~pr_info ~gitlab_mapping
+               ~github_mapping ~gitlab_of_github ~signed)
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
-          (fun () -> adjust_milestone ~issue ~sleep_time:5. ~bot_info)
+          (fun () ->
+            action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
+              ~repo:issue.repo
+              (adjust_milestone ~issue ~sleep_time:5.))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -113,7 +169,11 @@ let callback _conn req body =
                  issue.owner issue.repo issue.number)
             ()
       | Ok (_, RemovedFromProject ({issue= Some issue; column_id} as card)) ->
-          (fun () -> project_action ~issue ~column_id ~bot_info) |> Lwt.async ;
+          (fun () ->
+            action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
+              ~repo:issue.repo
+              (project_action ~issue ~column_id))
+          |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f
@@ -134,9 +194,11 @@ let callback _conn req body =
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
-              run_coq_minimizer ~script:(Str.matched_group 1 body)
-                ~comment_thread_id:issue_info.id ~comment_author:issue_info.user
-                ~bot_info)
+              action_as_github_app ~bot_info ~key ~app_id
+                ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
+                (run_coq_minimizer ~script:(Str.matched_group 1 body)
+                   ~comment_thread_id:issue_info.id
+                   ~comment_author:issue_info.user))
             |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok (signed, CommentCreated comment_info) ->
@@ -149,9 +211,12 @@ let callback _conn req body =
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
-              run_coq_minimizer ~script:(Str.matched_group 1 body)
-                ~comment_thread_id:comment_info.issue.id
-                ~comment_author:comment_info.author ~bot_info)
+              action_as_github_app ~bot_info ~key ~app_id
+                ~owner:comment_info.issue.issue.owner
+                ~repo:comment_info.issue.issue.repo
+                (run_coq_minimizer ~script:(Str.matched_group 1 body)
+                   ~comment_thread_id:comment_info.issue.id
+                   ~comment_author:comment_info.author))
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )
@@ -161,8 +226,11 @@ let callback _conn req body =
           then
             init_git_bare_repository ~bot_info
             >>= fun () ->
-            run_ci_action ~comment_info ~bot_info ~gitlab_mapping
-              ~github_mapping ~gitlab_of_github ~signed
+            action_as_github_app ~bot_info ~key ~app_id
+              ~owner:comment_info.issue.issue.owner
+              ~repo:comment_info.issue.issue.repo
+              (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
+                 ~gitlab_of_github ~signed)
           else if
             string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
             && comment_info.issue.pull_request
@@ -170,7 +238,11 @@ let callback _conn req body =
             && String.equal comment_info.issue.issue.repo "coq"
             && signed
           then (
-            (fun () -> merge_pull_request_action ~comment_info ~bot_info)
+            (fun () ->
+              action_as_github_app ~bot_info ~key ~app_id
+                ~owner:comment_info.issue.issue.owner
+                ~repo:comment_info.issue.issue.repo
+                (merge_pull_request_action ~comment_info))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:(f "Received a request to merge the PR.")

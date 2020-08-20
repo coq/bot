@@ -86,7 +86,7 @@ let add_rebase_label ~bot_info (issue : issue) =
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   send_request ~body ~uri github_header ~bot_info
 
-let remove_rebase_label ~bot_info issue =
+let remove_rebase_label ~bot_info (issue : issue) =
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   let headers = headers github_header ~bot_info in
   let uri =
@@ -100,7 +100,7 @@ let remove_rebase_label ~bot_info issue =
   Lwt_io.printf "Sending delete request.\n"
   >>= fun () -> Client.delete ~headers uri >>= print_response
 
-let update_milestone ~bot_info new_milestone issue =
+let update_milestone ~bot_info new_milestone (issue : issue) =
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in
   let headers = headers github_header ~bot_info in
   let uri =

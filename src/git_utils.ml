@@ -11,7 +11,7 @@ let gitlab_repo ~bot_info ~owner ~name =
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
 
-let gitlab_ref ~bot_info ~issue ~gitlab_of_github ~github_mapping
+let gitlab_ref ~bot_info ~(issue : issue) ~gitlab_of_github ~github_mapping
     ~gitlab_mapping =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
