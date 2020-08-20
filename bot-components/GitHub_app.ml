@@ -70,7 +70,11 @@ let get_installation_token ~bot_info ~owner ~repo ~jwt =
     post ~bot_info ~body:None ~token:jwt ~url:access_token_url
     >>= fun resp ->
     let json = Yojson.Basic.from_string resp in
-    Ok Yojson.Basic.Util.(json |> member "token" |> to_string) |> Lwt.return
+    Ok
+      (* Installation tokens expire after one hour, let's make them expire after 40 minutes *)
+      ( Yojson.Basic.Util.(json |> member "token" |> to_string)
+      , Unix.time () +. (40. *. 60.) )
+    |> Lwt.return
   with
   | Yojson.Json_error err ->
       Error (f "Json error: %s" err) |> Lwt.return

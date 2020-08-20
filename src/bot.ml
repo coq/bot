@@ -38,14 +38,12 @@ let github_of_gitlab = Hashtbl.find gitlab_mapping
 
 let gitlab_of_github = Hashtbl.find github_mapping
 
-let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
-  GitHub_app.get_installation_token ~bot_info ~key ~app_id ~owner ~repo
-  >>= function
-  | Ok github_token ->
-      let bot_info = {bot_info with github_token} in
-      action ~bot_info
-  | Error _ ->
-      action ~bot_info
+let installation_tokens : (string, string * float) Base.Hashtbl.t =
+  match Hashtbl.of_alist (module String) [] with
+  | `Duplicate_key _ ->
+      raise (Failure "Duplicate key in config.")
+  | `Ok t ->
+      t
 
 let github_repo_of_gitlab_project_path gitlab_project_path =
   let gitlab_full_name = gitlab_project_path in
@@ -93,7 +91,7 @@ let callback _conn req body =
               github_repo_of_gitlab_url job_info.repo_url
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
-              ~repo:gh_repo
+              ~repo:gh_repo ~installation_tokens
               (job_action ~github_of_gitlab job_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Job event." ()
@@ -103,6 +101,7 @@ let callback _conn req body =
               github_repo_of_gitlab_project_path pipeline_info.project_path
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              ~installation_tokens
               (pipeline_action ~github_of_gitlab pipeline_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Pipeline event." ()
@@ -129,6 +128,7 @@ let callback _conn req body =
             init_git_bare_repository ~bot_info
             >>= fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              ~installation_tokens
               (push_action ~base_ref ~commits_msg))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Processing push event." ()
@@ -138,6 +138,7 @@ let callback _conn req body =
             >>= fun () ->
             action_as_github_app ~bot_info ~key ~app_id
               ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
+              ~installation_tokens
               (pull_request_closed_action ~gitlab_mapping ~github_mapping
                  ~gitlab_of_github pr_info))
           |> Lwt.async ;
@@ -154,13 +155,14 @@ let callback _conn req body =
           >>= fun () ->
           action_as_github_app ~bot_info ~key ~app_id
             ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
+            ~installation_tokens
             (pull_request_updated_action ~action ~pr_info ~gitlab_mapping
                ~github_mapping ~gitlab_of_github ~signed)
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
-              ~repo:issue.repo
+              ~repo:issue.repo ~installation_tokens
               (adjust_milestone ~issue ~sleep_time:5.))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
@@ -171,7 +173,7 @@ let callback _conn req body =
       | Ok (_, RemovedFromProject ({issue= Some issue; column_id} as card)) ->
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
-              ~repo:issue.repo
+              ~repo:issue.repo ~installation_tokens
               (project_action ~issue ~column_id))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
@@ -196,6 +198,7 @@ let callback _conn req body =
               >>= fun () ->
               action_as_github_app ~bot_info ~key ~app_id
                 ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
+                ~installation_tokens
                 (run_coq_minimizer ~script:(Str.matched_group 1 body)
                    ~coq_minimizer_repo_token:bot_info.github_token
                    ~comment_thread_id:issue_info.id
@@ -215,7 +218,7 @@ let callback _conn req body =
               >>= fun () ->
               action_as_github_app ~bot_info ~key ~app_id
                 ~owner:comment_info.issue.issue.owner
-                ~repo:comment_info.issue.issue.repo
+                ~repo:comment_info.issue.issue.repo ~installation_tokens
                 (run_coq_minimizer ~script:(Str.matched_group 1 body)
                    ~coq_minimizer_repo_token:bot_info.github_token
                    ~comment_thread_id:comment_info.issue.id
@@ -233,7 +236,7 @@ let callback _conn req body =
             >>= fun () ->
             action_as_github_app ~bot_info ~key ~app_id
               ~owner:comment_info.issue.issue.owner
-              ~repo:comment_info.issue.issue.repo
+              ~repo:comment_info.issue.issue.repo ~installation_tokens
               (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
                  ~gitlab_of_github ~signed)
           else if
@@ -246,7 +249,7 @@ let callback _conn req body =
             (fun () ->
               action_as_github_app ~bot_info ~key ~app_id
                 ~owner:comment_info.issue.issue.owner
-                ~repo:comment_info.issue.issue.repo
+                ~repo:comment_info.issue.issue.repo ~installation_tokens
                 (merge_pull_request_action ~comment_info))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
@@ -272,7 +275,7 @@ let callback _conn req body =
       body
       >>= fun body ->
       coq_bug_minimizer_results_action body ~bot_info ~key ~app_id
-        ~coq_minimizer_repo_token:bot_info.github_token
+        ~coq_minimizer_repo_token:bot_info.github_token ~installation_tokens
   | _ ->
       Server.respond_not_found ()
 

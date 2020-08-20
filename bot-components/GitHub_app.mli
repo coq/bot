@@ -4,7 +4,7 @@ val get_installation_token :
   -> app_id:int
   -> owner:string
   -> repo:string
-  -> (string, string) result Lwt.t
+  -> (string * float, string) result Lwt.t
 
 val get_installation_token_org :
      bot_info:Bot_info.t

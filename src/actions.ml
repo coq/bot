@@ -320,45 +320,29 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
              (pr_from_branch pipeline_info.branch |> snd))
         ~description ~bot_info
 
-let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
-    ~app_id body =
+let coq_bug_minimizer_results_action ~bot_info ~installation_tokens
+    ~coq_minimizer_repo_token ~key ~app_id body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
     match Str.split (Str.regexp " ") stamp with
     | [id; author; repo_name; branch_name; owner; repo] ->
         (fun () ->
-          GitHub_app.get_installation_token ~bot_info ~key ~app_id ~owner ~repo
-          >>= function
-          | Ok github_token ->
-              let bot_info = {bot_info with github_token} in
-              GitHub_mutations.post_comment ~bot_info ~id
-                ~message:(f "@%s, %s" author message)
-              <&> ( execute_cmd
-                      (f
-                         "git push https://%s:%s@github.com/%s.git --delete \
-                          '%s'"
-                         bot_info.name coq_minimizer_repo_token repo_name
-                         branch_name)
-                  >>= function
-                  | Ok () ->
-                      Lwt.return ()
-                  | Error f ->
-                      Lwt_io.printf "Error: %s" f )
-          | Error _ ->
-              GitHub_mutations.post_comment ~bot_info ~id
-                ~message:(f "@%s, %s" author message)
-              <&> ( execute_cmd
-                      (f
-                         "git push https://%s:%s@github.com/%s.git --delete \
-                          '%s'"
-                         bot_info.name coq_minimizer_repo_token repo_name
-                         branch_name)
-                  >>= function
-                  | Ok () ->
-                      Lwt.return ()
-                  | Error f ->
-                      Lwt_io.printf "Error: %s" f ))
+          let post_results_remove_ci_branch ~bot_info =
+            GitHub_mutations.post_comment ~bot_info ~id
+              ~message:(f "@%s, %s" author message)
+            <&> ( execute_cmd
+                    (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
+                       bot_info.name coq_minimizer_repo_token repo_name
+                       branch_name)
+                >>= function
+                | Ok () ->
+                    Lwt.return ()
+                | Error f ->
+                    Lwt_io.printf "Error: %s" f )
+          in
+          action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+            ~installation_tokens post_results_remove_ci_branch)
         |> Lwt.async ;
         Server.respond_string ~status:`OK ~body:"" ()
     | _ ->
