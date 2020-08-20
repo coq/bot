@@ -28,6 +28,10 @@ let bot_info : Bot_components.Bot_info.t =
   ; email= Config.bot_email toml_data
   ; domain= Config.bot_domain toml_data }
 
+let key = Config.github_private_key
+
+let app_id = Config.github_app_id toml_data
+
 let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 
 let github_of_gitlab = Hashtbl.find gitlab_mapping
