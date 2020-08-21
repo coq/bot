@@ -22,7 +22,12 @@ val git_push :
 val git_delete :
   remote_ref:Bot_components.GitHub_types.remote_ref_info -> string
 
-val git_make_ancestor : base:string -> string -> (bool, string) result Lwt.t
+val git_make_ancestor :
+     pr_title:string
+  -> pr_number:int
+  -> base:string
+  -> string
+  -> (bool, string) result Lwt.t
 
 val init_git_bare_repository : bot_info:Bot_components.Bot_info.t -> unit Lwt.t
 

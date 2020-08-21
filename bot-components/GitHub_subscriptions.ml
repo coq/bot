@@ -18,6 +18,7 @@ let issue_info_of_json ?issue_json json =
       ; repo= repo_json |> member "name" |> to_string
       ; number= issue_json |> member "number" |> to_int }
   ; title= issue_json |> member "title" |> to_string
+  ; number= issue_json |> member "number" |> to_int
   ; id= issue_json |> member "node_id" |> to_string
   ; user= issue_json |> member "user" |> member "login" |> to_string
   ; labels=
