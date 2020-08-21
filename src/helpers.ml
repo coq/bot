@@ -106,7 +106,7 @@ let github_repo_of_gitlab_project_path ~github_of_gitlab gitlab_project_path =
   | [owner_; repo_] ->
       (owner_, repo_)
   | _ ->
-      raise (Failure (f "Str.split"))
+      raise (Failure "Str.split")
 
 let github_repo_of_gitlab_url ~github_of_gitlab gitlab_repo_url =
   let owner, repo =
