@@ -87,29 +87,3 @@ let get_installation_token ~bot_info ~key ~app_id ~owner ~repo =
       get_installation_token ~bot_info ~jwt ~owner ~repo
   | Error e ->
       Lwt.return (Error e)
-
-let get_installation_token_org ~bot_info ~org ~jwt =
-  try
-    get ~bot_info ~token:jwt
-      ~url:(Printf.sprintf "https://api.github.com/orgs/%s/installation" org)
-    >>= fun body ->
-    let json = Yojson.Basic.from_string body in
-    let access_token_url =
-      Yojson.Basic.Util.(json |> member "access_tokens_url" |> to_string)
-    in
-    post ~bot_info ~body:None ~token:jwt ~url:access_token_url
-    >>= fun resp ->
-    let json = Yojson.Basic.from_string resp in
-    Ok Yojson.Basic.Util.(json |> member "token" |> to_string) |> Lwt.return
-  with
-  | Yojson.Json_error err ->
-      Error (Printf.sprintf "Json error: %s" err) |> Lwt.return
-  | Yojson.Basic.Util.Type_error (err, _) ->
-      Error (Printf.sprintf "Json type error: %s" err) |> Lwt.return
-
-let get_installation_token_org ~bot_info ~key ~app_id ~org =
-  match make_jwt ~key ~app_id with
-  | Ok jwt ->
-      get_installation_token_org ~bot_info ~jwt ~org
-  | Error e ->
-      Lwt.return (Error e)
