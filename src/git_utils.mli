@@ -36,4 +36,6 @@ val run_coq_minimizer :
   -> script:string
   -> comment_thread_id:string
   -> comment_author:string
+  -> owner:string
+  -> repo:string
   -> unit Lwt.t

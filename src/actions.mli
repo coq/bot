@@ -12,6 +12,8 @@ val pipeline_action :
 
 val coq_bug_minimizer_results_action :
      bot_info:Bot_components.Bot_info.t
+  -> key:Mirage_crypto_pk.Rsa.priv
+  -> app_id:int
   -> string
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 

@@ -198,7 +198,8 @@ let callback _conn req body =
                 ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
                 (run_coq_minimizer ~script:(Str.matched_group 1 body)
                    ~comment_thread_id:issue_info.id
-                   ~comment_author:issue_info.user))
+                   ~comment_author:issue_info.user ~owner:issue_info.issue.owner
+                   ~repo:issue_info.issue.repo))
             |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Handling minimization." ()
       | Ok (signed, CommentCreated comment_info) ->
@@ -216,7 +217,9 @@ let callback _conn req body =
                 ~repo:comment_info.issue.issue.repo
                 (run_coq_minimizer ~script:(Str.matched_group 1 body)
                    ~comment_thread_id:comment_info.issue.id
-                   ~comment_author:comment_info.author))
+                   ~comment_author:comment_info.author
+                   ~owner:comment_info.issue.issue.owner
+                   ~repo:comment_info.issue.issue.repo))
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )
@@ -264,7 +267,9 @@ let callback _conn req body =
           Server.respond_string ~status:(Code.status_of_code 400)
             ~body:(f "Error: %s" e) () )
   | "/coq-bug-minimizer" ->
-      body >>= fun body -> coq_bug_minimizer_results_action body ~bot_info
+      body
+      >>= fun body ->
+      coq_bug_minimizer_results_action body ~bot_info ~key ~app_id
   | _ ->
       Server.respond_not_found ()
 
