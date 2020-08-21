@@ -50,8 +50,6 @@ let string_of_installation_tokens =
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
-  Lwt_io.printf "%s" (string_of_installation_tokens installation_tokens)
-  >>= fun () ->
   match Uri.path (Request.uri req) with
   | "/job" | "/pipeline" (* legacy endpoints *) | "/gitlab" -> (
       body
