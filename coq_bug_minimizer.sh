@@ -4,7 +4,7 @@
 
 set -ex
 
-if [ $# != 6 ]; then >&6 echo Bad argument count; fi
+if [ $# != 6 ]; then >&2 echo Bad argument count; fi
 
 script=$1
 comment_thread_id=$2
