@@ -82,7 +82,7 @@ let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
      Generates a new installation token if the existing one has expired. *)
   match Hashtbl.find installation_tokens owner with
   | Some (github_token, expiration_date) ->
-      if Float.( < ) expiration_date (Unix.time ()) then
+      if Float.(expiration_date < Unix.time ()) then
         action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
           ~installation_tokens action
       else
