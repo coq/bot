@@ -86,10 +86,7 @@ let github_app_id toml_data =
 let github_private_key =
   (*string_of_file_path "./github.private-key.pem"*)
   match
-    let private_k =
-      Option.value_exn ~message:"GITHUB_PRIVATE_KEY env variable missing!"
-        (Sys.getenv "GITHUB_PRIVATE_KEY")
-    in
+    let private_k = Sys.getenv_exn "GITHUB_PRIVATE_KEY" in
     Stdio.eprintf "Found private key: %s\n" private_k ;
     private_k |> Cstruct.of_string |> X509.Private_key.decode_pem
   with
