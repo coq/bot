@@ -39,11 +39,7 @@ let github_of_gitlab = Hashtbl.find gitlab_mapping
 let gitlab_of_github = Hashtbl.find github_mapping
 
 let installation_tokens : (string, string * float) Base.Hashtbl.t =
-  match Hashtbl.of_alist (module String) [] with
-  | `Duplicate_key _ ->
-      raise (Failure "Duplicate key in config.")
-  | `Ok t ->
-      t
+  Hashtbl.create (module String)
 
 let string_of_installation_tokens =
   Hashtbl.fold ~init:"" ~f:(fun ~key ~data acc ->
