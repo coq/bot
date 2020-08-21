@@ -78,8 +78,8 @@ let github_app_id toml_data =
       let id = Sys.getenv_exn "GITHUB_APP_ID" |> Int.of_string in
       Stdio.printf "Found github app id: %d\n" id ;
       id
-  | Some secret ->
-      secret |> Int.of_string
+  | Some app_id ->
+      app_id |> Int.of_string
 
 (*let string_of_file_path path = Stdio.In_channel.(with_file path ~f:input_all)*)
 
