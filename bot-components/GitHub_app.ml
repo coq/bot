@@ -71,7 +71,7 @@ let get_installation_token ~bot_info ~owner ~repo ~jwt =
     >>= fun resp ->
     let json = Yojson.Basic.from_string resp in
     Ok
-      (* Installation tokens expire after one hour, let's make them expire after 40 minutes *)
+      (* Installation tokens expire after one hour, let's stop using them after 40 minutes *)
       ( Yojson.Basic.Util.(json |> member "token" |> to_string)
       , Unix.time () +. (40. *. 60.) )
     |> Lwt.return
