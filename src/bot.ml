@@ -43,9 +43,7 @@ let installation_tokens : (string, string * float) Base.Hashtbl.t =
 
 let string_of_installation_tokens =
   Hashtbl.fold ~init:"" ~f:(fun ~key ~data acc ->
-      acc
-      ^ f "Owner: %s, token: %s,  expire at: %s\n" key (fst data)
-          (snd data |> Float.to_string))
+      acc ^ f "Owner: %s, token: %s,  expire at: %f\n" key (fst data) (snd data))
 
 (* TODO: deprecate unsigned webhooks *)
 
