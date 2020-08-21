@@ -64,12 +64,10 @@ let action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
         let bot_info : Bot_info.t = {bot_info with github_token} in
         action ~bot_info
     | None ->
-        ( match
-            Hashtbl.add installation_tokens ~key:owner
-              ~data:(github_token, expiration_date)
-          with
-        | _ ->
-            () ) ;
+        let _ =
+          Hashtbl.add installation_tokens ~key:owner
+            ~data:(github_token, expiration_date)
+        in
         let bot_info : Bot_info.t = {bot_info with github_token} in
         action ~bot_info )
   | Error _ ->
