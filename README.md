@@ -240,7 +240,7 @@ In the next release of coqbot, the `BOT_NAME` and `BOT_EMAIL`
 environment variables won't have any effect and should be set from
 a configuration file instead (see [`example-config.toml`](example-config.toml)).
 The port number must not be set in the configuration file if you're
-deploying the docker image to Heroku, since it uses a custom
+deploying the docker image to Heroku, since the latter uses a custom
 environment variable.
 
 A Dockerfile to build a personalized image based on a release image
@@ -251,7 +251,8 @@ FROM docker.pkg.github.com/coq/bot/coqbot:xxx
 
 COPY path/to/bot_config.toml ./
 
-EXPOSE 8000 # The port you specified in bot_config.toml (this command is ignored if you deploy to Heroku)
+EXPOSE 8000 # The port you specified in bot_config.toml
+            # (this command is ignored if you deploy to Heroku)
 
 CMD ["./bot.exe", "bot_config.toml"]
 ```
