@@ -3,7 +3,8 @@
  (public_name bot)
  (package coq-bot)
  (promote (until-clean))
- (libraries base bot-components cohttp-lwt-unix stdio yojson toml))
+ (libraries base bot-components cohttp-lwt-unix mirage-crypto
+   mirage-crypto-rng mirage-crypto-rng.lwt stdio toml yojson))
 
 (env
  (dev

@@ -22,6 +22,10 @@ val bot_domain : TomlTypes.table -> string
 
 val bot_email : TomlTypes.table -> string
 
+val github_app_id : TomlTypes.table -> int
+
+val github_private_key : Mirage_crypto_pk.Rsa.priv
+
 val make_mappings_table :
      TomlTypes.value TomlTypes.Table.t
   -> (string, string) Base.Hashtbl.t * (string, string) Base.Hashtbl.t

@@ -256,21 +256,10 @@ let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
     (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
   in
   let repo_full_name = owner ^ "/" ^ repo in
-  let github_repo_full_name =
-    Option.value
-      (github_of_gitlab repo_full_name)
-      ~default:
-        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
-            repo_full_name ;
-          repo_full_name )
-  in
   let gh_owner, gh_repo =
-    match Str.split (Str.regexp "/") github_repo_full_name with
-    | [owner_; repo_] ->
-        (owner_, repo_)
-    | _ ->
-        (owner, repo)
+    github_repo_of_gitlab_project_path ~github_of_gitlab repo_full_name
   in
+  let github_repo_full_name = gh_owner ^ "/" ^ gh_repo in
   if String.equal job_info.build_status "failed" then
     let failure_reason = Option.value_exn job_info.failure_reason in
     job_failure ~bot_info job_info pr_num (gh_owner, gh_repo)
@@ -320,18 +309,22 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
              (pr_from_branch pipeline_info.branch |> snd))
         ~description ~bot_info
 
-let coq_bug_minimizer_results_action ~bot_info body =
+let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
+    ~app_id body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
     match Str.split (Str.regexp " ") stamp with
-    | [id; author; repo_name; branch_name] ->
+    | [id; author; repo_name; branch_name; owner; repo] ->
         (fun () ->
-          GitHub_mutations.post_comment ~bot_info ~id
-            ~message:(f "@%s, %s" author message)
+          Github_installations.action_as_github_app ~bot_info ~key ~app_id
+            ~owner ~repo
+            (GitHub_mutations.post_comment ~id
+               ~message:(f "@%s, %s" author message))
           <&> ( execute_cmd
                   (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
-                     bot_info.name bot_info.github_token repo_name branch_name)
+                     bot_info.name coq_minimizer_repo_token repo_name
+                     branch_name)
               >>= function
               | Ok () -> Lwt.return () | Error f -> Lwt_io.printf "Error: %s" f
               ))

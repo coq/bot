@@ -33,7 +33,10 @@ val init_git_bare_repository : bot_info:Bot_components.Bot_info.t -> unit Lwt.t
 
 val run_coq_minimizer :
      bot_info:Bot_components.Bot_info.t
+  -> coq_minimizer_repo_token:string
   -> script:string
   -> comment_thread_id:string
   -> comment_author:string
+  -> owner:string
+  -> repo:string
   -> unit Lwt.t

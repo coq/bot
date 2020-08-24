@@ -125,7 +125,14 @@ you are interested in hearing about it.
 
 ## How to use the **@coqbot** instance ##
 
-To use the bot without deploying your own instance, follow these steps:
+### As a GitHub App
+
+Note: Installing as a GitHub App is still in an experimental stage
+and you may frequently receive requests to expand permissions.
+
+The bot can be installed as a GitHub App to either your account or
+organization ([link to app](https://github.com/apps/coqbot-app)).
+Once you finish the installation, follow these steps:
 
 - Create a repository on GitLab.com which will be used to run CI jobs.
 
@@ -144,11 +151,31 @@ To use the bot without deploying your own instance, follow these steps:
     [**@coqbot**](https://gitlab.com/coqbot) as a project member with
     "Developer" role (so that it can push new branches).
 
-  - go to "Settings" / "Webhooks" and create two webhooks: one with
-    URL <https://coqbot.herokuapp.com/pipeline> that will only be
-    triggered by pipeline events, and one with URL
-    <https://coqbot.herokuapp.com/job> that will only be triggered by
-    job events.
+  - go to "Settings" / "Webhooks" and create one webhook that will be
+    triggered by pipeline events and job events. Set its URL to
+    <https://coqbot.herokuapp.com/gitlab>.
+
+  By default, **@coqbot** assumes that both GitHub and GitLab repositories
+  share the same URL except for the "lab" replacing the "hub" part. If
+  that is not the case, assuming you created a GitLab repository whose
+  URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
+  the root of your GitHub repository and in its default branch (most often
+  named `master`), containing:
+  ```
+  [mapping]
+  gitlab = "owner/repo"
+  ```
+  If you use an other instance of **@coqbot**, this repository-specific
+  configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
+  of the bot.
+
+### As a regular user account (legacy)
+
+The bot used to be given access to each of your GitHub repositories as a
+regular GitHub user account (**@coqbot**). This installation method is
+still supported for repositories which haven't migrated to the GitHub App
+yet. Here are the steps to follow in addition to the one described in the 
+`As GitHub App` section:
 
 - In your GitHub repository:
 
@@ -167,19 +194,7 @@ To use the bot without deploying your own instance, follow these steps:
     milestone feature, by issue events as well.  Make sure you change
     the "content/type" value to "application/json".
 
-  By default, **@coqbot** assumes that both GitHub and GitLab repositories
-  share the same URL except for the "lab" replacing the "hub" part. If
-  that is not the case, assuming you created a GitLab repository whose
-  URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
-  the root of your GitHub repository and in its default branch (most often
-  named `master`), containing:
-  ```
-  [mapping]
-  gitlab = "owner/repo"
-  ```
-  If you use an other instance of **@coqbot**, this repository-specific
-  configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
-  of the bot.
+  
 
 ## Architecture ##
 
@@ -240,7 +255,7 @@ In the next release of coqbot, the `BOT_NAME` and `BOT_EMAIL`
 environment variables won't have any effect and should be set from
 a configuration file instead (see [`example-config.toml`](example-config.toml)).
 The port number must not be set in the configuration file if you're
-deploying the docker image to Heroku, since it uses a custom
+deploying the docker image to Heroku, since the latter uses a custom
 environment variable.
 
 A Dockerfile to build a personalized image based on a release image
@@ -251,7 +266,8 @@ FROM docker.pkg.github.com/coq/bot/coqbot:xxx
 
 COPY path/to/bot_config.toml ./
 
-EXPOSE 8000 # The port you specified in bot_config.toml (this command is ignored if you deploy to Heroku)
+EXPOSE 8000 # The port you specified in bot_config.toml
+            # (this command is ignored if you deploy to Heroku)
 
 CMD ["./bot.exe", "bot_config.toml"]
 ```

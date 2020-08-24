@@ -72,6 +72,31 @@ let bot_email toml_data =
     ~f:String.of_string
     ~default:(f "%s@users.noreply.github.com" (bot_name toml_data))
 
+let github_app_id toml_data =
+  match subkey_value toml_data "github" "app_id" with
+  | None ->
+      let id = Sys.getenv_exn "GITHUB_APP_ID" |> Int.of_string in
+      Stdio.printf "Found github app id: %d\n" id ;
+      id
+  | Some app_id ->
+      app_id |> Int.of_string
+
+(*let string_of_file_path path = Stdio.In_channel.(with_file path ~f:input_all)*)
+
+let github_private_key =
+  (*string_of_file_path "./github.private-key.pem"*)
+  match
+    let private_k = Sys.getenv_exn "GITHUB_PRIVATE_KEY" in
+    Stdio.printf "Found private key: %s\n" private_k ;
+    private_k |> Cstruct.of_string |> X509.Private_key.decode_pem
+  with
+  | Ok (`RSA priv) ->
+      Stdio.printf "Private key bit size: %d\n"
+        (Mirage_crypto_pk.Rsa.priv_bits priv) ;
+      priv
+  | Error (`Msg e) ->
+      raise (Failure (f "%s" e))
+
 let parse_mappings mappings =
   let keys = list_table_keys mappings in
   let assoc =

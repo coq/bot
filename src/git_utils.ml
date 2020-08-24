@@ -11,7 +11,7 @@ let gitlab_repo ~bot_info ~owner ~name =
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
 
-let gitlab_ref ~bot_info ~issue ~gitlab_of_github ~github_mapping
+let gitlab_ref ~bot_info ~(issue : issue) ~gitlab_of_github ~github_mapping
     ~gitlab_mapping =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
@@ -63,7 +63,7 @@ let gitlab_ref ~bot_info ~issue ~gitlab_of_github ~github_mapping
     | [owner; repo] ->
         (owner, repo)
     | _ ->
-        (issue.owner, issue.repo)
+        raise (Failure "Str.split")
   in
   ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name ~bot_info}
     : remote_ref_info )
@@ -110,9 +110,11 @@ let git_make_ancestor ~pr_title ~pr_number ~base head =
   | Unix.WSTOPPED signal ->
       Error (f "git_make_ancestor script stopped by signal %d." signal)
 
-let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author =
-  f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s" script comment_thread_id
-    comment_author bot_info.github_token bot_info.name bot_info.domain
+let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
+    ~owner ~repo =
+  f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s %s %s" script comment_thread_id
+    comment_author bot_info.github_token bot_info.name bot_info.domain owner
+    repo
   |> Lwt_unix.system
   >|= fun status ->
   match status with
@@ -137,8 +139,11 @@ let init_git_bare_repository ~bot_info =
   | Error e ->
       Stdio.printf "%s.\n" e
 
-let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author =
-  git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
+let run_coq_minimizer ~bot_info ~coq_minimizer_repo_token ~script
+    ~comment_thread_id ~comment_author ~owner ~repo =
+  git_coq_bug_minimizer
+    ~bot_info:{bot_info with github_token= coq_minimizer_repo_token}
+    ~script ~comment_thread_id ~comment_author ~owner ~repo
   >>= function
   | Ok ok ->
       if ok then

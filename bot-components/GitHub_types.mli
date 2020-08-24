@@ -83,4 +83,5 @@ type comment_info =
 
 type check_run_info = {id: int; node_id: id; url: string}
 
-type push_info = {base_ref: string; commits_msg: string list}
+type push_info =
+  {owner: string; repo: string; base_ref: string; commits_msg: string list}

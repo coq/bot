@@ -5,6 +5,9 @@ email="coqbot@users.noreply.github.com"
 [server]
 domain="coqbot.herokuapp.com"
 
+[github]
+  app_id = 31373
+
 [mappings]
   [mappings.coq]
   github = "coq/coq"
