@@ -8,8 +8,10 @@ let extract_commit json =
   let open Yojson.Basic.Util in
   let commit_json = json |> member "commit" in
   let message = commit_json |> member "message" |> to_string in
-  if string_match ~regexp:"Bot merge .* into \\(.*\\)" message then
-    Str.matched_group 1 message
+  if
+    string_match ~regexp:"Bot merge [a-zA-Z0-9]* into \\([a-zA-Z0-9]*\\)"
+      message
+  then Str.matched_group 1 message
   else
     (* In the case of build webhooks, the id is a number and the sha is the
        reference of the commit, while in the case of pipeline hooks only id

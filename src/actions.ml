@@ -523,7 +523,10 @@ let update_pr ~bot_info pr_info ~gitlab_mapping ~github_mapping
   git_fetch pr_info.base.branch local_base_branch
   |&& git_fetch pr_info.head.branch local_head_branch
   |> execute_cmd
-  >>= (fun () -> git_make_ancestor ~base:local_base_branch local_head_branch)
+  >>= (fun () ->
+        git_make_ancestor ~pr_title:pr_info.issue.title
+          ~pr_number:pr_info.issue.number ~base:local_base_branch
+          local_head_branch)
   >>= fun ok ->
   if ok then (
     (* Remove rebase label *)
@@ -713,7 +716,7 @@ let rec adjust_milestone ~bot_info ~issue ~sleep_time =
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
-let project_action ~bot_info ~issue ~column_id =
+let project_action ~bot_info ~(issue : issue) ~column_id =
   GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
     ~repo:"coq" ~number:issue.number
   >>= function
@@ -753,7 +756,7 @@ let push_action ~bot_info ~base_ref ~commits_msg =
           backport_info
           |> Lwt_list.iter_p
                (fun {backport_to; request_inclusion_column; backported_column}
-               ->
+                    ->
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
                    Lwt_io.printf
                      "PR was merged into the backportig branch directly.\n"

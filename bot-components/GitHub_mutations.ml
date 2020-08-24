@@ -128,9 +128,6 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
     "{\"state\": \"" ^ state ^ "\",\"target_url\":\"" ^ url
     ^ "\", \"description\": \"" ^ description ^ "\", \"context\": \"" ^ context
     ^ "\"}"
-    |> (fun body ->
-         Stdio.printf "Body:\n %s\n" body ;
-         body)
     |> Cohttp_lwt.Body.of_string
   in
   let uri =

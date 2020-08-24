@@ -35,6 +35,7 @@ type comment = {id: id; author: string; created_by_email: bool}
 type issue_info =
   { issue: issue
   ; title: string
+  ; number: int
   ; id: id
   ; user: string
   ; labels: string list
