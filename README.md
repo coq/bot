@@ -125,7 +125,10 @@ you are interested in hearing about it.
 
 ## How to use the **@coqbot** instance ##
 
-To use the bot without deploying your own instance, follow these steps:
+### As a GitHub App
+The bot can be installed as a GitHub App to either your account or
+organization (insert link to the app in the marketplace). Once you
+finish the installation, follow these steps:
 
 - Create a repository on GitLab.com which will be used to run CI jobs.
 
@@ -150,6 +153,28 @@ To use the bot without deploying your own instance, follow these steps:
     <https://coqbot.herokuapp.com/job> that will only be triggered by
     job events.
 
+  By default, **@coqbot** assumes that both GitHub and GitLab repositories
+  share the same URL except for the "lab" replacing the "hub" part. If
+  that is not the case, assuming you created a GitLab repository whose
+  URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
+  the root of your GitHub repository and in its default branch (most often
+  named `master`), containing:
+  ```
+  [mapping]
+  gitlab = "owner/repo"
+  ```
+  If you use an other instance of **@coqbot**, this repository-specific
+  configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
+  of the bot.
+
+### As a regular user account (legacy)
+
+The bot used to be given access to each of your GitHub repositories as a
+regular GitHub user account (**@coqbot**). This installation method is
+still supported for repositories which haven't migrated to the GitHub App
+yet. Here are the steps to follow in addition to the one described in the 
+`As GitHub App` section:
+
 - In your GitHub repository:
 
   - go to "Settings" / "Manage access" to add
@@ -167,19 +192,7 @@ To use the bot without deploying your own instance, follow these steps:
     milestone feature, by issue events as well.  Make sure you change
     the "content/type" value to "application/json".
 
-  By default, **@coqbot** assumes that both GitHub and GitLab repositories
-  share the same URL except for the "lab" replacing the "hub" part. If
-  that is not the case, assuming you created a GitLab repository whose
-  URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
-  the root of your GitHub repository and in its default branch (most often
-  named `master`), containing:
-  ```
-  [mapping]
-  gitlab = "owner/repo"
-  ```
-  If you use an other instance of **@coqbot**, this repository-specific
-  configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
-  of the bot.
+  
 
 ## Architecture ##
 
