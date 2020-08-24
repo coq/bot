@@ -317,21 +317,17 @@ let coq_bug_minimizer_results_action ~bot_info ~installation_tokens
     match Str.split (Str.regexp " ") stamp with
     | [id; author; repo_name; branch_name; owner; repo] ->
         (fun () ->
-          let post_results_remove_ci_branch ~bot_info =
-            GitHub_mutations.post_comment ~bot_info ~id
-              ~message:(f "@%s, %s" author message)
-            <&> ( execute_cmd
-                    (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
-                       bot_info.name coq_minimizer_repo_token repo_name
-                       branch_name)
-                >>= function
-                | Ok () ->
-                    Lwt.return ()
-                | Error f ->
-                    Lwt_io.printf "Error: %s" f )
-          in
           action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-            ~installation_tokens post_results_remove_ci_branch)
+            ~installation_tokens
+            (GitHub_mutations.post_comment ~id
+               ~message:(f "@%s, %s" author message))
+          <&> ( execute_cmd
+                  (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
+                     bot_info.name coq_minimizer_repo_token repo_name
+                     branch_name)
+              >>= function
+              | Ok () -> Lwt.return () | Error f -> Lwt_io.printf "Error: %s" f
+              ))
         |> Lwt.async ;
         Server.respond_string ~status:`OK ~body:"" ()
     | _ ->
