@@ -38,6 +38,7 @@ let trim_comments comment =
 
 let action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
     ~(installation_tokens : (string, string * float) Base.Hashtbl.t) action =
+  (* Installation tokens expire after one hour, we stop using them after 40 minutes *)
   GitHub_app.get_installation_token ~bot_info ~key ~app_id ~owner ~repo
   >>= function
   | Ok (github_token, expiration_date) ->
