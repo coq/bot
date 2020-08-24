@@ -3,6 +3,11 @@ open Cohttp_lwt_unix
 open Lwt
 open Utils
 
+let github_headers token =
+  [ ("Content-Type", "application/json")
+  ; ("accept", "application/vnd.github.machine-man-preview+json")
+  ; ("authorization", "Bearer " ^ token) ]
+
 let rs256_sign ~key ~data =
   (* Taken from https://github.com/mmaker/ocaml-letsencrypt *)
   let data = Cstruct.of_string data in
@@ -34,23 +39,13 @@ let make_jwt ~key ~app_id =
 
 let get ~bot_info ~token ~url =
   Stdio.print_endline ("Making get request to " ^ url) ;
-  let headers =
-    headers ~bot_info
-      [ ("Content-Type", "application/json")
-      ; ("accept", "application/vnd.github.machine-man-preview+json")
-      ; ("authorization", "Bearer " ^ token) ]
-  in
+  let headers = headers ~bot_info (github_headers token) in
   Client.get ~headers (Uri.of_string url)
   >>= fun (_response, body) -> Cohttp_lwt.Body.to_string body
 
 let post ~bot_info ~body ~token ~url =
   Stdio.print_endline ("Making post request to " ^ url) ;
-  let headers =
-    headers ~bot_info
-      [ ("Content-Type", "application/json")
-      ; ("accept", "application/vnd.github.machine-man-preview+json")
-      ; ("authorization", "Bearer " ^ token) ]
-  in
+  let headers = headers ~bot_info (github_headers token) in
   let body =
     (match body with None -> "{}" | Some json -> Yojson.to_string json)
     |> Cohttp_lwt.Body.of_string
