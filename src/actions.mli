@@ -12,7 +12,6 @@ val pipeline_action :
 
 val coq_bug_minimizer_results_action :
      bot_info:Bot_components.Bot_info.t
-  -> installation_tokens:(string, string * float) Base.Hashtbl.t
   -> coq_minimizer_repo_token:string
   -> key:Mirage_crypto_pk.Rsa.priv
   -> app_id:int

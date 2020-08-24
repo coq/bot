@@ -309,16 +309,16 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
              (pr_from_branch pipeline_info.branch |> snd))
         ~description ~bot_info
 
-let coq_bug_minimizer_results_action ~bot_info ~installation_tokens
-    ~coq_minimizer_repo_token ~key ~app_id body =
+let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
+    ~app_id body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
     match Str.split (Str.regexp " ") stamp with
     | [id; author; repo_name; branch_name; owner; repo] ->
         (fun () ->
-          action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-            ~installation_tokens
+          Github_installations.action_as_github_app ~bot_info ~key ~app_id
+            ~owner ~repo
             (GitHub_mutations.post_comment ~id
                ~message:(f "@%s, %s" author message))
           <&> ( execute_cmd
