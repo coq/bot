@@ -87,7 +87,7 @@ let github_private_key =
   (*string_of_file_path "./github.private-key.pem"*)
   match
     let private_k = Sys.getenv_exn "GITHUB_PRIVATE_KEY" in
-    Stdio.eprintf "Found private key: %s\n" private_k ;
+    Stdio.printf "Found private key: %s\n" private_k ;
     private_k |> Cstruct.of_string |> X509.Private_key.decode_pem
   with
   | Ok (`RSA priv) ->
