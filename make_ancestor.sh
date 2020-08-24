@@ -22,7 +22,7 @@ wtree=$(mktemp -d)
 
 ( git worktree add "$wtree" "$head"
   pushd "$wtree"
-  if ! git merge --no-ff "$base" -m "[CI merge] PR #$prnum: \"$pr_title\"" -m "Bot merge $basecommit into $headcommit";
+  if ! git merge --no-ff "$base" -m "[CI merge] PR #$prnum: $pr_title" -m "Bot merge $basecommit into $headcommit";
   then
       popd
       rm -rf "$wtree"
