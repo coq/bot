@@ -22,7 +22,16 @@ wtree=$(mktemp -d)
 
 ( git worktree add "$wtree" "$head"
   pushd "$wtree"
-  if ! git merge --no-ff "$base" -m "[CI merge] PR #$prnum: $pr_title" -m "Bot merge $basecommit into $headcommit";
+
+  # We have to merge $head into $base as otherwise when $head is ahead
+  # of $base merge will do nothing even with --no-ff.
+  # We assume $base is never ahead of $head.
+  # This means the "bot merge $base into $head" message is upside down
+  # but since the bot matches on it we can't easily change it.
+  git reset --hard "$basecommit"
+  if ! git merge --no-ff "$headcommit" \
+       -m "[CI merge] PR #$prnum: $pr_title" \
+       -m "Bot merge $basecommit into $headcommit";
   then
       popd
       rm -rf "$wtree"
