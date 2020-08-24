@@ -18,6 +18,8 @@ let action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
       let bot_info : Bot_info.t = {bot_info with github_token} in
       action ~bot_info
   | Error _ ->
+      (* If we cannot retrieve an installation token for the repository
+         repo owned by owner, we execute the action with the github access token. *)
       action ~bot_info
 
 let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
