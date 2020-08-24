@@ -126,6 +126,10 @@ you are interested in hearing about it.
 ## How to use the **@coqbot** instance ##
 
 ### As a GitHub App
+
+Note: Installing as a GitHub App is still in an experimental stage
+and you may frequently receive requests to expand permissions.
+
 The bot can be installed as a GitHub App to either your account or
 organization (insert link to the app in the marketplace). Once you
 finish the installation, follow these steps:
