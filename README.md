@@ -131,8 +131,8 @@ Note: Installing as a GitHub App is still in an experimental stage
 and you may frequently receive requests to expand permissions.
 
 The bot can be installed as a GitHub App to either your account or
-organization (insert link to the app in the marketplace). Once you
-finish the installation, follow these steps:
+organization ([link to app](https://github.com/apps/coqbot-app)).
+Once you finish the installation, follow these steps:
 
 - Create a repository on GitLab.com which will be used to run CI jobs.
 
@@ -151,9 +151,9 @@ finish the installation, follow these steps:
     [**@coqbot**](https://gitlab.com/coqbot) as a project member with
     "Developer" role (so that it can push new branches).
 
-  - go to "Settings" / "Webhooks" and create one webhook whose URL is
-    <https://coqbot.herokuapp.com/gitlab> that will be triggered by
-    pipeline events and job events.
+  - go to "Settings" / "Webhooks" and create one webhook that will be
+    triggered by pipeline events and job events. Set its URL to
+    <https://coqbot.herokuapp.com/gitlab>.
 
   By default, **@coqbot** assumes that both GitHub and GitLab repositories
   share the same URL except for the "lab" replacing the "hub" part. If
