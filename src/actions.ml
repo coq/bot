@@ -749,7 +749,7 @@ let push_action ~bot_info ~base_ref ~commits_msg =
           backport_info
           |> Lwt_list.iter_p
                (fun {backport_to; request_inclusion_column; backported_column}
-                    ->
+               ->
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
                    Lwt_io.printf
                      "PR was merged into the backportig branch directly.\n"
