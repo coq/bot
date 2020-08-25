@@ -1,5 +1,7 @@
 type id = string
 
+type repository_info = {id: int; node_id: string; owner: string; name: string}
+
 type milestone = {title: string; description: string option}
 
 type project_column = {id: string; databaseId: int option}
@@ -81,7 +83,33 @@ type comment_info =
   ; review_comment: bool
   ; id: id }
 
-type check_run_info = {id: int; node_id: id; url: string}
-
 type push_info =
   {owner: string; repo: string; base_ref: string; commits_msg: string list}
+
+type check_run_status = COMPLETED | IN_PROGRESS | QUEUED
+
+type check_conclusion =
+  | ACTION_REQUIRED
+  | CANCELLED
+  | FAILURE
+  | NEUTRAL
+  | SKIPPED
+  | STALE
+  | SUCCESS
+  | TIMED_OUT
+
+type check_suite_info =
+  { id: int
+  ; node_id: string
+  ; head_sha: string
+  ; url: string
+  ; status: check_run_status }
+
+type check_run_info =
+  { id: int
+  ; node_id: string
+  ; head_sha: string
+  ; status: check_run_status
+  ; url: string
+  ; check_suite_info: check_suite_info
+  ; repository_info: repository_info }

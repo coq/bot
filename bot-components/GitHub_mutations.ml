@@ -71,6 +71,56 @@ let reflect_pull_request_milestone ~bot_info issue_closer_info =
                 "The milestone of this issue was changed to reflect the one of \
                  the pull request that closed it." )
 
+let create_check_run ~bot_info ~name ~repo_id ~head_sha ~status ~title ~text =
+  let status =
+    match status with
+    | COMPLETED ->
+        "COMPLETED"
+    | IN_PROGRESS ->
+        "IN_PROGRESS"
+    | QUEUED ->
+        "QUEUED"
+  in
+  NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ~text
+    ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+       ~extra_headers:Utils.checks_api_preview_header
+  >|= function
+  | Ok _ ->
+      ()
+  | Error err ->
+      Stdio.print_endline (f "Error while creating check run: %s" err)
+
+let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ~title ~text =
+  let conclusion =
+    match conclusion with
+    | ACTION_REQUIRED ->
+        "ACTION_REQUIRED"
+    | CANCELLED ->
+        "ACTION_REQUIRED"
+    | FAILURE ->
+        "FAILURE"
+    | NEUTRAL ->
+        "NEUTRAL"
+    | SKIPPED ->
+        "SKIPPED"
+    | STALE ->
+        "STALE"
+    | SUCCESS ->
+        "SUCCESS"
+    | TIMED_OUT ->
+        "TIMED_OUT"
+  in
+  UpdateCheckRun.make ~checkRunId:check_run_id ~repoId:repo_id ~conclusion
+    ~title ~text ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+       ~extra_headers:Utils.checks_api_preview_header
+  >|= function
+  | Ok _ ->
+      ()
+  | Error err ->
+      Stdio.print_endline (f "Error while creating check run: %s" err)
+
 (* TODO: use GraphQL API *)
 
 let add_rebase_label ~bot_info (issue : issue) =

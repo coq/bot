@@ -191,6 +191,16 @@ module FileContent =
   }
 |}]
 
+module RepoId =
+[%graphql
+{|
+  query repoId($owner: String!, $repo: String!) {
+    repository(owner: $owner, name: $repo) {
+      id
+    }
+  }
+|}]
+
 (* Mutations *)
 
 module MoveCardToColumn =
@@ -234,6 +244,45 @@ module MergePullRequest =
         state
         url
       }
+    }
+  }
+|}]
+
+module NewCheckRun =
+[%graphql
+{|
+  mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!, $status: String!, $title: String!, $text: String!) {
+    createCheckRun(
+      input: {
+        status:$status,
+        name:$name,
+        repositoryId:$repoId,
+        headSha:$headSha,
+        output:{
+          title:$title,
+          text:$text
+        }
+      }) {
+      clientMutationId
+    }
+  }
+|}]
+
+module UpdateCheckRun =
+[%graphql
+{|
+  mutation updateCheckRun($checkRunId: ID!, $repoId: ID!, $conclusion: String!, $title: String!, $text: String!) {
+    updateCheckRun(
+      input: {
+        checkRunId:$checkRunId,
+        repositoryId:$repoId,
+        conclusion:$conclusion,
+        output:{
+          title:$title,
+          text:$text,
+        }
+      }) {
+      clientMutationId
     }
   }
 |}]

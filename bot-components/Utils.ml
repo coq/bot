@@ -48,6 +48,9 @@ let handle_json action body =
 let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
+let checks_api_preview_header =
+  [("Accept", "application/vnd.github.antiope-preview+json")]
+
 let generic_get ~bot_info relative_uri ?(header_list = []) json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
   let github_header = [("Authorization", "bearer " ^ bot_info.github_token)] in

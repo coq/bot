@@ -414,6 +414,20 @@ let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
           f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
 
+let repo_id_of_resp ~owner ~repo resp =
+  match resp#repository with
+  | None ->
+      Error (f "Unknown repository %s/%s." owner repo)
+  | Some repository ->
+      Ok repository#id
+
+let get_repository_id ~bot_info ~owner ~repo =
+  RepoId.make ~owner ~repo ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+  >|= Result.map_error ~f:(fun err ->
+          f "Query get_repository_id failed with %s" err)
+  >|= Result.bind ~f:(repo_id_of_resp ~owner ~repo)
+
 (* TODO: use GraphQL API *)
 
 let get_status_check ~repo_full_name ~commit ~context =

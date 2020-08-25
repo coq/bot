@@ -9,6 +9,9 @@ type msg =
   | TagCreated of remote_ref_info
   | CommentCreated of comment_info
   | CheckRunCreated of check_run_info
+  | CheckRunUpdated of check_run_info
+  | CheckSuiteCreated of check_suite_info
+  | CheckSuiteRequested of check_suite_info
   | PushEvent of push_info
   | UnsupportedEvent of string
 
