@@ -11,8 +11,7 @@ let gitlab_repo ~bot_info ~owner ~name =
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
 
-let gitlab_ref ~bot_info ~(issue : issue) ~gitlab_of_github ~github_mapping
-    ~gitlab_mapping =
+let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
   (* First, we check our hashtable for a key named after the GitHub
@@ -20,7 +19,7 @@ let gitlab_ref ~bot_info ~(issue : issue) ~gitlab_of_github ~github_mapping
      key is not found, we load the config file from the default branch.
      Last (backward-compatibility) we assume the GitLab and GitHub
      projects are named the same. *)
-  ( match gitlab_of_github gh_repo with
+  ( match Hashtbl.find github_mapping gh_repo with
   | None -> (
       Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
         issue.owner issue.repo ;

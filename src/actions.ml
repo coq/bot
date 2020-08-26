@@ -323,7 +323,7 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
   | Error e ->
       Lwt_io.printf "%s\n" e
 
-let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
+let job_action ~bot_info (job_info : job_info) ~gitlab_mapping =
   let pr_num, branch_or_pr = pr_from_branch job_info.branch in
   let context = f "GitLab CI job %s (%s)" job_info.build_name branch_or_pr in
   let owner, repo =
@@ -334,7 +334,7 @@ let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
   in
   let repo_full_name = owner ^ "/" ^ repo in
   let gh_owner, gh_repo =
-    github_repo_of_gitlab_project_path ~github_of_gitlab repo_full_name
+    github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name
   in
   let github_repo_full_name = gh_owner ^ "/" ^ gh_repo in
   if String.equal job_info.build_status "failed" then
@@ -348,10 +348,10 @@ let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
           github_repo_full_name repo_full_name
   else Lwt.return ()
 
-let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
+let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
-    match github_of_gitlab gitlab_full_name with
+    match Hashtbl.find gitlab_mapping gitlab_full_name with
     | Some value ->
         value
     | None ->
@@ -393,7 +393,7 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
             ~description ~bot_info
       | INSTALL_TOKEN _t -> (
           let owner, repo =
-            github_repo_of_gitlab_project_path ~github_of_gitlab repo_full_name
+            github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name
           in
           GitHub_queries.get_repository_id ~bot_info ~owner ~repo
           >>= function
@@ -633,7 +633,7 @@ let merge_pull_request_action ~bot_info ~comment_info =
                 ~id:pr.id )
 
 let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
-    ~github_mapping ~gitlab_of_github =
+    ~github_mapping =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
@@ -660,7 +660,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
     (* Force push *)
     let open Lwt.Infix in
     gitlab_ref ~issue:pr_info.issue.issue ~gitlab_mapping ~github_mapping
-      ~gitlab_of_github ~bot_info
+      ~bot_info
     >|= (fun remote_ref ->
           git_push ~force:true ~remote_ref ~local_ref:local_head_branch)
     >>= execute_cmd )
@@ -699,7 +699,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
             Lwt.return (Error e) ) )
 
 let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
-    ~gitlab_of_github ~signed =
+    ~signed =
   match Map.find owner_team_map comment_info.issue.issue.owner with
   | Some team when signed ->
       (fun () ->
@@ -712,7 +712,6 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
                 match comment_info.pull_request with
                 | Some pr_info ->
                     update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-                      ~gitlab_of_github
                 | None ->
                     let {owner; repo; number} = comment_info.issue.issue in
                     GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
@@ -720,8 +719,7 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
                     >>= fun pr_info ->
                     update_pr
                       {pr_info with issue= comment_info.issue}
-                      ~bot_info ~gitlab_mapping ~github_mapping
-                      ~gitlab_of_github )
+                      ~bot_info ~gitlab_mapping ~github_mapping )
               else
                 Lwt_io.print "Unauthorized user: doing nothing.\n"
                 |> Lwt_result.ok)
@@ -751,10 +749,10 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
 
 let pull_request_closed_action ~bot_info
     (pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
-    ~gitlab_mapping ~github_mapping ~gitlab_of_github =
+    ~gitlab_mapping ~github_mapping =
   let open Lwt.Infix in
   gitlab_ref ~issue:pr_info.issue.issue ~gitlab_mapping ~github_mapping
-    ~gitlab_of_github ~bot_info
+    ~bot_info
   >|= (fun remote_ref -> git_delete ~remote_ref)
   >>= execute_cmd >|= ignore
   <&>
@@ -770,7 +768,7 @@ let pull_request_closed_action ~bot_info
 let pull_request_updated_action ~bot_info
     ~(action : GitHub_types.pull_request_action)
     ~(pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
-    ~gitlab_mapping ~github_mapping ~gitlab_of_github ~signed =
+    ~gitlab_mapping ~github_mapping ~signed =
   ( match (action, pr_info.base.branch.repo_url) with
   | PullRequestOpened, "https://github.com/coq/coq"
     when String.equal pr_info.base.branch.name pr_info.head.branch.name ->
@@ -796,8 +794,7 @@ let pull_request_updated_action ~bot_info
         >>= (fun is_member ->
               if is_member then (
                 Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-                  ~gitlab_of_github )
+                update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping )
               else
                 Lwt_io.print "Unauthorized user: doing nothing.\n"
                 |> Lwt_result.ok)
@@ -818,7 +815,6 @@ let pull_request_updated_action ~bot_info
   | None ->
       (fun () ->
         update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-          ~gitlab_of_github
         >>= fun _ -> Lwt.return ())
       |> Lwt.async ;
       Server.respond_string ~status:`OK

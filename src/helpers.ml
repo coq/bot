@@ -34,9 +34,9 @@ let trim_comments comment =
   in
   aux comment 0 false
 
-let github_repo_of_gitlab_project_path ~github_of_gitlab gitlab_full_name =
+let github_repo_of_gitlab_project_path ~gitlab_mapping gitlab_full_name =
   let github_full_name =
-    match github_of_gitlab gitlab_full_name with
+    match Hashtbl.find gitlab_mapping gitlab_full_name with
     | Some value ->
         value
     | None ->
@@ -51,11 +51,11 @@ let github_repo_of_gitlab_project_path ~github_of_gitlab gitlab_full_name =
   | _ ->
       raise (Failure "Str.split")
 
-let github_repo_of_gitlab_url ~github_of_gitlab gitlab_repo_url =
+let github_repo_of_gitlab_url ~gitlab_mapping gitlab_repo_url =
   let owner, repo =
     if not (string_match ~regexp:".*:\\(.*\\)/\\(.*\\).git" gitlab_repo_url)
     then Stdio.printf "Could not match project name on repository url.\n" ;
     (Str.matched_group 1 gitlab_repo_url, Str.matched_group 2 gitlab_repo_url)
   in
   let repo_full_name = owner ^ "/" ^ repo in
-  github_repo_of_gitlab_project_path ~github_of_gitlab repo_full_name
+  github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name

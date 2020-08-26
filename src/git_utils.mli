@@ -1,7 +1,6 @@
 val gitlab_ref :
      bot_info:Bot_components.Bot_info.t
   -> issue:Bot_components.GitHub_types.issue
-  -> gitlab_of_github:(string -> string option)
   -> github_mapping:(string, string) Base.Hashtbl.t
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> Bot_components.GitHub_types.remote_ref_info Lwt.t
