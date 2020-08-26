@@ -10,10 +10,10 @@ set -ex
 
 if [ $# != 4 ]; then >&2 echo Bad argument count; fi
 
-base=$1
-head=$2
-pr_title=$3
-prnum=$4
+base="$1"
+head="$2"
+pr_title="$3"
+prnum="$4"
 
 basecommit=$(git rev-parse "$base")
 headcommit=$(git rev-parse "$head")
