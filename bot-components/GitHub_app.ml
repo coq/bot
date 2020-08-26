@@ -41,7 +41,8 @@ let get ~bot_info ~token ~url =
   Stdio.print_endline ("Making get request to " ^ url) ;
   let headers = headers ~bot_info (github_headers token) in
   Client.get ~headers (Uri.of_string url)
-  >>= fun (_response, body) -> Cohttp_lwt.Body.to_string body
+  >>= fun (_response, body) ->
+  Lwt.map (fun s -> Ok s) (Cohttp_lwt.Body.to_string body)
 
 let post ~bot_info ~body ~token ~url =
   Stdio.print_endline ("Making post request to " ^ url) ;
@@ -51,30 +52,45 @@ let post ~bot_info ~body ~token ~url =
     |> Cohttp_lwt.Body.of_string
   in
   Cohttp_lwt_unix.Client.post ~body ~headers (Uri.of_string url)
-  >>= fun (_response, body) -> Cohttp_lwt.Body.to_string body
+  >>= fun (_response, body) ->
+  Lwt.map (fun s -> Ok s) (Cohttp_lwt.Body.to_string body)
 
-let get_installation_token ~bot_info ~owner ~repo ~jwt =
-  try
-    get ~bot_info ~token:jwt
-      ~url:(f "https://api.github.com/repos/%s/%s/installation" owner repo)
-    >>= fun body ->
-    let json = Yojson.Basic.from_string body in
-    let access_token_url =
-      Yojson.Basic.Util.(json |> member "access_tokens_url" |> to_string)
-    in
-    post ~bot_info ~body:None ~token:jwt ~url:access_token_url
-    >>= fun resp ->
-    let json = Yojson.Basic.from_string resp in
-    Ok
-      (* Installation tokens expire after one hour, let's stop using them after 40 minutes *)
-      ( Yojson.Basic.Util.(json |> member "token" |> to_string)
-      , Unix.time () +. (40. *. 60.) )
-    |> Lwt.return
-  with
-  | Yojson.Json_error err ->
-      Error (f "Json error: %s" err) |> Lwt.return
-  | Yojson.Basic.Util.Type_error (err, _) ->
-      Error (f "Json type error: %s" err) |> Lwt.return
+let get_installation_token ~bot_info ~owner ~repo ~jwt :
+    (string * float, string) Result.t Lwt.t =
+  get ~bot_info ~token:jwt
+    ~url:(f "https://api.github.com/repos/%s/%s/installation" owner repo)
+  >>= (function
+        | Ok body -> (
+          try
+            let json = Yojson.Basic.from_string body in
+            let access_token_url =
+              Yojson.Basic.Util.(
+                json |> member "access_tokens_url" |> to_string)
+            in
+            post ~bot_info ~body:None ~token:jwt ~url:access_token_url
+          with
+          | Yojson.Json_error err ->
+              Error (f "Json error: %s" err) |> Lwt.return
+          | Yojson.Basic.Util.Type_error (err, _) ->
+              Error (f "Json type error: %s" err) |> Lwt.return )
+        | Error e ->
+            Lwt.return (Error e))
+  >>= function
+  | Ok resp -> (
+    try
+      let json = Yojson.Basic.from_string resp in
+      Ok
+        (* Installation tokens expire after one hour, let's stop using them after 40 minutes *)
+        ( Yojson.Basic.Util.(json |> member "token" |> to_string)
+        , Unix.time () +. (40. *. 60.) )
+      |> Lwt.return
+    with
+    | Yojson.Json_error err ->
+        Error (f "Json error: %s" err) |> Lwt.return
+    | Yojson.Basic.Util.Type_error (err, _) ->
+        Error (f "Json type error: %s" err) |> Lwt.return )
+  | Error e ->
+      Lwt.return (Error e)
 
 let get_installation_token ~bot_info ~key ~app_id ~owner ~repo =
   match make_jwt ~key ~app_id with
