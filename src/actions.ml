@@ -310,12 +310,14 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
     unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
-    Option.value
-      (github_of_gitlab gitlab_full_name)
-      ~default:
-        ( Stdio.printf "No correspondence found for GitLab repository %s.\n"
-            gitlab_full_name ;
-          gitlab_full_name )
+    match github_of_gitlab gitlab_full_name with
+    | Some value ->
+        value
+    | None ->
+        Stdio.printf
+          "Warning: No correspondence found for GitLab repository %s.\n"
+          gitlab_full_name ;
+        gitlab_full_name
   in
   match pipeline_info.state with
   | "skipped" ->
