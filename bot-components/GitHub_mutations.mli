@@ -21,6 +21,7 @@ val create_check_run :
   -> status:check_run_status
   -> title:string
   -> text:string
+  -> summary:string
   -> unit Lwt.t
 
 val update_check_run :
@@ -30,6 +31,7 @@ val update_check_run :
   -> conclusion:check_conclusion
   -> title:string
   -> text:string
+  -> summary:string
   -> unit Lwt.t
 
 val reflect_pull_request_milestone :

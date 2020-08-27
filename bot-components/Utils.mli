@@ -17,6 +17,8 @@ val project_api_preview_header : (string * string) list
 
 val checks_api_preview_header : (string * string) list
 
+val app_api_preview_header : (string * string) list
+
 val generic_get :
      bot_info:Bot_info.t
   -> string

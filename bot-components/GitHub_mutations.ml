@@ -71,7 +71,8 @@ let reflect_pull_request_milestone ~bot_info issue_closer_info =
                 "The milestone of this issue was changed to reflect the one of \
                  the pull request that closed it." )
 
-let create_check_run ~bot_info ~name ~repo_id ~head_sha ~status ~title ~text =
+let create_check_run ~bot_info ~name ~repo_id ~head_sha ~status ~title ~text
+    ~summary =
   let status =
     match status with
     | COMPLETED ->
@@ -82,7 +83,7 @@ let create_check_run ~bot_info ~name ~repo_id ~head_sha ~status ~title ~text =
         "QUEUED"
   in
   NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ~text
-    ()
+    ~summary ()
   |> GraphQL_query.send_graphql_query ~bot_info
        ~extra_headers:Utils.checks_api_preview_header
   >|= function
@@ -91,7 +92,8 @@ let create_check_run ~bot_info ~name ~repo_id ~head_sha ~status ~title ~text =
   | Error err ->
       Stdio.print_endline (f "Error while creating check run: %s" err)
 
-let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ~title ~text =
+let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ~title ~text
+    ~summary =
   let conclusion =
     match conclusion with
     | ACTION_REQUIRED ->
@@ -112,14 +114,14 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ~title ~text =
         "TIMED_OUT"
   in
   UpdateCheckRun.make ~checkRunId:check_run_id ~repoId:repo_id ~conclusion
-    ~title ~text ()
+    ~title ~text ~summary ()
   |> GraphQL_query.send_graphql_query ~bot_info
        ~extra_headers:Utils.checks_api_preview_header
   >|= function
   | Ok _ ->
       ()
   | Error err ->
-      Stdio.print_endline (f "Error while creating check run: %s" err)
+      Stdio.print_endline (f "Error while updating check run: %s" err)
 
 (* TODO: use GraphQL API *)
 

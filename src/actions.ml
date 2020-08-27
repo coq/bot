@@ -1,5 +1,6 @@
 open Base
 open Bot_components
+open Bot_components.Bot_info
 open Bot_components.GitHub_types
 open Bot_components.GitLab_types
 open Cohttp
@@ -270,7 +271,8 @@ let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
           repo_full_name
   else Lwt.return ()
 
-let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
+let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
+    unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
     Option.value
@@ -283,31 +285,92 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
   match pipeline_info.state with
   | "skipped" ->
       Lwt.return ()
-  | _ ->
-      let state, description =
-        match pipeline_info.state with
-        | "success" ->
-            ("success", "Pipeline completed on GitLab CI")
-        | "pending" ->
-            ("pending", "Pipeline is pending on GitLab CI")
-        | "running" ->
-            ("pending", "Pipeline is running on GitLab CI")
-        | "failed" ->
-            ("failure", "Pipeline completed with errors on GitLab CI")
-        | "cancelled" ->
-            ("error", "Pipeline was cancelled on GitLab CI")
-        | s ->
-            ("error", "Unknown pipeline status: " ^ s)
-      in
-      GitHub_mutations.send_status_check ~repo_full_name
-        ~commit:pipeline_info.commit ~state
-        ~url:
-          (Printf.sprintf "https://gitlab.com/%s/pipelines/%d" gitlab_full_name
-             pipeline_info.id)
-        ~context:
-          (f "GitLab CI pipeline (%s)"
-             (pr_from_branch pipeline_info.branch |> snd))
-        ~description ~bot_info
+  | _ -> (
+    match bot_info.github_token with
+    | ACCESS_TOKEN _t ->
+        let state, description =
+          match pipeline_info.state with
+          | "success" ->
+              ("success", "Pipeline completed on GitLab CI")
+          | "pending" ->
+              ("pending", "Pipeline is pending on GitLab CI")
+          | "running" ->
+              ("pending", "Pipeline is running on GitLab CI")
+          | "failed" ->
+              ("failure", "Pipeline completed with errors on GitLab CI")
+          | "cancelled" ->
+              ("error", "Pipeline was cancelled on GitLab CI")
+          | s ->
+              ("error", "Unknown pipeline status: " ^ s)
+        in
+        GitHub_mutations.send_status_check ~repo_full_name
+          ~commit:pipeline_info.commit ~state
+          ~url:
+            (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+               gitlab_full_name pipeline_info.id)
+          ~context:
+            (f "GitLab CI pipeline (%s)"
+               (pr_from_branch pipeline_info.branch |> snd))
+          ~description ~bot_info
+    | INSTALL_TOKEN _t -> (
+        Lwt_io.printf "Got install token\n"
+        >>= fun () ->
+        let owner, repo =
+          github_repo_of_gitlab_project_path ~github_of_gitlab repo_full_name
+        in
+        GitHub_queries.get_repository_id ~bot_info ~owner ~repo
+        >>= function
+        | Ok repo_id -> (
+          match pipeline_info.state with
+          | "pending" ->
+              GitHub_mutations.create_check_run ~bot_info
+                ~name:
+                  (f "GitLab CI pipeline (%s)"
+                     (pr_from_branch pipeline_info.branch |> snd))
+                ~repo_id ~head_sha:pipeline_info.commit ~status:QUEUED
+                ~title:"Pipeline is pending on GitLab CI" ~text:"" ~summary:""
+          | "running" ->
+              GitHub_mutations.create_check_run ~bot_info
+                ~name:
+                  (f "GitLab CI pipeline (%s)"
+                     (pr_from_branch pipeline_info.branch |> snd))
+                ~repo_id ~head_sha:pipeline_info.commit ~status:IN_PROGRESS
+                ~title:"Pipeline is running on GitLab CI" ~text:"" ~summary:""
+          | _ -> (
+              GitHub_queries.get_check_runs ~owner ~repo
+                ~ref:pipeline_info.commit ~app_id ~bot_info
+              >>= function
+              | Ok check_runs -> (
+                match
+                  List.find check_runs ~f:(fun c ->
+                      String.equal c.name
+                        (f "GitLab CI pipeline (%s)"
+                           (pr_from_branch pipeline_info.branch |> snd)))
+                with
+                | Some check ->
+                    let conclusion, title =
+                      match pipeline_info.state with
+                      | "success" ->
+                          (SUCCESS, "Pipeline completed on GitLab CI")
+                      | "failed" ->
+                          ( FAILURE
+                          , "Pipeline completed with errors on GitLab CI" )
+                      | "cancelled" ->
+                          (CANCELLED, "Pipeline was cancelled on GitLab CI")
+                      | s ->
+                          (ACTION_REQUIRED, "Unknown pipeline status: " ^ s)
+                    in
+                    GitHub_mutations.update_check_run ~bot_info ~repo_id
+                      ~check_run_id:check.node_id ~conclusion ~title ~text:""
+                      ~summary:""
+                | None ->
+                    Lwt_io.printf "no check! %s\n"
+                      (List.fold_left check_runs ~init:"" ~f:(fun s c ->
+                           f "%s; %s" s c.name)) )
+              | Error e ->
+                  Lwt_io.printf "Got check error : %s" e ) )
+        | Error e ->
+            Lwt_io.printf "No repo id : %s" e ) )
 
 let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
     ~app_id body =
@@ -504,8 +567,8 @@ let merge_pull_request_action ~bot_info ~comment_info =
                       cc @coq/coqbot-maintainers" comment_info.author e)
                 ~id:pr.id )
 
-let update_pr ~bot_info pr_info ~gitlab_mapping ~github_mapping
-    ~gitlab_of_github =
+let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
+    ~github_mapping ~gitlab_of_github =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =

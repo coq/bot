@@ -251,7 +251,7 @@ module MergePullRequest =
 module NewCheckRun =
 [%graphql
 {|
-  mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!, $status: String!, $title: String!, $text: String!) {
+  mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!, $status: String!, $title: String!, $text: String!, $summary: String!) {
     createCheckRun(
       input: {
         status:$status,
@@ -260,7 +260,8 @@ module NewCheckRun =
         headSha:$headSha,
         output:{
           title:$title,
-          text:$text
+          text:$text,
+          summary:$summary
         }
       }) {
       clientMutationId
@@ -271,7 +272,7 @@ module NewCheckRun =
 module UpdateCheckRun =
 [%graphql
 {|
-  mutation updateCheckRun($checkRunId: ID!, $repoId: ID!, $conclusion: String!, $title: String!, $text: String!) {
+  mutation updateCheckRun($checkRunId: ID!, $repoId: ID!, $conclusion: String!, $title: String!, $text: String!, $summary: String!) {
     updateCheckRun(
       input: {
         checkRunId:$checkRunId,
@@ -280,6 +281,7 @@ module UpdateCheckRun =
         output:{
           title:$title,
           text:$text,
+          summary:$summary
         }
       }) {
       clientMutationId
