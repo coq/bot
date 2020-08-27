@@ -236,8 +236,11 @@ module UpdateMilestone =
 module MergePullRequest =
 [%graphql
 {|
-  mutation mergePullRequest($pr_id: ID!, $commit_headline: String, $commit_body: String, $merge_method: PullRequestMergeMethod) {
-    mergePullRequest(input: {pullRequestId: $pr_id, commitHeadline: $commit_headline, commitBody: $commit_body, mergeMethod: $merge_method}) {
+  mutation mergePullRequest($pr_id: ID!, $commit_headline: String,
+  $commit_body: String, $merge_method: PullRequestMergeMethod) {
+    mergePullRequest(
+      input: {pullRequestId: $pr_id, commitHeadline: $commit_headline,
+      commitBody: $commit_body, mergeMethod: $merge_method}) {
       pullRequest {
         merged
         mergedAt
@@ -251,13 +254,16 @@ module MergePullRequest =
 module NewCheckRun =
 [%graphql
 {|
-  mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!, $status: String!, $title: String!, $text: String!, $summary: String!) {
+  mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
+  $status: String!, $title: String!, $text: String!, $summary: String!,
+  $conclusion: String!) {
     createCheckRun(
       input: {
         status:$status,
         name:$name,
         repositoryId:$repoId,
         headSha:$headSha,
+        conclusion:$conclusion,
         output:{
           title:$title,
           text:$text,
@@ -272,7 +278,9 @@ module NewCheckRun =
 module UpdateCheckRun =
 [%graphql
 {|
-  mutation updateCheckRun($checkRunId: ID!, $repoId: ID!, $conclusion: String!, $title: String!, $text: String!, $summary: String!) {
+  mutation updateCheckRun($checkRunId: ID!, $repoId: ID!
+  $conclusion: String!, $title: String!, $text: String!,
+  $summary: String!) {
     updateCheckRun(
       input: {
         checkRunId:$checkRunId,

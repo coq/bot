@@ -62,14 +62,31 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
   else
     Lwt_io.printf "Pushing a status check...\n"
     >>= fun () ->
-    GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
-      ~commit:job_info.commit ~state:"failure"
-      ~url:
-        (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-           job_info.build_id)
-      ~context
-      ~description:(failure_reason ^ " on GitLab CI")
-      ~bot_info
+    match bot_info.github_token with
+    | ACCESS_TOKEN _t ->
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit:job_info.commit ~state:"failure"
+          ~url:
+            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+               job_info.build_id)
+          ~context
+          ~description:(failure_reason ^ " on GitLab CI")
+          ~bot_info
+    | INSTALL_TOKEN _t -> (
+        GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
+        >>= function
+        | Ok repo_id ->
+            GitHub_mutations.create_check_run ~bot_info ~name:context ~repo_id
+              ~head_sha:job_info.commit ~conclusion:FAILURE ~status:COMPLETED
+              ~title:(failure_reason ^ " on GitLab CI")
+              ~text:
+                (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+                   job_info.build_id)
+              ~summary:
+                (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+                   job_info.build_id)
+        | Error _ ->
+            Lwt.return () )
 
 let send_url ~bot_info job_info github_repo_full_name repo_full_name (kind, url)
     =
@@ -328,14 +345,16 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
                   (f "GitLab CI pipeline (%s)"
                      (pr_from_branch pipeline_info.branch |> snd))
                 ~repo_id ~head_sha:pipeline_info.commit ~status:QUEUED
-                ~title:"Pipeline is pending on GitLab CI" ~text:"" ~summary:""
+                ?conclusion:None ~title:"Pipeline is pending on GitLab CI"
+                ~text:"" ~summary:""
           | "running" ->
               GitHub_mutations.create_check_run ~bot_info
                 ~name:
                   (f "GitLab CI pipeline (%s)"
                      (pr_from_branch pipeline_info.branch |> snd))
                 ~repo_id ~head_sha:pipeline_info.commit ~status:IN_PROGRESS
-                ~title:"Pipeline is running on GitLab CI" ~text:"" ~summary:""
+                ?conclusion:None ~title:"Pipeline is running on GitLab CI"
+                ~text:"" ~summary:""
           | _ -> (
               GitHub_queries.get_check_runs ~owner ~repo
                 ~ref:pipeline_info.commit ~app_id ~bot_info
@@ -361,8 +380,13 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
                           (ACTION_REQUIRED, "Unknown pipeline status: " ^ s)
                     in
                     GitHub_mutations.update_check_run ~bot_info ~repo_id
-                      ~check_run_id:check.node_id ~conclusion ~title ~text:""
-                      ~summary:""
+                      ~check_run_id:check.node_id ~conclusion ~title
+                      ~text:
+                        (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+                           gitlab_full_name pipeline_info.id)
+                      ~summary:
+                        (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+                           gitlab_full_name pipeline_info.id)
                 | None ->
                     Lwt_io.printf "no check! %s\n"
                       (List.fold_left check_runs ~init:"" ~f:(fun s c ->

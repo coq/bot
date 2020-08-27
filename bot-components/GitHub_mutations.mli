@@ -15,6 +15,7 @@ val merge_pull_request :
 
 val create_check_run :
      bot_info:Bot_info.t
+  -> ?conclusion:check_conclusion
   -> name:string
   -> repo_id:id
   -> head_sha:string
