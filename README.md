@@ -130,6 +130,10 @@ you are interested in hearing about it.
 Note: Installing as a GitHub App is still in an experimental stage
 and you may frequently receive requests to expand permissions.
 
+Note: All the repositories that use the bot and belong to the same
+owner must install the bot using the same method (GitHub App or
+regular user).
+
 The bot can be installed as a GitHub App to either your account or
 organization ([link to app](https://github.com/apps/coqbot-app)).
 Once you finish the installation, follow these steps:
