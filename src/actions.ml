@@ -31,21 +31,39 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
         >>= function
         | Ok {issue= id; head; last_commit_message= Some commit_message}
         (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
-          when String.equal head.sha (f "\"%s\"" job_info.commit) ->
-            GitHub_mutations.post_comment ~bot_info ~id
-              ~message:
-                (f
-                   "For your complete information, the job \
-                    [%s](https://gitlab.com/%s/-/jobs/%d) in allow failure \
-                    mode has failed for commit %s: %s%s"
-                   job_info.build_name repo_full_name job_info.build_id
-                   job_info.commit
-                   (first_line_of_string commit_message)
-                   ( if
-                     String.equal job_info.build_name
-                       "library:ci-fiat_crypto_legacy"
-                   then "\nping @JasonGross"
-                   else "" ))
+          when String.equal head.sha (f "\"%s\"" job_info.commit) -> (
+            let message =
+              f
+                "For your complete information, the job \
+                 [%s](https://gitlab.com/%s/-/jobs/%d) in allow failure mode \
+                 has failed for commit %s: %s%s"
+                job_info.build_name repo_full_name job_info.build_id
+                job_info.commit
+                (first_line_of_string commit_message)
+                ( if
+                  String.equal job_info.build_name
+                    "library:ci-fiat_crypto_legacy"
+                then "\nping @JasonGross"
+                else "" )
+            in
+            match bot_info.github_token with
+            | ACCESS_TOKEN _t ->
+                GitHub_mutations.post_comment ~bot_info ~id ~message
+            | INSTALL_TOKEN _t -> (
+                GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
+                  ~repo:gh_repo
+                >>= function
+                | Ok repo_id ->
+                    GitHub_mutations.create_check_run ~bot_info ~name:context
+                      ~repo_id ~head_sha:job_info.commit ~conclusion:NEUTRAL
+                      ~status:COMPLETED
+                      ~title:(failure_reason ^ " on GitLab CI")
+                      ~text:
+                        (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
+                           repo_full_name job_info.build_id)
+                      ~summary:message
+                | Error _ ->
+                    Lwt.return () ) )
         | Ok {head} ->
             Lwt_io.printf
               "We are on a PR branch but the commit (%s) is not the current \
