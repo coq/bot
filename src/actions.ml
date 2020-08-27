@@ -323,8 +323,9 @@ let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
                ~message:(f "@%s, %s" author message))
           <&> ( execute_cmd
                   (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
-                     bot_info.name coq_minimizer_repo_token repo_name
-                     branch_name)
+                     bot_info.name
+                     (Bot_info.get_token coq_minimizer_repo_token)
+                     repo_name branch_name)
               >>= function
               | Ok () -> Lwt.return () | Error f -> Lwt_io.printf "Error: %s" f
               ))

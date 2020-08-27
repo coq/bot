@@ -6,7 +6,7 @@ let send_graphql_query ~bot_info ?(extra_headers = []) query =
   let uri = Uri.of_string "https://api.github.com/graphql" in
   let headers =
     Cohttp.Header.of_list
-      ( [ ("Authorization", "bearer " ^ bot_info.github_token)
+      ( [ ("Authorization", "bearer " ^ get_token bot_info.github_token)
         ; ("User-Agent", bot_info.name) ]
       @ extra_headers )
   in

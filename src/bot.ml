@@ -23,7 +23,7 @@ let gitlab_webhook_secret = Config.gitlab_webhook_secret toml_data
 let bot_name = Config.bot_name toml_data
 
 let bot_info : Bot_components.Bot_info.t =
-  { github_token= github_access_token
+  { github_token= ACCESS_TOKEN github_access_token
   ; gitlab_token= gitlab_access_token
   ; name= bot_name
   ; email= Config.bot_email toml_data
