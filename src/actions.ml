@@ -425,7 +425,12 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
                      (pr_from_branch pipeline_info.branch |> snd))
                 ~repo_id ~head_sha:pipeline_info.commit ~status:QUEUED
                 ?conclusion:None ~title:"Pipeline is pending on GitLab CI"
-                ~text:"" ~summary:""
+                ~text:
+                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+                     gitlab_full_name pipeline_info.id)
+                ~summary:
+                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+                     gitlab_full_name pipeline_info.id)
           | "running" ->
               GitHub_mutations.create_check_run ~bot_info
                 ~name:
@@ -433,7 +438,12 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
                      (pr_from_branch pipeline_info.branch |> snd))
                 ~repo_id ~head_sha:pipeline_info.commit ~status:IN_PROGRESS
                 ?conclusion:None ~title:"Pipeline is running on GitLab CI"
-                ~text:"" ~summary:""
+                ~text:
+                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+                     gitlab_full_name pipeline_info.id)
+                ~summary:
+                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
+                     gitlab_full_name pipeline_info.id)
           | _ -> (
               GitHub_queries.get_check_runs ~owner ~repo
                 ~ref:pipeline_info.commit ~app_id ~bot_info
