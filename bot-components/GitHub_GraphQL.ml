@@ -256,7 +256,7 @@ module NewCheckRun =
 {|
   mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
   $status: String!, $title: String!, $text: String!, $summary: String!,
-  $conclusion: String) {
+  $url: String!, $conclusion: String) {
     createCheckRun(
       input: {
         status:$status,
@@ -264,6 +264,7 @@ module NewCheckRun =
         repositoryId:$repoId,
         headSha:$headSha,
         conclusion:$conclusion,
+        detailsUrl:$url,
         output:{
           title:$title,
           text:$text,
@@ -280,12 +281,13 @@ module UpdateCheckRun =
 {|
   mutation updateCheckRun($checkRunId: ID!, $repoId: ID!
   $conclusion: String!, $title: String!, $text: String!,
-  $summary: String!) {
+  $url: String, $summary: String!) {
     updateCheckRun(
       input: {
         checkRunId:$checkRunId,
         repositoryId:$repoId,
         conclusion:$conclusion,
+        detailsUrl:$url,
         output:{
           title:$title,
           text:$text,

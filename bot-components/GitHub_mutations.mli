@@ -20,6 +20,7 @@ val create_check_run :
   -> repo_id:id
   -> head_sha:string
   -> status:check_run_status
+  -> details_url:string
   -> title:string
   -> text:string
   -> summary:string
@@ -30,6 +31,7 @@ val update_check_run :
   -> check_run_id:id
   -> repo_id:id
   -> conclusion:check_conclusion
+  -> ?details_url:string
   -> title:string
   -> text:string
   -> summary:string

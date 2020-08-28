@@ -19,6 +19,10 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
   let allow_fail =
     match job_info.allow_fail with Some f -> f | None -> false
   in
+  let job_url =
+    Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+      job_info.build_id
+  in
   if allow_fail then
     Lwt_io.printf "Job is allowed to fail.\n"
     <&>
@@ -34,11 +38,9 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
           when String.equal head.sha (f "\"%s\"" job_info.commit) -> (
             let message =
               f
-                "For your complete information, the job \
-                 [%s](https://gitlab.com/%s/-/jobs/%d) in allow failure mode \
-                 has failed for commit %s: %s%s"
-                job_info.build_name repo_full_name job_info.build_id
-                job_info.commit
+                "For your complete information, the job [%s](%s) in allow \
+                 failure mode has failed for commit %s: %s%s"
+                job_info.build_name job_url job_info.commit
                 (first_line_of_string commit_message)
                 ( if
                   String.equal job_info.build_name
@@ -58,10 +60,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
                       ~repo_id ~head_sha:job_info.commit ~conclusion:NEUTRAL
                       ~status:COMPLETED
                       ~title:(failure_reason ^ " on GitLab CI")
-                      ~text:
-                        (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                           repo_full_name job_info.build_id)
-                      ~summary:message
+                      ~text:job_url ~details_url:job_url ~summary:message
                 | Error _ ->
                     Lwt.return () ) )
         | Ok {head} ->
@@ -83,11 +82,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
     match bot_info.github_token with
     | ACCESS_TOKEN _t ->
         GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
-          ~commit:job_info.commit ~state:"failure"
-          ~url:
-            (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-               job_info.build_id)
-          ~context
+          ~commit:job_info.commit ~state:"failure" ~url:job_url ~context
           ~description:(failure_reason ^ " on GitLab CI")
           ~bot_info
     | INSTALL_TOKEN _t -> (
@@ -97,12 +92,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
             GitHub_mutations.create_check_run ~bot_info ~name:context ~repo_id
               ~head_sha:job_info.commit ~conclusion:FAILURE ~status:COMPLETED
               ~title:(failure_reason ^ " on GitLab CI")
-              ~text:
-                (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-                   job_info.build_id)
-              ~summary:
-                (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-                   job_info.build_id)
+              ~text:job_url ~details_url:job_url ~summary:job_url
         | Error _ ->
             Lwt.return () )
 
@@ -127,22 +117,22 @@ let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
           | Ok repo_id ->
               GitHub_mutations.create_check_run ~bot_info ~name:context
                 ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
-                ~conclusion:SUCCESS ~title:(description_base ^ ".") ~text:""
-                ~summary:""
+                ~details_url:url ~conclusion:SUCCESS
+                ~title:(description_base ^ ".") ~text:"" ~summary:""
           | Error _ ->
               Lwt.return () )
     else
       Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
       >>= fun () ->
+      let job_url =
+        Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+          job_info.build_id
+      in
       match bot_info.github_token with
       | ACCESS_TOKEN _t ->
           GitHub_mutations.send_status_check
             ~repo_full_name:github_repo_full_name ~commit:job_info.commit
-            ~state:"failure"
-            ~url:
-              (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-                 job_info.build_id)
-            ~context
+            ~state:"failure" ~url:job_url ~context
             ~description:(description_base ^ ": not found.")
             ~bot_info
       | INSTALL_TOKEN _t -> (
@@ -154,12 +144,7 @@ let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
                 ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
                 ~conclusion:FAILURE
                 ~title:(description_base ^ ": not found.")
-                ~text:
-                  (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                     repo_full_name job_info.build_id)
-                ~summary:
-                  (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                     repo_full_name job_info.build_id)
+                ~text:job_url ~details_url:job_url ~summary:job_url
           | Error _ ->
               Lwt.return () ))
   |> Lwt.async
@@ -307,15 +292,15 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
         "There existed a previous status check for this build, we'll override \
          it.\n"
       >>= fun () ->
+      let job_url =
+        Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+          job_info.build_id
+      in
       match bot_info.github_token with
       | ACCESS_TOKEN _t ->
           GitHub_mutations.send_status_check
             ~repo_full_name:github_repo_full_name ~commit:job_info.commit
-            ~state:"success"
-            ~url:
-              (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-                 job_info.build_id)
-            ~context
+            ~state:"success" ~url:job_url ~context
             ~description:"Test succeeded on GitLab CI after being retried"
             ~bot_info
       | INSTALL_TOKEN _t -> (
@@ -327,12 +312,7 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
                 ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
                 ~conclusion:SUCCESS
                 ~title:"Test succeeded on GitLab CI after being retried"
-                ~text:
-                  (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                     repo_full_name job_info.build_id)
-                ~summary:
-                  (Printf.sprintf "https://gitlab.com/%s/-/jobs/%d"
-                     repo_full_name job_info.build_id)
+                ~text:job_url ~details_url:job_url ~summary:job_url
           | Error _ ->
               Lwt.return () ) )
   | Ok _ ->
@@ -382,108 +362,95 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
   | "skipped" ->
       Lwt.return ()
   | _ -> (
-    match bot_info.github_token with
-    | ACCESS_TOKEN _t ->
-        let state, description =
-          match pipeline_info.state with
-          | "success" ->
-              ("success", "Pipeline completed on GitLab CI")
-          | "pending" ->
-              ("pending", "Pipeline is pending on GitLab CI")
-          | "running" ->
-              ("pending", "Pipeline is running on GitLab CI")
-          | "failed" ->
-              ("failure", "Pipeline completed with errors on GitLab CI")
-          | "cancelled" ->
-              ("error", "Pipeline was cancelled on GitLab CI")
-          | s ->
-              ("error", "Unknown pipeline status: " ^ s)
-        in
-        GitHub_mutations.send_status_check ~repo_full_name
-          ~commit:pipeline_info.commit ~state
-          ~url:
-            (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
-               gitlab_full_name pipeline_info.id)
-          ~context:
-            (f "GitLab CI pipeline (%s)"
-               (pr_from_branch pipeline_info.branch |> snd))
-          ~description ~bot_info
-    | INSTALL_TOKEN _t -> (
-        Lwt_io.printf "Got install token\n"
-        >>= fun () ->
-        let owner, repo =
-          github_repo_of_gitlab_project_path ~github_of_gitlab repo_full_name
-        in
-        GitHub_queries.get_repository_id ~bot_info ~owner ~repo
-        >>= function
-        | Ok repo_id -> (
-          match pipeline_info.state with
-          | "pending" ->
-              GitHub_mutations.create_check_run ~bot_info
-                ~name:
-                  (f "GitLab CI pipeline (%s)"
-                     (pr_from_branch pipeline_info.branch |> snd))
-                ~repo_id ~head_sha:pipeline_info.commit ~status:QUEUED
-                ?conclusion:None ~title:"Pipeline is pending on GitLab CI"
-                ~text:
-                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
-                     gitlab_full_name pipeline_info.id)
-                ~summary:
-                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
-                     gitlab_full_name pipeline_info.id)
-          | "running" ->
-              GitHub_mutations.create_check_run ~bot_info
-                ~name:
-                  (f "GitLab CI pipeline (%s)"
-                     (pr_from_branch pipeline_info.branch |> snd))
-                ~repo_id ~head_sha:pipeline_info.commit ~status:IN_PROGRESS
-                ?conclusion:None ~title:"Pipeline is running on GitLab CI"
-                ~text:
-                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
-                     gitlab_full_name pipeline_info.id)
-                ~summary:
-                  (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
-                     gitlab_full_name pipeline_info.id)
-          | _ -> (
-              GitHub_queries.get_check_runs ~owner ~repo
-                ~ref:pipeline_info.commit ~app_id ~bot_info
-              >>= function
-              | Ok check_runs -> (
-                match
-                  List.find check_runs ~f:(fun c ->
-                      String.equal c.name
-                        (f "GitLab CI pipeline (%s)"
-                           (pr_from_branch pipeline_info.branch |> snd)))
-                with
-                | Some check ->
-                    let conclusion, title =
-                      match pipeline_info.state with
-                      | "success" ->
-                          (SUCCESS, "Pipeline completed on GitLab CI")
-                      | "failed" ->
-                          ( FAILURE
-                          , "Pipeline completed with errors on GitLab CI" )
-                      | "cancelled" ->
-                          (CANCELLED, "Pipeline was cancelled on GitLab CI")
-                      | s ->
-                          (ACTION_REQUIRED, "Unknown pipeline status: " ^ s)
-                    in
-                    GitHub_mutations.update_check_run ~bot_info ~repo_id
-                      ~check_run_id:check.node_id ~conclusion ~title
-                      ~text:
-                        (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
-                           gitlab_full_name pipeline_info.id)
-                      ~summary:
-                        (Printf.sprintf "https://gitlab.com/%s/pipelines/%d"
-                           gitlab_full_name pipeline_info.id)
-                | None ->
-                    Lwt_io.printf "no check! %s\n"
-                      (List.fold_left check_runs ~init:"" ~f:(fun s c ->
-                           f "%s; %s" s c.name)) )
-              | Error e ->
-                  Lwt_io.printf "Got check error : %s" e ) )
-        | Error e ->
-            Lwt_io.printf "No repo id : %s" e ) )
+      let pipeline_url =
+        Printf.sprintf "https://gitlab.com/%s/pipelines/%d" gitlab_full_name
+          pipeline_info.id
+      in
+      match bot_info.github_token with
+      | ACCESS_TOKEN _t ->
+          let state, description =
+            match pipeline_info.state with
+            | "success" ->
+                ("success", "Pipeline completed on GitLab CI")
+            | "pending" ->
+                ("pending", "Pipeline is pending on GitLab CI")
+            | "running" ->
+                ("pending", "Pipeline is running on GitLab CI")
+            | "failed" ->
+                ("failure", "Pipeline completed with errors on GitLab CI")
+            | "cancelled" ->
+                ("error", "Pipeline was cancelled on GitLab CI")
+            | s ->
+                ("error", "Unknown pipeline status: " ^ s)
+          in
+          GitHub_mutations.send_status_check ~repo_full_name
+            ~commit:pipeline_info.commit ~state ~url:pipeline_url
+            ~context:
+              (f "GitLab CI pipeline (%s)"
+                 (pr_from_branch pipeline_info.branch |> snd))
+            ~description ~bot_info
+      | INSTALL_TOKEN _t -> (
+          let owner, repo =
+            github_repo_of_gitlab_project_path ~github_of_gitlab repo_full_name
+          in
+          GitHub_queries.get_repository_id ~bot_info ~owner ~repo
+          >>= function
+          | Ok repo_id -> (
+            match pipeline_info.state with
+            | "pending" ->
+                GitHub_mutations.create_check_run ~bot_info
+                  ~name:
+                    (f "GitLab CI pipeline (%s)"
+                       (pr_from_branch pipeline_info.branch |> snd))
+                  ~repo_id ~head_sha:pipeline_info.commit ~status:QUEUED
+                  ?conclusion:None ~title:"Pipeline is pending on GitLab CI"
+                  ~text:pipeline_url ~details_url:pipeline_url
+                  ~summary:pipeline_url
+            | "running" ->
+                GitHub_mutations.create_check_run ~bot_info
+                  ~name:
+                    (f "GitLab CI pipeline (%s)"
+                       (pr_from_branch pipeline_info.branch |> snd))
+                  ~repo_id ~head_sha:pipeline_info.commit ~status:IN_PROGRESS
+                  ?conclusion:None ~title:"Pipeline is running on GitLab CI"
+                  ~text:pipeline_url ~details_url:pipeline_url
+                  ~summary:pipeline_url
+            | _ -> (
+                GitHub_queries.get_check_runs ~owner ~repo
+                  ~ref:pipeline_info.commit ~app_id ~bot_info
+                >>= function
+                | Ok check_runs -> (
+                  match
+                    List.find check_runs ~f:(fun c ->
+                        String.equal c.name
+                          (f "GitLab CI pipeline (%s)"
+                             (pr_from_branch pipeline_info.branch |> snd)))
+                  with
+                  | Some check ->
+                      let conclusion, title =
+                        match pipeline_info.state with
+                        | "success" ->
+                            (SUCCESS, "Pipeline completed on GitLab CI")
+                        | "failed" ->
+                            ( FAILURE
+                            , "Pipeline completed with errors on GitLab CI" )
+                        | "cancelled" ->
+                            (CANCELLED, "Pipeline was cancelled on GitLab CI")
+                        | s ->
+                            (ACTION_REQUIRED, "Unknown pipeline status: " ^ s)
+                      in
+                      GitHub_mutations.update_check_run ~bot_info ~repo_id
+                        ~check_run_id:check.node_id ~conclusion ~title
+                        ~text:pipeline_url ~details_url:pipeline_url
+                        ~summary:pipeline_url
+                  | None ->
+                      Lwt_io.printf "no check! %s\n"
+                        (List.fold_left check_runs ~init:"" ~f:(fun s c ->
+                             f "%s; %s" s c.name)) )
+                | Error e ->
+                    Lwt_io.printf "Got check error: %s" e ) )
+          | Error e ->
+              Lwt_io.printf "No repo id: %s" e ) )
 
 let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
     ~app_id body =
@@ -740,7 +707,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
               ~title:
                 "Pipeline did not run on GitLab CI because PR has conflicts \
                  with base branch."
-              ~text:"" ~summary:""
+              ~text:"" ~details_url:"" ~summary:""
             |> Lwt_result.ok ) )
 
 let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
