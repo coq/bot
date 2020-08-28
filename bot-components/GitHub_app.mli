@@ -1,3 +1,6 @@
+val make_jwt :
+  key:Mirage_crypto_pk.Rsa.priv -> app_id:int -> (string, string) result
+
 val get_installation_token :
      bot_info:Bot_info.t
   -> key:Mirage_crypto_pk.Rsa.priv

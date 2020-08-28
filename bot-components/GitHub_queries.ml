@@ -458,6 +458,14 @@ let get_cards_in_column column_id =
                Some (pr_number, card_id)
              else None))
 
+let get_installations =
+  generic_get "app/installations" ~header_list:app_api_preview_header
+    (fun json ->
+      let open Yojson.Basic.Util in
+      json |> to_list
+      |> List.map ~f:(fun json ->
+             json |> member "account" |> member "login" |> to_string))
+
 let get_check_runs ~owner ~repo ~ref ~app_id =
   generic_get (f "repos/%s/%s/commits/%s/check-runs" owner repo ref)
     ~header_list:checks_api_preview_header (fun json ->
