@@ -92,9 +92,7 @@ let string_of_conclusion conclusion =
 
 let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
     ~title ~text ~summary =
-  let conclusion =
-    match conclusion with None -> "" | Some c -> string_of_conclusion c
-  in
+  let conclusion = Option.map conclusion ~f:string_of_conclusion in
   let status =
     match status with
     | COMPLETED ->
@@ -105,7 +103,7 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
         "QUEUED"
   in
   NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ~text
-    ~summary ~conclusion ()
+    ~summary ?conclusion ()
   |> GraphQL_query.send_graphql_query ~bot_info
        ~extra_headers:Utils.checks_api_preview_header
   >|= function
