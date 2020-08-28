@@ -73,7 +73,7 @@ let callback _conn req body =
                 pipeline_info.project_path
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (pipeline_action ~github_of_gitlab ~app_id pipeline_info))
+              (pipeline_action ~github_of_gitlab pipeline_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Pipeline event." ()
       | Ok (_, UnsupportedEvent e) ->

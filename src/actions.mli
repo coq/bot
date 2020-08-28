@@ -8,7 +8,6 @@ val pipeline_action :
      bot_info:Bot_components.Bot_info.t
   -> Bot_components.GitLab_types.pipeline_info
   -> github_of_gitlab:(string -> string option)
-  -> app_id:int
   -> unit Lwt.t
 
 val coq_bug_minimizer_results_action :

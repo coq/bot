@@ -345,8 +345,7 @@ let job_action ~bot_info (job_info : job_info) ~github_of_gitlab =
           github_repo_full_name repo_full_name
   else Lwt.return ()
 
-let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
-    unit Lwt.t =
+let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
     match github_of_gitlab gitlab_full_name with
@@ -415,40 +414,25 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab ~app_id :
                   ?conclusion:None ~title:"Pipeline is running on GitLab CI"
                   ~text:pipeline_url ~details_url:pipeline_url
                   ~summary:pipeline_url
-            | _ -> (
-                GitHub_queries.get_check_runs ~owner ~repo
-                  ~ref:pipeline_info.commit ~app_id ~bot_info
-                >>= function
-                | Ok check_runs -> (
-                  match
-                    List.find check_runs ~f:(fun c ->
-                        String.equal c.name
-                          (f "GitLab CI pipeline (%s)"
-                             (pr_from_branch pipeline_info.branch |> snd)))
-                  with
-                  | Some check ->
-                      let conclusion, title =
-                        match pipeline_info.state with
-                        | "success" ->
-                            (SUCCESS, "Pipeline completed on GitLab CI")
-                        | "failed" ->
-                            ( FAILURE
-                            , "Pipeline completed with errors on GitLab CI" )
-                        | "cancelled" ->
-                            (CANCELLED, "Pipeline was cancelled on GitLab CI")
-                        | s ->
-                            (ACTION_REQUIRED, "Unknown pipeline status: " ^ s)
-                      in
-                      GitHub_mutations.update_check_run ~bot_info ~repo_id
-                        ~check_run_id:check.node_id ~conclusion ~title
-                        ~text:pipeline_url ~details_url:pipeline_url
-                        ~summary:pipeline_url
-                  | None ->
-                      Lwt_io.printf "no check! %s\n"
-                        (List.fold_left check_runs ~init:"" ~f:(fun s c ->
-                             f "%s; %s" s c.name)) )
-                | Error e ->
-                    Lwt_io.printf "Got check error: %s" e ) )
+            | _ ->
+                let conclusion, title =
+                  match pipeline_info.state with
+                  | "success" ->
+                      (SUCCESS, "Pipeline completed on GitLab CI")
+                  | "failed" ->
+                      (FAILURE, "Pipeline completed with errors on GitLab CI")
+                  | "cancelled" ->
+                      (CANCELLED, "Pipeline was cancelled on GitLab CI")
+                  | s ->
+                      (ACTION_REQUIRED, "Unknown pipeline status: " ^ s)
+                in
+                GitHub_mutations.create_check_run ~bot_info
+                  ~name:
+                    (f "GitLab CI pipeline (%s)"
+                       (pr_from_branch pipeline_info.branch |> snd))
+                  ~repo_id ~head_sha:pipeline_info.commit ~status:COMPLETED
+                  ~conclusion ~title ~text:pipeline_url
+                  ~details_url:pipeline_url ~summary:pipeline_url )
           | Error e ->
               Lwt_io.printf "No repo id: %s" e ) )
 
