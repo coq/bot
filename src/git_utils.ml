@@ -95,7 +95,9 @@ let git_push ?(force = true) ~remote_ref ~local_ref =
 let git_delete ~remote_ref = git_push ~force:false ~remote_ref ~local_ref:""
 
 let git_make_ancestor ~pr_title ~pr_number ~base head =
-  f "./make_ancestor.sh %s %s '%s' %d" base head pr_title pr_number
+  f "./make_ancestor.sh %s %s %s %d" base head
+    (Stdlib.Filename.quote pr_title)
+    pr_number
   |> Lwt_unix.system
   >|= fun status ->
   match status with
