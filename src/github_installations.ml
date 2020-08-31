@@ -24,7 +24,10 @@ let action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
          repo owned by owner, we execute the action with the github access token. *)
       action ~bot_info
 
-let exec_with_token ~bot_info ~key ~app_id ~owner ~repo action =
+let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
+  (* Executes an action with an installation token if the repository has
+     the GitHub app installed.
+     Generates a new installation token if the existing one has expired. *)
   match Hashtbl.find installation_tokens owner with
   | Some (github_token, expiration_date) ->
       if Float.(expiration_date < Unix.time ()) then (
@@ -36,19 +39,13 @@ let exec_with_token ~bot_info ~key ~app_id ~owner ~repo action =
           {bot_info with github_token= INSTALL_TOKEN github_token}
         in
         action ~bot_info
-  | None ->
-      action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
-        action
-
-let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
-  (* Executes an action with an installation token if the repository has
-     the GitHub app installed.
-     Generates a new installation token if the existing one has expired. *)
-  GitHub_app.get_installations ~bot_info ~key ~app_id
-  >>= function
-  | Ok installs ->
-      if List.exists installs ~f:(String.equal owner) then
-        exec_with_token ~bot_info ~key ~app_id ~owner ~repo action
-      else action ~bot_info
-  | Error _ ->
-      action ~bot_info
+  | None -> (
+      GitHub_app.get_installations ~bot_info ~key ~app_id
+      >>= function
+      | Ok installs ->
+          if List.exists installs ~f:(String.equal owner) then
+            action_with_new_installation_token ~bot_info ~key ~app_id ~owner
+              ~repo action
+          else action ~bot_info
+      | Error _ ->
+          action ~bot_info )
