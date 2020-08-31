@@ -7,4 +7,4 @@ type t =
   ; email: string
   ; domain: string }
 
-val get_token : github_token -> string
+let get_token t = match t with ACCESS_TOKEN t | INSTALL_TOKEN t -> t

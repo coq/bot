@@ -23,7 +23,7 @@ let gitlab_webhook_secret = Config.gitlab_webhook_secret toml_data
 let bot_name = Config.bot_name toml_data
 
 let bot_info : Bot_components.Bot_info.t =
-  { github_token= github_access_token
+  { github_token= ACCESS_TOKEN github_access_token
   ; gitlab_token= gitlab_access_token
   ; name= bot_name
   ; email= Config.bot_email toml_data
@@ -34,10 +34,6 @@ let key = Config.github_private_key
 let app_id = Config.github_app_id toml_data
 
 let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
-
-let github_of_gitlab = Hashtbl.find gitlab_mapping
-
-let gitlab_of_github = Hashtbl.find github_mapping
 
 let string_of_installation_tokens =
   Hashtbl.fold ~init:"" ~f:(fun ~key ~data acc ->
@@ -59,21 +55,21 @@ let callback _conn req body =
       | Ok (_, JobEvent job_info) ->
           (fun () ->
             let gh_owner, gh_repo =
-              github_repo_of_gitlab_url ~github_of_gitlab job_info.repo_url
+              github_repo_of_gitlab_url ~gitlab_mapping job_info.repo_url
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
               ~repo:gh_repo
-              (job_action ~github_of_gitlab job_info))
+              (job_action ~gitlab_mapping job_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Job event." ()
       | Ok (_, PipelineEvent pipeline_info) ->
           (fun () ->
             let owner, repo =
-              github_repo_of_gitlab_project_path ~github_of_gitlab
+              github_repo_of_gitlab_project_path ~gitlab_mapping
                 pipeline_info.project_path
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (pipeline_action ~github_of_gitlab pipeline_info))
+              (pipeline_action ~gitlab_mapping pipeline_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Pipeline event." ()
       | Ok (_, UnsupportedEvent e) ->
@@ -109,7 +105,7 @@ let callback _conn req body =
             action_as_github_app ~bot_info ~key ~app_id
               ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
               (pull_request_closed_action ~gitlab_mapping ~github_mapping
-                 ~gitlab_of_github pr_info))
+                 pr_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -125,7 +121,7 @@ let callback _conn req body =
           action_as_github_app ~bot_info ~key ~app_id
             ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
             (pull_request_updated_action ~action ~pr_info ~gitlab_mapping
-               ~github_mapping ~gitlab_of_github ~signed)
+               ~github_mapping ~signed)
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (fun () ->
@@ -205,7 +201,7 @@ let callback _conn req body =
               ~owner:comment_info.issue.issue.owner
               ~repo:comment_info.issue.issue.repo
               (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
-                 ~gitlab_of_github ~signed)
+                 ~signed)
           else if
             string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
             && comment_info.issue.pull_request

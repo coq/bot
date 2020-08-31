@@ -1,7 +1,6 @@
 val gitlab_ref :
      bot_info:Bot_components.Bot_info.t
   -> issue:Bot_components.GitHub_types.issue
-  -> gitlab_of_github:(string -> string option)
   -> github_mapping:(string, string) Base.Hashtbl.t
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> Bot_components.GitHub_types.remote_ref_info Lwt.t
@@ -33,7 +32,7 @@ val init_git_bare_repository : bot_info:Bot_components.Bot_info.t -> unit Lwt.t
 
 val run_coq_minimizer :
      bot_info:Bot_components.Bot_info.t
-  -> coq_minimizer_repo_token:string
+  -> coq_minimizer_repo_token:Bot_components.Bot_info.github_token
   -> script:string
   -> comment_thread_id:string
   -> comment_author:string

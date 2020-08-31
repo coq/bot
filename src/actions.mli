@@ -1,18 +1,18 @@
 val job_action :
      bot_info:Bot_components.Bot_info.t
   -> Bot_components.GitLab_types.job_info
-  -> github_of_gitlab:(string -> string option)
+  -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> unit Lwt.t
 
 val pipeline_action :
      bot_info:Bot_components.Bot_info.t
   -> Bot_components.GitLab_types.pipeline_info
-  -> github_of_gitlab:(string -> string option)
+  -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> unit Lwt.t
 
 val coq_bug_minimizer_results_action :
      bot_info:Bot_components.Bot_info.t
-  -> coq_minimizer_repo_token:string
+  -> coq_minimizer_repo_token:Bot_components.Bot_info.github_token
   -> key:Mirage_crypto_pk.Rsa.priv
   -> app_id:int
   -> string
@@ -28,7 +28,6 @@ val run_ci_action :
   -> comment_info:Bot_components.GitHub_types.comment_info
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> github_mapping:(string, string) Base.Hashtbl.t
-  -> gitlab_of_github:(string -> string option)
   -> signed:bool
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 
@@ -38,7 +37,6 @@ val pull_request_closed_action :
      Bot_components.GitHub_types.pull_request_info
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> github_mapping:(string, string) Base.Hashtbl.t
-  -> gitlab_of_github:(string -> string option)
   -> unit Lwt.t
 
 val pull_request_updated_action :
@@ -49,7 +47,6 @@ val pull_request_updated_action :
        Bot_components.GitHub_types.pull_request_info
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> github_mapping:(string, string) Base.Hashtbl.t
-  -> gitlab_of_github:(string -> string option)
   -> signed:bool
   -> (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t
 

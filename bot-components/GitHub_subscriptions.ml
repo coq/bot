@@ -94,11 +94,48 @@ let comment_info_of_json ?(review_comment = false) json =
   ; review_comment
   ; id= comment_json |> member "node_id" |> to_string }
 
+let repository_info_of_json json =
+  let repo = json |> member "repository" in
+  { id= repo |> member "id" |> to_int
+  ; node_id= repo |> member "node_id" |> to_string
+  ; owner= repo |> member "owner" |> member "login" |> to_string
+  ; name= repo |> member "name" |> to_string }
+
+let check_suite_info_of_json json =
+  let check_suite = json |> member "check_suite" in
+  let status =
+    match check_suite |> member "status" |> to_string with
+    | "completed" ->
+        COMPLETED
+    | "in_progress" ->
+        IN_PROGRESS
+    | "queued" | _ ->
+        QUEUED
+  in
+  { id= check_suite |> member "id" |> to_int
+  ; node_id= check_suite |> member "node_id" |> to_string
+  ; url= check_suite |> member "url" |> to_string
+  ; head_sha= check_suite |> member "head_sha" |> to_string
+  ; status }
+
 let check_run_info_of_json json =
   let check_run = json |> member "check_run" in
+  let status =
+    match check_run |> member "status" |> to_string with
+    | "completed" ->
+        COMPLETED
+    | "in_progress" ->
+        IN_PROGRESS
+    | "queued" | _ ->
+        QUEUED
+  in
   { id= check_run |> member "id" |> to_int
   ; node_id= check_run |> member "node_id" |> to_string
-  ; url= check_run |> member "url" |> to_string }
+  ; url= check_run |> member "url" |> to_string
+  ; head_sha= check_run |> member "head_sha" |> to_string
+  ; status
+  ; check_suite_info= check_suite_info_of_json check_run
+  ; repository_info= repository_info_of_json json }
 
 let push_event_info_of_json json =
   let open Yojson.Basic.Util in
@@ -122,6 +159,9 @@ type msg =
   | TagCreated of remote_ref_info
   | CommentCreated of comment_info
   | CheckRunCreated of check_run_info
+  | CheckRunUpdated of check_run_info
+  | CheckSuiteCreated of check_suite_info
+  | CheckSuiteRequested of check_suite_info
   | PushEvent of push_info
   | UnsupportedEvent of string
 
@@ -153,6 +193,8 @@ let github_action ~event ~action json =
       Ok (CommentCreated (comment_info_of_json json ~review_comment:true))
   | "check_run", "created" ->
       Ok (CheckRunCreated (check_run_info_of_json json))
+  | "check_suite", "requested" ->
+      Ok (CheckSuiteRequested (check_suite_info_of_json json))
   | _ ->
       Ok (UnsupportedEvent "Unsupported GitHub action.")
 
@@ -163,7 +205,8 @@ let github_event ~event json =
   | "project_card"
   | "issue_comment"
   | "pull_request_review"
-  | "check_run" ->
+  | "check_run"
+  | "check_suite" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
   | "push" ->
       Ok (PushEvent (push_event_info_of_json json))
