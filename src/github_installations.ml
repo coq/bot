@@ -44,16 +44,11 @@ let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
   (* Executes an action with an installation token if the repository has
      the GitHub app installed.
      Generates a new installation token if the existing one has expired. *)
-  match GitHub_app.make_jwt ~key ~app_id with
-  | Ok jwt -> (
-      GitHub_queries.get_installations
-        ~bot_info:{bot_info with github_token= INSTALL_TOKEN jwt}
-      >>= function
-      | Ok installs ->
-          if List.exists installs ~f:(String.equal owner) then
-            exec_with_token ~bot_info ~key ~app_id ~owner ~repo action
-          else action ~bot_info
-      | Error _ ->
-          action ~bot_info )
+  GitHub_app.get_installations ~bot_info ~key ~app_id
+  >>= function
+  | Ok installs ->
+      if List.exists installs ~f:(String.equal owner) then
+        exec_with_token ~bot_info ~key ~app_id ~owner ~repo action
+      else action ~bot_info
   | Error _ ->
-      exec_with_token ~bot_info ~key ~app_id ~owner ~repo action
+      action ~bot_info

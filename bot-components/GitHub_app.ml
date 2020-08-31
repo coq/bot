@@ -89,3 +89,23 @@ let get_installation_token ~bot_info ~key ~app_id ~owner ~repo =
       get_installation_token ~bot_info ~jwt ~owner ~repo
   | Error e ->
       Lwt.return (Error e)
+
+let get_installations ~bot_info ~key ~app_id =
+  match make_jwt ~key ~app_id with
+  | Ok jwt -> (
+      get ~bot_info ~token:jwt ~url:"https://api.github.com/app/installations"
+      >|= fun body ->
+      try
+        let json = Yojson.Basic.from_string body in
+        let open Yojson.Basic.Util in
+        Ok
+          ( json |> to_list
+          |> List.map ~f:(fun json ->
+                 json |> member "account" |> member "login" |> to_string) )
+      with
+      | Yojson.Json_error err ->
+          Error (f "Json error: %s" err)
+      | Yojson.Basic.Util.Type_error (err, _) ->
+          Error (f "Json type error: %s" err) )
+  | Error e ->
+      Lwt.return (Error e)
