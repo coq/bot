@@ -100,21 +100,21 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
         | Error e ->
             Lwt_io.printf "No repo id: %s" e )
 
-let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
-    repo_full_name (kind, url) =
+let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
+    job_info github_repo_full_name repo_full_name (kind, url) =
   (fun () ->
     let context = Printf.sprintf "%s: %s artifact" job_info.build_name kind in
     let description_base = Printf.sprintf "Link to %s build artifact" kind in
     url |> Uri.of_string |> Client.get
     >>= fun (resp, _) ->
     if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-      match bot_info.github_token with
-      | ACCESS_TOKEN _t ->
+      match (bot_info.github_token, force_status_check) with
+      | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
           GitHub_mutations.send_status_check
             ~repo_full_name:github_repo_full_name ~commit:job_info.commit
             ~state:"success" ~url ~context ~description:(description_base ^ ".")
             ~bot_info
-      | INSTALL_TOKEN _t -> (
+      | INSTALL_TOKEN _t, _ -> (
           GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
             ~repo:gh_repo
           >>= function
@@ -132,14 +132,14 @@ let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
         Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
           job_info.build_id
       in
-      match bot_info.github_token with
-      | ACCESS_TOKEN _t ->
+      match (bot_info.github_token, force_status_check) with
+      | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
           GitHub_mutations.send_status_check
             ~repo_full_name:github_repo_full_name ~commit:job_info.commit
             ~state:"failure" ~url:job_url ~context
             ~description:(description_base ^ ": not found.")
             ~bot_info
-      | INSTALL_TOKEN _t -> (
+      | INSTALL_TOKEN _t, _ -> (
           GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
             ~repo:gh_repo
           >>= function
@@ -169,8 +169,8 @@ let push_status_check ~bot_info (gh_owner, gh_repo) job_info
       ; ("stdlib", Printf.sprintf "%s/html/stdlib/index.html" url_base) ]
       |> List.iter
            ~f:
-             (send_url ~bot_info (gh_owner, gh_repo) job_info
-                github_repo_full_name repo_full_name)
+             (send_url ~bot_info ~force_status_check:true (gh_owner, gh_repo)
+                job_info github_repo_full_name repo_full_name)
       |> Lwt.return
   | "doc:ml-api:odoc" ->
       Stdio.printf
@@ -180,8 +180,8 @@ let push_status_check ~bot_info (gh_owner, gh_repo) job_info
       , f
           "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_build/default/_doc/_html/index.html"
           job_info.build_id )
-      |> send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
-           repo_full_name
+      |> send_url ~bot_info ~force_status_check:true (gh_owner, gh_repo)
+           job_info github_repo_full_name repo_full_name
       |> Lwt.return
   | _ ->
       Lwt.return ()
