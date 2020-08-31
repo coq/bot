@@ -65,8 +65,8 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
                         "library:ci-fiat_crypto_legacy"
                     then GitHub_mutations.post_comment ~bot_info ~id ~message
                     else Lwt.return ()
-                | Error _ ->
-                    Lwt.return () ) )
+                | Error e ->
+                    Lwt_io.printf "No repo id: %s" e ) )
         | Ok {head} ->
             Lwt_io.printf
               "We are on a PR branch but the commit (%s) is not the current \
@@ -97,8 +97,8 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
               ~head_sha:job_info.commit ~conclusion:FAILURE ~status:COMPLETED
               ~title:(failure_reason ^ " on GitLab CI")
               ~text:"" ~details_url:job_url ~summary:""
-        | Error _ ->
-            Lwt.return () )
+        | Error e ->
+            Lwt_io.printf "No repo id: %s" e )
 
 let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
     repo_full_name (kind, url) =
@@ -123,8 +123,8 @@ let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
                 ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
                 ~details_url:url ~conclusion:SUCCESS
                 ~title:(description_base ^ ".") ~text:"" ~summary:""
-          | Error _ ->
-              Lwt.return () )
+          | Error e ->
+              Lwt_io.printf "No repo id: %s" e )
     else
       Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
       >>= fun () ->
@@ -149,8 +149,8 @@ let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
                 ~conclusion:FAILURE
                 ~title:(description_base ^ ": not found.")
                 ~text:"" ~details_url:job_url ~summary:""
-          | Error _ ->
-              Lwt.return () ))
+          | Error e ->
+              Lwt_io.printf "No repo id: %s" e ))
   |> Lwt.async
 
 let push_status_check ~bot_info (gh_owner, gh_repo) job_info
@@ -317,8 +317,8 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
                 ~conclusion:SUCCESS
                 ~title:"Test succeeded on GitLab CI after being retried"
                 ~text:"" ~details_url:job_url ~summary:""
-          | Error _ ->
-              Lwt.return () ) )
+          | Error e ->
+              Lwt_io.printf "No repo id: %s" e ) )
   | Ok _ ->
       Lwt.return ()
   | Error e ->
