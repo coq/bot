@@ -39,6 +39,13 @@ let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
           {bot_info with github_token= INSTALL_TOKEN github_token}
         in
         action ~bot_info
-  | None ->
-      action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
-        action
+  | None -> (
+      GitHub_app.get_installations ~bot_info ~key ~app_id
+      >>= function
+      | Ok installs ->
+          if List.exists installs ~f:(String.equal owner) then
+            action_with_new_installation_token ~bot_info ~key ~app_id ~owner
+              ~repo action
+          else action ~bot_info
+      | Error _ ->
+          action ~bot_info )
