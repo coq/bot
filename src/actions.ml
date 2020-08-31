@@ -427,7 +427,7 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
                   | "cancelled" ->
                       (CANCELLED, "Pipeline was cancelled on GitLab CI")
                   | s ->
-                      (ACTION_REQUIRED, "Unknown pipeline status: " ^ s)
+                      (FAILURE, "Unknown pipeline status: " ^ s)
                 in
                 GitHub_mutations.create_check_run ~bot_info
                   ~name:
