@@ -57,7 +57,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
                       ~repo_id ~head_sha:job_info.commit ~conclusion:NEUTRAL
                       ~status:COMPLETED
                       ~title:(failure_reason ^ " on GitLab CI")
-                      ~text:job_url ~details_url:job_url ~summary:message
+                      ~text:"" ~details_url:job_url ~summary:message
                     <&>
                     if
                       String.equal job_info.build_name
@@ -95,7 +95,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
             GitHub_mutations.create_check_run ~bot_info ~name:context ~repo_id
               ~head_sha:job_info.commit ~conclusion:FAILURE ~status:COMPLETED
               ~title:(failure_reason ^ " on GitLab CI")
-              ~text:job_url ~details_url:job_url ~summary:job_url
+              ~text:"" ~details_url:job_url ~summary:""
         | Error _ ->
             Lwt.return () )
 
@@ -147,7 +147,7 @@ let send_url ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
                 ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
                 ~conclusion:FAILURE
                 ~title:(description_base ^ ": not found.")
-                ~text:job_url ~details_url:job_url ~summary:job_url
+                ~text:"" ~details_url:job_url ~summary:""
           | Error _ ->
               Lwt.return () ))
   |> Lwt.async
@@ -315,7 +315,7 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
                 ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
                 ~conclusion:SUCCESS
                 ~title:"Test succeeded on GitLab CI after being retried"
-                ~text:job_url ~details_url:job_url ~summary:job_url
+                ~text:"" ~details_url:job_url ~summary:""
           | Error _ ->
               Lwt.return () ) )
   | Ok _ ->
@@ -406,8 +406,7 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
                        (pr_from_branch pipeline_info.branch |> snd))
                   ~repo_id ~head_sha:pipeline_info.commit ~status:QUEUED
                   ?conclusion:None ~title:"Pipeline is pending on GitLab CI"
-                  ~text:pipeline_url ~details_url:pipeline_url
-                  ~summary:pipeline_url
+                  ~text:"" ~details_url:pipeline_url ~summary:""
             | "running" ->
                 GitHub_mutations.create_check_run ~bot_info
                   ~name:
@@ -415,8 +414,7 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
                        (pr_from_branch pipeline_info.branch |> snd))
                   ~repo_id ~head_sha:pipeline_info.commit ~status:IN_PROGRESS
                   ?conclusion:None ~title:"Pipeline is running on GitLab CI"
-                  ~text:pipeline_url ~details_url:pipeline_url
-                  ~summary:pipeline_url
+                  ~text:"" ~details_url:pipeline_url ~summary:""
             | _ ->
                 let conclusion, title =
                   match pipeline_info.state with
@@ -434,8 +432,8 @@ let pipeline_action ~bot_info pipeline_info ~github_of_gitlab : unit Lwt.t =
                     (f "GitLab CI pipeline (%s)"
                        (pr_from_branch pipeline_info.branch |> snd))
                   ~repo_id ~head_sha:pipeline_info.commit ~status:COMPLETED
-                  ~conclusion ~title ~text:pipeline_url
-                  ~details_url:pipeline_url ~summary:pipeline_url )
+                  ~conclusion ~title ~text:"" ~details_url:pipeline_url
+                  ~summary:"" )
           | Error e ->
               Lwt_io.printf "No repo id: %s" e ) )
 
