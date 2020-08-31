@@ -33,15 +33,12 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
         GitHub_queries.get_pull_request_refs ~bot_info ~owner:gh_owner
           ~repo:gh_repo ~number
         >>= function
-        | Ok {issue= id; head; last_commit_message= Some commit_message}
+        | Ok {issue= id; head}
         (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
           when String.equal head.sha (f "\"%s\"" job_info.commit) -> (
             let message =
-              f
-                "For your complete information, the job [%s](%s) in allow \
-                 failure mode has failed for commit %s: %s%s"
-                job_info.build_name job_url job_info.commit
-                (first_line_of_string commit_message)
+              f "The job [%s](%s) has failed in allow failure mode%s"
+                job_info.build_name job_url
                 ( if
                   String.equal job_info.build_name
                     "library:ci-fiat_crypto_legacy"
@@ -50,7 +47,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
             in
             match bot_info.github_token with
             | ACCESS_TOKEN _t ->
-                GitHub_mutations.post_comment ~bot_info ~id ~message
+                Lwt.return ()
             | INSTALL_TOKEN _t -> (
                 GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
                   ~repo:gh_repo
@@ -61,6 +58,12 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
                       ~status:COMPLETED
                       ~title:(failure_reason ^ " on GitLab CI")
                       ~text:job_url ~details_url:job_url ~summary:message
+                    <&>
+                    if
+                      String.equal job_info.build_name
+                        "library:ci-fiat_crypto_legacy"
+                    then GitHub_mutations.post_comment ~bot_info ~id ~message
+                    else Lwt.return ()
                 | Error _ ->
                     Lwt.return () ) )
         | Ok {head} ->
