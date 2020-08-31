@@ -47,6 +47,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
             in
             match bot_info.github_token with
             | ACCESS_TOKEN _t ->
+                (* Allow failure messages are reported with the Checks API only. *)
                 Lwt.return ()
             | INSTALL_TOKEN _t -> (
                 GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
