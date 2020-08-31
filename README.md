@@ -17,6 +17,13 @@ If you are not ready to follow up to make your needs more explicit, or
 to help with testing, don't bother requesting a new feature in the
 first place.
 
+## Contents ##
+1. [Features](#features)
+2. [How to use the **@coqbot** instance](#how-to-use-the-coqbot-instance)
+3. [Architecture](#architecture)
+4. [How to deploy a new instance](#how-to-deploy-a-new-instance)
+5. [Building locally](#building-locally)
+
 ## Features ##
 
 ### Synchronization between GitHub and GitLab ###
