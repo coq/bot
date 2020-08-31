@@ -682,10 +682,11 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
           ~bot_info
         |> Lwt_result.ok
     | INSTALL_TOKEN _t -> (
+        let open Lwt.Infix in
         GitHub_queries.get_repository_id ~bot_info
           ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
         >>= function
-        | repo_id ->
+        | Ok repo_id ->
             GitHub_mutations.create_check_run ~bot_info
               ~name:"GitLab CI pipeline (pull request)" ~status:COMPLETED
               ~repo_id ~head_sha:pr_info.head.sha ~conclusion:FAILURE
@@ -693,7 +694,9 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
                 "Pipeline did not run on GitLab CI because PR has conflicts \
                  with base branch."
               ~text:"" ~details_url:"" ~summary:""
-            |> Lwt_result.ok ) )
+            |> Lwt_result.ok
+        | Error e ->
+            Lwt.return (Error e) ) )
 
 let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
     ~gitlab_of_github ~signed =
