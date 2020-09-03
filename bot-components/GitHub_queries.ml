@@ -428,16 +428,62 @@ let get_repository_id ~bot_info ~owner ~repo =
           f "Query get_repository_id failed with %s" err)
   >|= Result.bind ~f:(repo_id_of_resp ~owner ~repo)
 
-(* TODO: use GraphQL API *)
+let get_status_check ~bot_info ~owner ~repo ~commit ~context =
+  GetCheckRuns.make ~owner ~repo ~commit ~context ~appId:bot_info.app_id ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+       ~extra_headers:checks_api_preview_header
+  >|= Result.map_error ~f:(fun err ->
+          f "Query get_status_check failed with %s" err)
+  >|= Result.bind ~f:(fun resp ->
+          match resp#repository with
+          | None ->
+              Error (f "Unknown repository %s/%s." owner repo)
+          | Some repository -> (
+            match repository#obj with
+            | Some (`Commit commit) ->
+                let check =
+                  match commit#checkSuites with
+                  | None ->
+                      false
+                  | Some checkSuites -> (
+                    match checkSuites#nodes with
+                    | None ->
+                        false
+                    | Some checkSuites -> (
+                      match Array.to_list checkSuites with
+                      | [] | [None] | _ :: _ :: _ ->
+                          false
+                      | [Some checkSuite] -> (
+                        match checkSuite#checkRuns with
+                        | None ->
+                            false
+                        | Some checkRuns -> (
+                          match checkRuns#nodes with
+                          | None ->
+                              false
+                          | Some checkRuns -> (
+                            match checkRuns.(0) with
+                            | None ->
+                                false
+                            | Some checkRun -> (
+                              match checkRun#databaseId with
+                              | None ->
+                                  false
+                              | Some _ ->
+                                  true ) ) ) ) ) )
+                in
+                let status =
+                  match commit#status with
+                  | None ->
+                      false
+                  | Some status -> (
+                    match status#context with None -> false | Some _ -> true )
+                in
+                Ok (check || status)
+            | _ ->
+                Error (f "Unkown commit %s/%s@%s." owner repo commit) ))
 
-let get_status_check ~repo_full_name ~commit ~context =
-  generic_get
-    (Printf.sprintf "repos/%s/commits/%s/statuses" repo_full_name commit)
-    (fun json ->
-      let open Yojson.Basic.Util in
-      json |> to_list
-      |> List.exists ~f:(fun json ->
-             json |> member "context" |> to_string |> String.equal context))
+(* TODO: use GraphQL API *)
 
 let get_cards_in_column column_id =
   generic_get
@@ -457,28 +503,3 @@ let get_cards_in_column column_id =
                let pr_number = Str.matched_group 1 content_url in
                Some (pr_number, card_id)
              else None))
-
-let get_check_runs ~owner ~repo ~ref ~app_id =
-  generic_get (f "repos/%s/%s/commits/%s/check-runs" owner repo ref)
-    ~header_list:checks_api_preview_header (fun json ->
-      let open Yojson.Basic.Util in
-      json |> member "check_runs" |> to_list
-      |> List.filter_map ~f:(fun json ->
-             match
-               ( json |> member "head_sha" |> to_string
-               , json |> member "app" |> member "id" |> to_int )
-             with
-             | sha, id when String.equal ref sha && Int.equal id app_id ->
-                 Some
-                   { id= json |> member "id" |> to_int
-                   ; node_id= json |> member "node_id" |> to_string
-                   ; head_sha= json |> member "head_sha" |> to_string
-                   ; name= json |> member "name" |> to_string
-                   ; url= json |> member "url" |> to_string
-                   ; status= json |> member "status" |> to_string
-                   ; title=
-                       json |> member "output" |> member "title" |> to_string
-                   ; text= json |> member "output" |> member "text" |> to_string
-                   }
-             | _ ->
-                 None))

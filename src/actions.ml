@@ -288,8 +288,8 @@ let job_failure ~bot_info job_info pr_num (gh_owner, gh_repo)
 
 let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
     github_repo_full_name repo_full_name context =
-  GitHub_queries.get_status_check ~repo_full_name:github_repo_full_name
-    ~commit:job_info.commit ~context ~bot_info
+  GitHub_queries.get_status_check ~bot_info ~owner:gh_owner ~repo:gh_repo
+    ~commit:job_info.commit ~context
   >>= function
   | Ok true -> (
       Lwt_io.printf

@@ -22,16 +22,17 @@ let gitlab_webhook_secret = Config.gitlab_webhook_secret toml_data
 
 let bot_name = Config.bot_name toml_data
 
+let key = Config.github_private_key
+
+let app_id = Config.github_app_id toml_data
+
 let bot_info : Bot_components.Bot_info.t =
   { github_token= ACCESS_TOKEN github_access_token
   ; gitlab_token= gitlab_access_token
   ; name= bot_name
   ; email= Config.bot_email toml_data
-  ; domain= Config.bot_domain toml_data }
-
-let key = Config.github_private_key
-
-let app_id = Config.github_app_id toml_data
+  ; domain= Config.bot_domain toml_data
+  ; app_id }
 
 let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 

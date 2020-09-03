@@ -5,6 +5,7 @@ type t =
   ; github_token: github_token
   ; name: string
   ; email: string
-  ; domain: string }
+  ; domain: string
+  ; app_id: int }
 
 val get_token : github_token -> string

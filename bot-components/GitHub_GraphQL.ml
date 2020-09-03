@@ -298,3 +298,30 @@ module UpdateCheckRun =
     }
   }
 |}]
+
+module GetCheckRuns =
+[%graphql
+{|
+  query getCheckRuns($appId: Int!, $owner: String!, $repo: String!, $commit: String!, $context: String!) {
+    repository(owner:$owner, name:$repo) {
+      obj: object(expression: $commit) {
+        ... on Commit {
+          checkSuites(first: 1, filterBy: { appId: $appId }) {
+            nodes {
+              checkRuns(first: 1, filterBy: { checkName: $context }) {
+                nodes {
+                  databaseId
+                }
+              }
+            }
+          }
+          status {
+            context(name: $context) {
+              id
+            }
+          }
+        }
+      }
+    }
+  }
+|}]
