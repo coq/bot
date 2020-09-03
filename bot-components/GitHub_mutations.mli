@@ -22,8 +22,9 @@ val create_check_run :
   -> status:check_run_status
   -> details_url:string
   -> title:string
-  -> text:string
+  -> ?text:string
   -> summary:string
+  -> unit
   -> unit Lwt.t
 
 val update_check_run :
@@ -33,8 +34,9 @@ val update_check_run :
   -> conclusion:check_conclusion
   -> ?details_url:string
   -> title:string
-  -> text:string
+  -> ?text:string
   -> summary:string
+  -> unit
   -> unit Lwt.t
 
 val reflect_pull_request_milestone :

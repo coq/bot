@@ -255,7 +255,7 @@ module NewCheckRun =
 [%graphql
 {|
   mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
-  $status: String!, $title: String!, $text: String!, $summary: String!,
+  $status: String!, $title: String!, $text: String, $summary: String!,
   $url: String!, $conclusion: String) {
     createCheckRun(
       input: {
@@ -280,7 +280,7 @@ module UpdateCheckRun =
 [%graphql
 {|
   mutation updateCheckRun($checkRunId: ID!, $repoId: ID!
-  $conclusion: String!, $title: String!, $text: String!,
+  $conclusion: String!, $title: String!, $text: String,
   $url: String, $summary: String!) {
     updateCheckRun(
       input: {
