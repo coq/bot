@@ -381,7 +381,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                 ("pending", "Pipeline is running on GitLab CI")
             | "failed" ->
                 ("failure", "Pipeline completed with errors on GitLab CI")
-            | "cancelled" ->
+            | "cancelled" | "canceled" ->
                 ("error", "Pipeline was cancelled on GitLab CI")
             | s ->
                 ("error", "Unknown pipeline status: " ^ s)
@@ -423,7 +423,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                       (SUCCESS, "Pipeline completed on GitLab CI")
                   | "failed" ->
                       (FAILURE, "Pipeline completed with errors on GitLab CI")
-                  | "cancelled" ->
+                  | "cancelled" | "canceled" ->
                       (CANCELLED, "Pipeline was cancelled on GitLab CI")
                   | s ->
                       (FAILURE, "Unknown pipeline status: " ^ s)
