@@ -119,3 +119,5 @@ type check_run =
   ; url: string
   ; title: string
   ; text: string }
+
+type github_app_install_info = {owner: string; installation_id: int}

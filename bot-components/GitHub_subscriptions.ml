@@ -150,6 +150,13 @@ let push_event_info_of_json json =
   in
   {owner; repo; base_ref; commits_msg}
 
+let installation_info_of_json json =
+  let open Yojson.Basic.Util in
+  let installation = json |> member "installation" in
+  let installation_id = installation |> member "id" |> to_int in
+  let owner = installation |> member "account" |> member "login" |> to_string in
+  {owner; installation_id}
+
 type msg =
   | IssueOpened of issue_info
   | IssueClosed of issue_info
@@ -163,6 +170,8 @@ type msg =
   | CheckSuiteCreated of check_suite_info
   | CheckSuiteRequested of check_suite_info
   | PushEvent of push_info
+  | GitHubAppInstallation of github_app_install_info
+  | GitHubAppDeletion of github_app_install_info
   | UnsupportedEvent of string
 
 let github_action ~event ~action json =
@@ -195,6 +204,10 @@ let github_action ~event ~action json =
       Ok (CheckRunCreated (check_run_info_of_json json))
   | "check_suite", "requested" ->
       Ok (CheckSuiteRequested (check_suite_info_of_json json))
+  | "installation", ("created" | "unsuspend") ->
+      Ok (GitHubAppInstallation (installation_info_of_json json))
+  | "installation", ("deleted" | "suspend") ->
+      Ok (GitHubAppDeletion (installation_info_of_json json))
   | _ ->
       Ok (UnsupportedEvent "Unsupported GitHub action.")
 
@@ -206,7 +219,8 @@ let github_event ~event json =
   | "issue_comment"
   | "pull_request_review"
   | "check_run"
-  | "check_suite" ->
+  | "check_suite"
+  | "installation" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
   | "push" ->
       Ok (PushEvent (push_event_info_of_json json))

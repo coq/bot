@@ -13,6 +13,8 @@ type msg =
   | CheckSuiteCreated of check_suite_info
   | CheckSuiteRequested of check_suite_info
   | PushEvent of push_info
+  | GitHubAppInstallation of github_app_install_info
+  | GitHubAppDeletion of github_app_install_info
   | UnsupportedEvent of string
 
 val receive_github :
