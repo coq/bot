@@ -169,7 +169,7 @@ Once you finish the installation, follow these steps:
   [mapping]
   gitlab = "owner/repo"
   ```
-  If you use an other instance of **@coqbot**, this repository-specific
+  If you use other instance of **@coqbot**, this repository-specific
   configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
   of the bot.
 
@@ -177,7 +177,7 @@ Once you finish the installation, follow these steps:
 
 The bot used to be given access to each of your GitHub repositories as a
 regular GitHub user account (**@coqbot**). This installation method is
-still supported for repositories which haven't migrated to the GitHub App
+still supported for repositories that haven't migrated to the GitHub App
 yet. Here are the steps to follow in addition to the one described in the 
 `As GitHub App` section:
 
@@ -188,8 +188,8 @@ yet. Here are the steps to follow in addition to the one described in the
     the "Write" role (so that it can push status checks, and set
     labels).
 
-    Currently every invitation requires a manual validation, so there
-    may be some lag before **@coqbot** is able to push status checks
+    Currently, every invitation requires a manual validation, so there
+    may be some lag before **@coqbot** can push status checks
     to your repository.
 
   - go to "Settings" / "Webhooks" and add one webhook with URL
@@ -204,7 +204,7 @@ yet. Here are the steps to follow in addition to the one described in the
 
 The bot has grown according to the needs for automation in the Coq
 project, initially as a single file, and is now incrementally being
-rearchitectured around the idea of providing a library of base bot
+rearchitected around the idea of providing a library of base bot
 components that can be used in a trigger-action programming model.
 
 The most popular trigger-action programming platforms as of today are
@@ -236,7 +236,7 @@ When this architecture is sufficiently stable, the goal is to publish
 the `bot-components` folder as an independent library of building
 blocks to create a personalized bot in OCaml.  In the meantime, if you
 deploy your own instance, the `callback` function in the `bot.ml` file
-is the main entry point, where you can decide of your own business
+is the main entry point, where you can decide of your business
 logic by choosing the subscriptions you listen to, and by triggering
 the relevant queries and mutations on demand.
 
@@ -264,7 +264,7 @@ environment variable.
 
 A Dockerfile to build a personalized image based on a release image
 from GitHub packages, using a custom `bot_config.toml` configuration
-file would look like:
+the file would look like:
 ```dockerfile
 FROM docker.pkg.github.com/coq/bot/coqbot:xxx
 
