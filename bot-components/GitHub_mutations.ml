@@ -76,7 +76,7 @@ let string_of_conclusion conclusion =
   | ACTION_REQUIRED ->
       "ACTION_REQUIRED"
   | CANCELLED ->
-      "ACTION_REQUIRED"
+      "CANCELLED"
   | FAILURE ->
       "FAILURE"
   | NEUTRAL ->
