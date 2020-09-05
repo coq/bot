@@ -23,6 +23,7 @@ port=8000 # The port number the server is listening on.
 # variables: GITHUB_ACCESS_TOKEN and GITHUB_WEBHOOK_SECRET
 api_token = "secret"
 webhook_secret = "secret"
+app_id = 0 # The GitHub App ID
 
 # Settings for GitLab
 [gitlab]

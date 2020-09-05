@@ -249,6 +249,11 @@ the relevant queries and mutations on demand.
 
 ## How to deploy a new instance ##
 
+Creating an instance of the bot requires to create a
+[GitHub App](https://docs.github.com/en/developers/apps/creating-a-github-app) and set up a server.
+
+### Deploying the server
+
 We provide a Docker image at each release, which can be easily deployed
 to [Heroku](https://www.heroku.com/). Simply follow the official
 [instructions](https://devcenter.heroku.com/articles/container-registry-and-runtime).
@@ -259,21 +264,18 @@ these are configured in your Heroku app:
 - `GITLAB_ACCESS_TOKEN`
 - `GITHUB_ACCESS_TOKEN`
 - `GITHUB_WEBHOOK_SECRET`
-- `BOT_NAME` (defaults to `coqbot`)
-- `BOT_EMAIL` (defaults to `BOT_NAME@users.noreply.github.com`)
+- `GITHUB_PRIVATE_KEY` (a private key of your GitHub app)
+- `GITHUB_APP_ID` (your GitHub App ID)
 
-In the next release of coqbot, the `BOT_NAME` and `BOT_EMAIL`
-environment variables won't have any effect and should be set from
-a configuration file instead (see [`example-config.toml`](example-config.toml)).
-The port number must not be set in the configuration file if you're
-deploying the docker image to Heroku, since the latter uses a custom
-environment variable.
+Then, you must configure the bot with a configuration file. Here is an example
+to adapt to your needs [`example-config.toml`](example-config.toml)). The `[mappings]`
+section is mandatory.
 
-A Dockerfile to build a personalized image based on a release image
-from GitHub packages, using a custom `bot_config.toml` configuration
-the file would look like:
+Here is an example of Dockerfile to build a personalized image based
+on a release image from GitHub packages, using a custom `bot_config.toml`
+configuration file:
 ```dockerfile
-FROM docker.pkg.github.com/coq/bot/coqbot:xxx
+FROM docker.pkg.github.com/coq/bot/coqbot:v0.2.0
 
 COPY path/to/bot_config.toml ./
 
@@ -284,6 +286,45 @@ CMD ["./bot.exe", "bot_config.toml"]
 ```
 Keep in mind that you should login first to GitHub packages with your
 GitHub credentials.
+
+### Create a GitHub App
+
+Please follow the [instructions](https://docs.github.com/en/developers/apps/creating-a-github-app)
+for creating a GitHub App.
+
+Make sure to enter the address of your instance of the server followed by `/github` in the
+`Webhook URL` entry. It typically looks like `https://myapp.herokuapp.com/github` if you
+deployed the server to Heroku.
+
+You can also specify the `Webhook Secret`, which should correspond to the `GITHUB_WEBHOOK_SECRET`
+environment variable.
+
+Then, you need to set the following permissions:
+
+- Repository permissions:
+  - Checks: read & write
+  - Contents: read & write
+  - Issues: read & write
+  - Metadata: read-only
+  - Pull requests: read & write
+  - Projects: read & write
+  - Commit statuses: read & write
+
+- Organization permissions:
+  - Members: read-only
+  - Projects: read & write
+
+- Subscribe to events (check the following events):
+  - Commit comment
+  - Create
+  - Issue comment
+  - Issues
+  - Project
+  - Project card
+  - Project column
+  - Pull request
+  - Pull request review
+  - Push
 
 ## Building locally ##
 
