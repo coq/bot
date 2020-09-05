@@ -127,7 +127,7 @@ you are interested in hearing about it.
 
 ### As a GitHub App
 
-Note: Installing as a GitHub App is still in an experimental stage
+Note: Installation as a GitHub App is still in an experimental stage
 and you may frequently receive requests to expand permissions.
 
 Note: All the repositories that use the bot and belong to the same
@@ -159,7 +159,7 @@ Once you finish the installation, follow these steps:
     triggered by pipeline events and job events. Set its URL to
     <https://coqbot.herokuapp.com/gitlab>.
 
-  By default, **@coqbot** assumes that both GitHub and GitLab repositories
+  By default, **@coqbot** considers that both GitHub and GitLab repositories
   share the same URL except for the "lab" replacing the "hub" part. If
   that is not the case, assuming you created a GitLab repository whose
   URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
@@ -178,7 +178,7 @@ Once you finish the installation, follow these steps:
 The bot used to be given access to each of your GitHub repositories as a
 regular GitHub user account (**@coqbot**). This installation method is
 still supported for repositories that haven't migrated to the GitHub App
-yet. Here are the steps to follow in addition to the one described in the 
+yet. Here are the steps to follow in addition to those described in the 
 `As GitHub App` section:
 
 - In your GitHub repository:
