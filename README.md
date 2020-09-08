@@ -268,8 +268,7 @@ these are configured in your Heroku app:
 - `GITHUB_APP_ID` (your GitHub App ID)
 
 Then, you must configure the bot with a configuration file. Here is an example
-to adapt to your needs [`example-config.toml`](example-config.toml)). The `[mappings]`
-section is mandatory.
+to adapt to your needs [`example-config.toml`](example-config.toml)).
 
 Here is an example of Dockerfile to build a personalized image based
 on a release image from GitHub packages, using a custom `bot_config.toml`

@@ -124,13 +124,11 @@ let parse_mappings mappings =
   , get_table (Hashtbl.of_alist (module String) assoc_rev) )
 
 let make_mappings_table toml_data =
-  let toml_mappings =
+  try
     match find "mappings" toml_data with
     | TomlTypes.TTable a ->
-        Some a
+        parse_mappings a
     | _ ->
-        None
-  in
-  Option.value_exn toml_mappings
-    ~message:"No mappings field found in toml config file."
-  |> parse_mappings
+        (Hashtbl.create (module String), Hashtbl.create (module String))
+  with Stdlib.Not_found ->
+    (Hashtbl.create (module String), Hashtbl.create (module String))
