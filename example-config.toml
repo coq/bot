@@ -13,8 +13,8 @@ port="8000" # The port number the server is listening on.
 # If commented, the port number is read from the
 # PORT environment variable. If this environment
 # variable is not found, the port is set to 8000.
-# If you deployed the server to Heroku this line
-# must be commented, since it provides the PORT
+# If you deploy the server to Heroku, this line
+# must be commented: Heroku provides the PORT
 # environment variable.
 
 # Settings for GitHub
