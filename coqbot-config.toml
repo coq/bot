@@ -6,13 +6,13 @@ email="coqbot@users.noreply.github.com"
 domain="coqbot.herokuapp.com"
 
 [github]
-  app_id = 31373
+app_id="31373"
 
 [mappings]
   [mappings.coq]
-  github = "coq/coq"
-  gitlab = "coq/coq"
+  github="coq/coq"
+  gitlab="coq/coq"
 
   [mappings.opam-coq-archive]
-  github = "coq/opam-coq-archive"
-  gitlab = "coq/opam-coq-archive"
+  github="coq/opam-coq-archive"
+  gitlab="coq/opam-coq-archive"

@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2020-08-31
+
+### Added
+- Integrate with Jason Gross' coq-bug-minimizer tool.
+- Merge a branch in the coq repository if some conditions are met, by writing `@coqbot: merge now` in a comment.
+- Parametrize the bot with a configuration file.
+- Installation as a GitHub App is supported.
+- Report CI status checks with the Checks API when using the GitHub app.
+- Report errors of jobs in allow failure mode when the Checks API is used.
+
+### Changed
+- Refactored the architecture of the application and of the bot-components library
+- More informative bot merge commit title for GitLab CI.
+
 ## [0.1.0] - 2020-07-09
 Initial release of coqbot.
 
