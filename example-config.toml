@@ -9,7 +9,7 @@ email="mybot@users.noreply.github.com"
 
 [server]
 domain="mybot.herokuapp.com" # URL of the server
-port=8000 # The port number the server is listening on.
+port="8000" # The port number the server is listening on.
 # If commented, the port number is read from the
 # PORT environment variable. If this environment
 # variable is not found, the port is set to 8000.
@@ -21,24 +21,24 @@ port=8000 # The port number the server is listening on.
 [github]
 # If commented, these secrets are read from environment
 # variables: GITHUB_ACCESS_TOKEN and GITHUB_WEBHOOK_SECRET
-api_token = "secret"
-webhook_secret = "secret"
-app_id = 0 # The GitHub App ID
+api_token="secret"
+webhook_secret="secret"
+app_id="0" # The GitHub App ID
 
 # Settings for GitLab
 [gitlab]
 # If commented, this secret is read from the environment
 # variable GITLAB_ACCESS_TOKEN
-api_token = "secret"
+api_token="secret"
 
 # Correspondence between GitHub & GitLab repositories
 [mappings]
   [mappings.coq]
-  github = "coq/coq"
+  github="coq/coq"
   # The GitHub repository URL being https://github.com/coq/coq
-  gitlab = "coq/coq"
+  gitlab="coq/coq"
   # The GitLab repository URL being https://gitlab.com/coq/coq
 
   [mappings.opam-coq-archive]
-  github = "coq/opam-coq-archive"
-  gitlab = "coq/opam-coq-archive"
+  github="coq/opam-coq-archive"
+  gitlab="coq/opam-coq-archive"
