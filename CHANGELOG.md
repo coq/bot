@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2020-08-31
+## [0.2.0] - 2020-09-09
 
 ### Added
 - Integrate with Jason Gross' coq-bug-minimizer tool.
@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Refactored the architecture of the application and of the bot-components library
+- Always create a merge commit when pushing to GitLab.
 - More informative bot merge commit title for GitLab CI.
 
 ## [0.1.0] - 2020-07-09
@@ -37,5 +38,6 @@ Initial release of coqbot.
 - Manage the backporting process.
 - Automatic release, build and deployment of Docker images of the bot to Heroku and GitHub packages.
 
-[Unreleased]: https://github.com/coq/bot/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/coq/bot/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/coq/bot/releases/tag/v0.2.0
 [0.1.0]: https://github.com/coq/bot/releases/tag/v0.1.0
