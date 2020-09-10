@@ -74,21 +74,21 @@ let reflect_pull_request_milestone ~bot_info issue_closer_info =
 let string_of_conclusion conclusion =
   match conclusion with
   | ACTION_REQUIRED ->
-      "ACTION_REQUIRED"
+      `ACTION_REQUIRED
   | CANCELLED ->
-      "CANCELLED"
+      `CANCELLED
   | FAILURE ->
-      "FAILURE"
+      `FAILURE
   | NEUTRAL ->
-      "NEUTRAL"
+      `NEUTRAL
   | SKIPPED ->
-      "SKIPPED"
+      `SKIPPED
   | STALE ->
-      "STALE"
+      `STALE
   | SUCCESS ->
-      "SUCCESS"
+      `SUCCESS
   | TIMED_OUT ->
-      "TIMED_OUT"
+      `TIMED_OUT
 
 let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
     ~details_url ~title ?text ~summary () =
@@ -96,11 +96,11 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
   let status =
     match status with
     | COMPLETED ->
-        "COMPLETED"
+        `COMPLETED
     | IN_PROGRESS ->
-        "IN_PROGRESS"
+        `IN_PROGRESS
     | QUEUED ->
-        "QUEUED"
+        `QUEUED
   in
   NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ?text
     ~summary ~url:details_url ?conclusion ()

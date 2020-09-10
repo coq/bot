@@ -1,8 +1,8 @@
 { pkgs ? import (fetchTarball {
   name = "nixpkgs-master-2020-08-08";
   url =
-    "https://github.com/NixOS/nixpkgs/archive/b10e79a2616502688e2a9ccea1a7ca22d1f60f54.tar.gz";
-  sha256 = "13xm731qalpx8qpxr85kx2abxv6lizws8izxcncwd7x3rv4hc1y0";
+    "https://github.com/NixOS/nixpkgs/archive/1074c0a37f2bb032767d24620123d7817eead9d0.tar.gz";
+  sha256 = "1q64cxf0lbm0fzyw6sxi3bzv8bkp4j4v0pp9n6jhq5wwh8b9bm8j";
 }) { } }:
 
 with pkgs;

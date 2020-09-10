@@ -20,7 +20,7 @@ depends: [
   "mirage-crypto" {>= "0.8.1"}
   "eqaf" {>= "0.7"}
   "yojson" {>= "1.7.0"}
-  "graphql_ppx" {>= "0.7.1" & < "1.0.0~"}
+  "graphql_ppx" {>= "1.0.1"}
   "x509" {>= "0.11.2"}
   "cstruct" {>= "5.2.0"}
   "odoc" {>= "1.4.0"}

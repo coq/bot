@@ -256,7 +256,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
           let filter_authors a =
             a |> Array.to_list |> List.filter_opt
             |> List.filter_map ~f:(fun review ->
-                   review#author |> Option.map ~f:(fun (`Actor a) -> a#login))
+                   review#author |> Option.map ~f:(fun a -> a#login))
             |> List.dedup_and_sort ~compare:String.compare
           in
           let approved_reviews =
@@ -283,7 +283,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                     comments |> Array.to_list |> List.filter_opt
                     |> List.filter_map ~f:(fun c ->
                            c#author
-                           |> Option.map ~f:(fun (`Actor a) : comment ->
+                           |> Option.map ~f:(fun a : comment ->
                                   { id= c#id
                                   ; author= a#login
                                   ; created_by_email= c#createdViaEmail })) )
@@ -326,7 +326,7 @@ let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
     match repository#file with
     | Some (`Blob b) ->
         Ok b#text
-    | Some (`GitObject _) ->
+    | Some (`UnspecifiedFragment _) ->
         Ok None
     | None ->
         Ok None )

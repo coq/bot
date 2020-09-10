@@ -65,6 +65,14 @@ module TeamMembership =
   }
 |}]
 
+module StringOid = struct
+  let parse = Yojson.Basic.to_string
+
+  let serialize = Yojson.Basic.from_string
+
+  type t = string
+end
+
 module PullRequest_Refs =
 [%graphql
 {|
@@ -73,9 +81,9 @@ module PullRequest_Refs =
       pullRequest(number: $number) {
         id
         baseRefName
-        baseRefOid @bsDecoder(fn: "Yojson.Basic.to_string")
+        baseRefOid @ppxCustom(module: "StringOid")
         headRefName
-        headRefOid @bsDecoder(fn: "Yojson.Basic.to_string")
+        headRefOid @ppxCustom(module: "StringOid")
         merged
         commits(last: 1) {
           nodes {
@@ -146,14 +154,14 @@ module PullRequestReviewsInfo =
           }
         }
         reviewDecision
-        commentReviews: reviews(states: COMMENTED, last: 100) {
+        commentReviews: reviews(states: [COMMENTED], last: 100) {
           nodes {
             author {
               login
             }
           }
         }
-        approvedReviews: reviews(states: APPROVED, last: 100) {
+        approvedReviews: reviews(states: [APPROVED], last: 100) {
           nodes {
             author {
               login
@@ -255,8 +263,8 @@ module NewCheckRun =
 [%graphql
 {|
   mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
-  $status: String!, $title: String!, $text: String, $summary: String!,
-  $url: String!, $conclusion: String) {
+  $status: RequestableCheckStatusState!, $title: String!, $text: String, $summary: String!,
+  $url: String!, $conclusion: CheckConclusionState) {
     createCheckRun(
       input: {
         status:$status,
@@ -280,7 +288,7 @@ module UpdateCheckRun =
 [%graphql
 {|
   mutation updateCheckRun($checkRunId: ID!, $repoId: ID!
-  $conclusion: String!, $title: String!, $text: String,
+  $conclusion: CheckConclusionState!, $title: String!, $text: String,
   $url: String, $summary: String!) {
     updateCheckRun(
       input: {
