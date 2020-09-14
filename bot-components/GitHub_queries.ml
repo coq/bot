@@ -462,10 +462,10 @@ let get_status_check ~bot_info ~owner ~repo ~commit ~context =
                           | None ->
                               false
                           | Some checkRuns -> (
-                            match checkRuns.(0) with
-                            | None ->
+                            match Array.to_list checkRuns with
+                            | [] | [None] | _ :: _ :: _ ->
                                 false
-                            | Some checkRun -> (
+                            | [Some checkRun] -> (
                               match checkRun#databaseId with
                               | None ->
                                   false
