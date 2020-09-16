@@ -154,18 +154,16 @@ module PullRequestReviewsInfo =
           }
         }
         reviewDecision
-        commentReviews: reviews(states: [COMMENTED], last: 100) {
+        latestReviews(first: 100) {
           nodes {
-            author {
-              login
-            }
+            author { login }
+            state
           }
         }
-        approvedReviews: reviews(states: [APPROVED], last: 100) {
+        latestOpinionatedReviews(first: 100) {
           nodes {
-            author {
-              login
-            }
+            author { login }
+            state
           }
         }
       }

@@ -241,75 +241,85 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
       match
         ( pull_request#baseRef
         , pull_request#files
-        , pull_request#approvedReviews
-        , pull_request#commentReviews )
+        , pull_request#latestReviews
+        , pull_request#latestOpinionatedReviews )
       with
       | None, _, _, _ ->
           Error "No base ref found."
       | _, None, _, _ ->
           Error "No files found."
       | _, _, None, _ ->
-          Error "No approved reviews found."
+          Error "No reviews found."
       | _, _, _, None ->
-          Error "No comment reviews found."
-      | Some baseRef, Some files, Some approved_reviews, Some comment_reviews ->
-          let filter_authors a =
-            a |> Array.to_list |> List.filter_opt
-            |> List.filter_map ~f:(fun review ->
-                   review#author |> Option.map ~f:(fun a -> a#login))
-            |> List.dedup_and_sort ~compare:String.compare
-          in
-          let approved_reviews =
-            match approved_reviews#nodes with
-            | None ->
-                []
-            | Some reviews ->
-                filter_authors reviews
-          in
-          Ok
-            { baseRef= baseRef#name
-            ; files=
-                ( match files#nodes with
-                | None ->
-                    []
-                | Some files ->
-                    files |> Array.to_list |> List.filter_opt
-                    |> List.map ~f:(fun file -> file#path) )
-            ; last_comments=
-                ( match pull_request#comments#nodes with
-                | None ->
-                    []
-                | Some comments ->
-                    comments |> Array.to_list |> List.filter_opt
-                    |> List.filter_map ~f:(fun c ->
-                           c#author
-                           |> Option.map ~f:(fun a : comment ->
-                                  { id= c#id
-                                  ; author= a#login
-                                  ; created_by_email= c#createdViaEmail })) )
-            ; approved_reviews
-            ; comment_reviews=
-                ( match comment_reviews#nodes with
-                | None ->
-                    []
-                | Some reviews ->
-                    reviews |> filter_authors
-                    |> List.filter ~f:(fun a ->
-                           not
-                             (List.exists approved_reviews ~f:(String.equal a)))
-                )
-            ; review_decision=
-                ( match pull_request#reviewDecision with
-                | None ->
-                    NONE
-                | Some r -> (
-                  match r with
-                  | `CHANGES_REQUESTED ->
-                      CHANGES_REQUESTED
-                  | `APPROVED ->
-                      APPROVED
-                  | `REVIEW_REQUIRED ->
-                      REVIEW_REQUIRED ) ) } ) )
+          Error "No opinionated reviews found."
+      | Some baseRef, Some files, Some reviews, Some opinionatedReviews -> (
+        match (reviews#nodes, opinionatedReviews#nodes) with
+        | None, _ ->
+            Error "No reviews found."
+        | _, None ->
+            Error "No opinionated reviews found."
+        | Some reviews, Some opinionatedReviews ->
+            let approved_reviews =
+              opinionatedReviews |> Array.to_list
+              |> List.filter_map
+                   ~f:
+                     (Option.bind ~f:(fun review ->
+                          review#author
+                          |> Option.bind ~f:(fun author ->
+                                 match review#state with
+                                 | `APPROVED ->
+                                     Some author#login
+                                 | _ ->
+                                     None)))
+            in
+            let comment_reviews =
+              reviews |> Array.to_list
+              |> List.filter_map
+                   ~f:
+                     (Option.bind ~f:(fun review ->
+                          review#author
+                          |> Option.bind ~f:(fun author ->
+                                 if
+                                   List.mem ~equal:String.equal approved_reviews
+                                     author#login
+                                 then None
+                                 else Some author#login)))
+            in
+            Ok
+              { baseRef= baseRef#name
+              ; files=
+                  ( match files#nodes with
+                  | None ->
+                      []
+                  | Some files ->
+                      files |> Array.to_list |> List.filter_opt
+                      |> List.map ~f:(fun file -> file#path) )
+              ; last_comments=
+                  ( match pull_request#comments#nodes with
+                  | None ->
+                      []
+                  | Some comments ->
+                      comments |> Array.to_list |> List.filter_opt
+                      |> List.filter_map ~f:(fun c ->
+                             c#author
+                             |> Option.map ~f:(fun a : comment ->
+                                    { id= c#id
+                                    ; author= a#login
+                                    ; created_by_email= c#createdViaEmail })) )
+              ; approved_reviews
+              ; comment_reviews
+              ; review_decision=
+                  ( match pull_request#reviewDecision with
+                  | None ->
+                      NONE
+                  | Some r -> (
+                    match r with
+                    | `CHANGES_REQUESTED ->
+                        CHANGES_REQUESTED
+                    | `APPROVED ->
+                        APPROVED
+                    | `REVIEW_REQUIRED ->
+                        REVIEW_REQUIRED ) ) } ) ) )
 
 let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   PullRequestReviewsInfo.make ~owner ~repo ~number ()
