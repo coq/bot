@@ -82,7 +82,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
         Lwt_io.printf "We are not on a PR branch. Doing nothing.\n"
   else
     Lwt_io.printf "Pushing a status check...\n"
-    >>= fun () ->
+    <&>
     match bot_info.github_token with
     | ACCESS_TOKEN _t ->
         GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
@@ -102,64 +102,59 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
 
 let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
     job_info github_repo_full_name repo_full_name (kind, url) =
-  (fun () ->
-    let context = Printf.sprintf "%s: %s artifact" job_info.build_name kind in
-    let description_base = Printf.sprintf "Link to %s build artifact" kind in
-    url |> Uri.of_string |> Client.get
-    >>= fun (resp, _) ->
-    if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
-      match (bot_info.github_token, force_status_check) with
-      | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
-          GitHub_mutations.send_status_check
-            ~repo_full_name:github_repo_full_name ~commit:job_info.commit
-            ~state:"success" ~url ~context ~description:(description_base ^ ".")
-            ~bot_info
-      | INSTALL_TOKEN _t, _ -> (
-          GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
-            ~repo:gh_repo
-          >>= function
-          | Ok repo_id ->
-              GitHub_mutations.create_check_run ~bot_info ~name:context
-                ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
-                ~details_url:url ~conclusion:SUCCESS
-                ~title:(description_base ^ ".") ~summary:"" ()
-          | Error e ->
-              Lwt_io.printf "No repo id: %s" e )
-    else
-      Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
-      >>= fun () ->
-      let job_url =
-        Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-          job_info.build_id
-      in
-      match (bot_info.github_token, force_status_check) with
-      | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
-          GitHub_mutations.send_status_check
-            ~repo_full_name:github_repo_full_name ~commit:job_info.commit
-            ~state:"failure" ~url:job_url ~context
-            ~description:(description_base ^ ": not found.")
-            ~bot_info
-      | INSTALL_TOKEN _t, _ -> (
-          GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
-            ~repo:gh_repo
-          >>= function
-          | Ok repo_id ->
-              GitHub_mutations.create_check_run ~bot_info ~name:context
-                ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
-                ~conclusion:FAILURE
-                ~title:(description_base ^ ": not found.")
-                ~details_url:job_url ~summary:"" ()
-          | Error e ->
-              Lwt_io.printf "No repo id: %s" e ))
-  |> Lwt.async
+  let context = Printf.sprintf "%s: %s artifact" job_info.build_name kind in
+  let description_base = Printf.sprintf "Link to %s build artifact" kind in
+  url |> Uri.of_string |> Client.get
+  >>= fun (resp, _) ->
+  if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
+    match (bot_info.github_token, force_status_check) with
+    | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit:job_info.commit ~state:"success" ~url ~context
+          ~description:(description_base ^ ".") ~bot_info
+    | INSTALL_TOKEN _t, _ -> (
+        GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
+        >>= function
+        | Ok repo_id ->
+            GitHub_mutations.create_check_run ~bot_info ~name:context
+              ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
+              ~details_url:url ~conclusion:SUCCESS
+              ~title:(description_base ^ ".") ~summary:"" ()
+        | Error e ->
+            Lwt_io.printf "No repo id: %s" e )
+  else
+    Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
+    <&>
+    let job_url =
+      Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
+        job_info.build_id
+    in
+    match (bot_info.github_token, force_status_check) with
+    | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
+        GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
+          ~commit:job_info.commit ~state:"failure" ~url:job_url ~context
+          ~description:(description_base ^ ": not found.")
+          ~bot_info
+    | INSTALL_TOKEN _t, _ -> (
+        GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
+        >>= function
+        | Ok repo_id ->
+            GitHub_mutations.create_check_run ~bot_info ~name:context
+              ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
+              ~conclusion:FAILURE
+              ~title:(description_base ^ ": not found.")
+              ~details_url:job_url ~summary:"" ()
+        | Error e ->
+            Lwt_io.printf "No repo id: %s" e )
 
 let push_status_check ~bot_info (gh_owner, gh_repo) job_info
     github_repo_full_name repo_full_name =
   match job_info.build_name with
   | "doc:refman" ->
-      Stdio.printf
+      Lwt_io.printf
         "This is a successful refman build. Pushing a status check with a \
-         link...\n" ;
+         link...\n"
+      <&>
       let url_base =
         f
           "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_install_ci/share/doc/coq"
@@ -167,22 +162,24 @@ let push_status_check ~bot_info (gh_owner, gh_repo) job_info
       in
       [ ("refman", Printf.sprintf "%s/sphinx/html/index.html" url_base)
       ; ("stdlib", Printf.sprintf "%s/html/stdlib/index.html" url_base) ]
-      |> List.iter
+      |> List.map
            ~f:
              (send_url ~bot_info ~force_status_check:true (gh_owner, gh_repo)
                 job_info github_repo_full_name repo_full_name)
-      |> Lwt.return
+      |> Lwt.all |> Lwt.map ignore
   | "doc:ml-api:odoc" ->
-      Stdio.printf
+      Lwt_io.printf
         "This is a successful ml-api build. Pushing a status check with a \
-         link...\n" ;
-      ( "ml-api"
-      , f
+         link...\n"
+      <&>
+      let url_base =
+        f
           "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_build/default/_doc/_html/index.html"
-          job_info.build_id )
+          job_info.build_id
+      in
+      ("ml-api", url_base)
       |> send_url ~bot_info ~force_status_check:true (gh_owner, gh_repo)
            job_info github_repo_full_name repo_full_name
-      |> Lwt.return
   | _ ->
       Lwt.return ()
 
@@ -295,7 +292,7 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
       Lwt_io.printf
         "There existed a previous status check for this build, we'll override \
          it.\n"
-      >>= fun () ->
+      <&>
       let job_url =
         Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
           job_info.build_id
@@ -330,7 +327,7 @@ let job_action ~bot_info (job_info : job_info) ~gitlab_mapping =
   let owner, repo =
     let repo_url = job_info.repo_url in
     if not (string_match ~regexp:".*:\\(.*\\)/\\(.*\\).git" repo_url) then
-      Stdio.printf "Could not match project name on repository url.\n" ;
+      failwith "Could not match project name on repository url.\n" ;
     (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
   in
   let repo_full_name = owner ^ "/" ^ repo in
