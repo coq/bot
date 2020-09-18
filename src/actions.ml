@@ -503,11 +503,16 @@ let merge_pull_request_action ~bot_info ~comment_info =
           if (not comment_info.review_comment) && Option.is_none comment then
             GitHub_mutations.post_comment ~bot_info
               ~message:
-                (f
-                   "@%s: Could not find merge comment because too many \
-                    comments were posted since."
+                (f "@%s: Could not find merge comment. cc @Zimmi48"
                    comment_info.author)
               ~id:pr.id
+            <&> ( reviews_info.last_comments
+                |> List.map ~f:(fun (c : comment) ->
+                       c.id ^ " sent by " ^ c.author
+                       ^ if c.created_by_email then " via email" else "")
+                |> String.concat ~sep:"\n"
+                |> Lwt_io.printf "Could not find merge comment %s among:\n%s\n"
+                     comment_info.id )
           else if
             (not comment_info.review_comment)
             && (Option.value_exn comment).created_by_email
