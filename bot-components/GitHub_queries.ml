@@ -441,7 +441,6 @@ let get_repository_id ~bot_info ~owner ~repo =
 let get_status_check ~bot_info ~owner ~repo ~commit ~context =
   GetCheckRuns.make ~owner ~repo ~commit ~context ~appId:bot_info.app_id ()
   |> GraphQL_query.send_graphql_query ~bot_info
-       ~extra_headers:checks_api_preview_header
   >|= Result.map_error ~f:(fun err ->
           f "Query get_status_check failed with %s" err)
   >|= Result.bind ~f:(fun resp ->

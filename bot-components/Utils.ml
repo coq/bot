@@ -48,9 +48,6 @@ let handle_json action body =
 let project_api_preview_header =
   [("Accept", "application/vnd.github.inertia-preview+json")]
 
-let checks_api_preview_header =
-  [("Accept", "application/vnd.github.antiope-preview+json")]
-
 let app_api_preview_header =
   [("Accept", "application/vnd.github.machine-man-preview+json")]
 

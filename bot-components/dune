@@ -17,8 +17,7 @@
   (with-stdout-to
    %{targets}
    (run get-graphql-schema --json --header
-     "Authorization=Bearer %{read:.github-token}" --header
-     "Accept=application/vnd.github.antiope-preview+json"
+     "Authorization=Bearer %{read:.github-token}"
      https://api.github.com/graphql)))
  (mode promote))
 

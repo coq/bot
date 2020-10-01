@@ -105,7 +105,6 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
   NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ?text
     ~summary ~url:details_url ?conclusion ()
   |> GraphQL_query.send_graphql_query ~bot_info
-       ~extra_headers:Utils.checks_api_preview_header
   >|= function
   | Ok _ ->
       ()
@@ -118,7 +117,6 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
   UpdateCheckRun.make ~checkRunId:check_run_id ~repoId:repo_id ~conclusion
     ?url:details_url ~title ?text ~summary ()
   |> GraphQL_query.send_graphql_query ~bot_info
-       ~extra_headers:Utils.checks_api_preview_header
   >|= function
   | Ok _ ->
       ()
