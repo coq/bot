@@ -1,5 +1,9 @@
 type ci_common_info =
-  {commit: string; branch: string; repo_url: string; project_id: int}
+  { head_commit: string
+  ; base_commit: string option
+  ; branch: string
+  ; repo_url: string
+  ; project_id: int }
 
 type 'a job_info =
   { build_status: string

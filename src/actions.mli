@@ -23,6 +23,7 @@ val run_coq_minimizer :
 
 val coq_bug_minimizer_results_action :
      bot_info:Bot_info.t
+  -> ci:bool
   -> key:Mirage_crypto_pk.Rsa.priv
   -> app_id:int
   -> string

@@ -494,6 +494,140 @@ let get_status_check ~bot_info ~owner ~repo ~commit ~context =
             | _ ->
                 Error (f "Unkown commit %s/%s@%s." owner repo commit) ))
 
+let get_check_tab_info checkRun =
+  {name= checkRun#name; summary= checkRun#summary; text= checkRun#text}
+
+let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
+  let appId = bot_info.app_id in
+  GitHub_GraphQL.GetBaseAndHeadChecks.make ~appId ~owner ~repo
+    ~prNumber:pr_number ~base ~head ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+  >|= Result.bind ~f:(fun resp ->
+          resp#repository
+          |> Result.of_option ~error:(f "Unknown repository %s/%s." owner repo))
+  >|= Result.bind ~f:(fun repository ->
+          match (repository#pullRequest, repository#base, repository#head) with
+          | None, _, _ ->
+              Error (f "Unknown pull request %s/%s#%d" owner repo pr_number)
+          | _, None, _ ->
+              Error (f "Unkown base commit %s/%s@%s." owner repo base)
+          | _, _, None ->
+              Error (f "Unkown head commit %s/%s@%s." owner repo head)
+          | _, Some (`UnspecifiedFragment _), _
+          | _, _, Some (`UnspecifiedFragment _) ->
+              Error "Unspecified fragment."
+          | Some pull_request, Some (`Commit base_obj), Some (`Commit head_obj)
+            -> (
+              let extract_check_suites commit =
+                commit#checkSuites
+                |> Option.bind ~f:(fun checkSuites -> checkSuites#nodes)
+                |> Option.map ~f:Array.to_list
+                |> Option.map ~f:List.filter_opt
+              in
+              match
+                (extract_check_suites base_obj, extract_check_suites head_obj)
+              with
+              | None, _ ->
+                  Error
+                    (f "No check suite %d for base commit %s/%s@%s." appId owner
+                       repo base)
+              | _, None ->
+                  Error
+                    (f "No check suite %d for head commit %s/%s@%s." appId owner
+                       repo head)
+              | Some [baseCheckSuite], Some [headCheckSuite] -> (
+                  let extract_check_runs checkSuite =
+                    checkSuite#checkRuns
+                    |> Option.bind ~f:(fun checkRuns -> checkRuns#nodes)
+                    |> Option.map ~f:Array.to_list
+                    |> Option.map ~f:List.filter_opt
+                  in
+                  match
+                    ( extract_check_runs baseCheckSuite
+                    , extract_check_runs headCheckSuite )
+                  with
+                  | None, _ ->
+                      Error
+                        (f "No check runs %d for base commit %s/%s@%s." appId
+                           owner repo base)
+                  | _, None ->
+                      Error
+                        (f "No check runs %d for head commit %s/%s@%s." appId
+                           owner repo head)
+                  | Some baseCheckRuns, Some headCheckRuns ->
+                      let completed_runs checkRuns description commit =
+                        checkRuns
+                        |> List.map ~f:(fun checkRun ->
+                               checkRun#conclusion
+                               |> Result.of_option
+                                    ~error:
+                                      ( checkRun#name
+                                      , f
+                                          "A check run (%s) has not completed \
+                                           for %s commit %s/%s@%s."
+                                          checkRun#name description owner repo
+                                          commit )
+                               |> Result.bind ~f:(function
+                                    | `ACTION_REQUIRED ->
+                                        Error
+                                          ( checkRun#name
+                                          , f
+                                              "A check run (%s) requires an \
+                                               action for %s commit %s/%s@%s."
+                                              checkRun#name description owner
+                                              repo commit )
+                                    | `CANCELLED ->
+                                        Error
+                                          ( checkRun#name
+                                          , f
+                                              "A check run (%s) was cancelled \
+                                               for %s commit %s/%s@%s."
+                                              checkRun#name description owner
+                                              repo commit )
+                                    | `SKIPPED ->
+                                        Error
+                                          ( checkRun#name
+                                          , f
+                                              "A check run (%s) was skipped \
+                                               for %s commit %s/%s@%s."
+                                              checkRun#name description owner
+                                              repo commit )
+                                    | `STALE ->
+                                        Error
+                                          ( checkRun#name
+                                          , f
+                                              "A check run (%s) is stale for \
+                                               %s commit %s/%s@%s."
+                                              checkRun#name description owner
+                                              repo commit )
+                                    | `TIMED_OUT ->
+                                        Error
+                                          ( checkRun#name
+                                          , f
+                                              "A check run (%s) timed out for \
+                                               %s commit %s/%s@%s."
+                                              checkRun#name description owner
+                                              repo commit )
+                                    | `STARTUP_FAILURE ->
+                                        Error
+                                          ( checkRun#name
+                                          , f
+                                              "A check run (%s) failed at \
+                                               startup for %s commit %s/%s@%s."
+                                              checkRun#name description owner
+                                              repo commit )
+                                    | `FAILURE | `NEUTRAL ->
+                                        Ok (get_check_tab_info checkRun, false)
+                                    | `SUCCESS ->
+                                        Ok (get_check_tab_info checkRun, true)))
+                      in
+                      Ok
+                        ( pull_request#id
+                        , completed_runs baseCheckRuns "base" base
+                        , completed_runs headCheckRuns "head" head ) )
+              | _ ->
+                  Error "Got more than one checkSuite." ))
+
 (* TODO: use GraphQL API *)
 
 let get_cards_in_column column_id =

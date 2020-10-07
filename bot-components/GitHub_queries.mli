@@ -61,7 +61,10 @@ val get_issue_closer_info :
   -> (issue_closer_info closed_by, string) result Lwt.t
 
 val get_repository_id :
-  bot_info:Bot_info.t -> owner:id -> repo:id -> (id, string) result Lwt.t
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> (id, string) result Lwt.t
 
 val get_status_check :
      bot_info:Bot_info.t
@@ -70,6 +73,20 @@ val get_status_check :
   -> commit:string
   -> context:string
   -> (bool, string) result Lwt.t
+
+val get_base_and_head_checks :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> pr_number:int
+  -> base:string
+  -> head:string
+  -> ( string
+       * (check_tab_info * bool, string * string) result list
+       * (check_tab_info * bool, string * string) result list
+     , string )
+     result
+     Lwt.t
 
 val get_cards_in_column :
   int -> bot_info:Bot_info.t -> ((string * int) list, string) result Lwt.t

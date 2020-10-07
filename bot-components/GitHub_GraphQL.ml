@@ -336,3 +336,42 @@ module GetCheckRuns =
     }
   }
 |}]
+
+module GetBaseAndHeadChecks =
+[%graphql
+{|
+fragment Checks on CheckSuiteConnection {
+  nodes {
+    checkRuns(first: 100) {
+      nodes {
+        name
+        conclusion
+        summary
+        text
+      }
+    }
+  }
+}
+
+query getChecks($appId: Int!, $owner: String!, $repo:String!, $prNumber: Int!, $base: String!, $head: String!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequest(number: $prNumber) {
+      id
+    }
+    base: object(expression: $base) {
+      ... on Commit {
+        checkSuites(first: 1,filterBy:{appId: $appId}) {
+           ... Checks
+        }
+      }
+    }
+    head: object(expression: $head) {
+      ... on Commit {
+        checkSuites(first: 1,filterBy:{appId: $appId}) {
+           ... Checks
+        }
+      }
+    }
+  }
+}
+|}]

@@ -120,3 +120,5 @@ type check_run =
   ; url: string
   ; title: string
   ; text: string }
+
+type check_tab_info = {name: string; summary: string option; text: string option}

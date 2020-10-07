@@ -37,4 +37,18 @@ val git_coq_bug_minimizer :
   -> comment_author:string
   -> owner:string
   -> repo:string
-  -> (bool, string) result Lwt.t
+  -> (unit, string) result Lwt.t
+
+val git_run_ci_minimization :
+     bot_info:Bot_components.Bot_info.t
+  -> comment_thread_id:string
+  -> owner:string
+  -> repo:string
+  -> docker_image:string
+  -> target:string
+  -> opam_switch:string
+  -> failing_urls:string
+  -> passing_urls:string
+  -> base:string
+  -> head:string
+  -> (unit, string) result Lwt.t

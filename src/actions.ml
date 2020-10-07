@@ -145,7 +145,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
             >>= function
             | Ok repo_id ->
                 GitHub_mutations.create_check_run ~bot_info ~name:context
-                  ~repo_id ~head_sha:job_info.common_info.commit
+                  ~repo_id ~head_sha:job_info.common_info.head_commit
                   ~conclusion:NEUTRAL ~status:COMPLETED ~title
                   ~details_url:job_url
                   ~summary:("This job is allowed to fail.\n\n" ^ summary_tail)
@@ -166,15 +166,15 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
           >>= function
           | Ok {issue= id; head}
           (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
-            when String.equal head.sha (f "\"%s\"" job_info.common_info.commit)
-            ->
+            when String.equal head.sha
+                   (f "\"%s\"" job_info.common_info.head_commit) ->
               GitHub_mutations.post_comment ~bot_info ~id ~message
               >>= GitHub_mutations.report_on_posting_comment
           | Ok {head} ->
               Lwt_io.printf
                 "We are on a PR branch but the commit (%s) is not the current \
                  head of the PR (%s). Doing nothing.\n"
-                job_info.common_info.commit head.sha
+                job_info.common_info.head_commit head.sha
           | Error err ->
               Lwt_io.printf
                 "Couldn't get a database id for %s#%d because the following \
@@ -190,14 +190,14 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     match bot_info.github_install_token with
     | None ->
         GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
-          ~commit:job_info.common_info.commit ~state:"failure" ~url:job_url
+          ~commit:job_info.common_info.head_commit ~state:"failure" ~url:job_url
           ~context ~description:title ~bot_info
     | Some _ -> (
         GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
         >>= function
         | Ok repo_id ->
             GitHub_mutations.create_check_run ~bot_info ~name:context ~repo_id
-              ~head_sha:job_info.common_info.commit ~conclusion:FAILURE
+              ~head_sha:job_info.common_info.head_commit ~conclusion:FAILURE
               ~status:COMPLETED ~title ~details_url:job_url
               ~summary:
                 ( "This job has failed. If you need to, you can restart it \
@@ -214,14 +214,15 @@ let send_doc_url_aux ~bot_info job_info (kind, url) =
   >>= fun (resp, _) ->
   if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
-      ~commit:job_info.common_info.commit ~state:"success" ~url ~context
+      ~commit:job_info.common_info.head_commit ~state:"success" ~url ~context
       ~description:(description_base ^ ".") ~bot_info
   else
     Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
     <&>
     let job_url = f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id in
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
-      ~commit:job_info.common_info.commit ~state:"failure" ~url:job_url ~context
+      ~commit:job_info.common_info.head_commit ~state:"failure" ~url:job_url
+      ~context
       ~description:(description_base ^ ": not found.")
       ~bot_info
 
@@ -344,7 +345,7 @@ let job_success_or_pending ~bot_info (gh_owner, gh_repo)
     ({build_id} as job_info) ~github_repo_full_name ~gitlab_repo_full_name
     ~context ~state ~external_id =
   GitHub_queries.get_status_check ~bot_info ~owner:gh_owner ~repo:gh_repo
-    ~commit:job_info.common_info.commit ~context
+    ~commit:job_info.common_info.head_commit ~context
   >>= function
   | Ok true -> (
       Lwt_io.printf
@@ -380,15 +381,15 @@ let job_success_or_pending ~bot_info (gh_owner, gh_repo)
       | None ->
           GitHub_mutations.send_status_check ~bot_info
             ~repo_full_name:github_repo_full_name
-            ~commit:job_info.common_info.commit ~state ~url:job_url ~context
-            ~description
+            ~commit:job_info.common_info.head_commit ~state ~url:job_url
+            ~context ~description
       | Some _ -> (
           GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
             ~repo:gh_repo
           >>= function
           | Ok repo_id ->
               GitHub_mutations.create_check_run ~bot_info ~name:context ~status
-                ~repo_id ~head_sha:job_info.common_info.commit ?conclusion
+                ~repo_id ~head_sha:job_info.common_info.head_commit ?conclusion
                 ~title:description ~details_url:job_url ~summary:"" ~external_id
                 ()
           | Error e ->
@@ -462,6 +463,242 @@ let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
   |> (match summary_top with Some text -> List.cons text | None -> Fn.id)
   |> String.concat ~sep:"\n\n"
 
+let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~docker_image
+    ~target ~opam_switch ~failing_urls ~passing_urls ~base ~head =
+  git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
+    ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base ~head
+  >>= function
+  | Ok () ->
+      GitHub_mutations.post_comment ~id:comment_thread_id
+        ~message:
+          (f
+             "Hey, I have detected that there was a failure in project %s (for \
+              commit %s) without any failure in the test-suite.\n\
+              I checked that the corresponding job for the base commit %s \
+              succeeded. Now, I'm trying to extract a minimal test case from \
+              this so that it can be added to the test-suite. I'll come back \
+              to you with the results once it's done."
+             target head base)
+        ~bot_info
+      >>= GitHub_mutations.report_on_posting_comment
+  | Error f ->
+      Lwt_io.printf "Error: %s\n" f
+
+let minimize_failed_test ~bot_info ~owner ~repo ~pr_id ~base ~head
+    ~head_pipeline_summary ~base_pipeline_summary = function
+  | {name= full_name; summary= Some summary; text= Some text} ->
+      let extract_artifact_url job_name summary =
+        if string_match ~regexp:(f "\\[%s\\](\\([^)]+\\))" job_name) summary
+        then Some (Str.matched_group 1 summary ^ "/artifacts/download")
+        else None
+      in
+      if
+        string_match ~regexp:"\\(library\\|plugin\\):\\(ci-[A-Za-z0-9_-]*\\)"
+          full_name
+      then
+        let name = Str.matched_group 0 full_name in
+        let target = Str.matched_group 2 full_name in
+        if
+          string_match
+            ~regexp:
+              "This job ran on the Docker image `\\([^`]+\\)`, depended on the \
+               build job `\\([^`]+\\)` with OCaml `\\([^`]+\\)`.\n\n"
+            summary
+        then
+          let docker_image, build_job, opam_switch =
+            ( Str.matched_group 1 summary
+            , Str.matched_group 2 summary
+            , Str.matched_group 3 summary )
+          in
+          if string_match ~regexp:"\nFile \"\\([^\"]*\\)\"" text then
+            let filename = Str.matched_group 1 text in
+            if String.is_suffix ~suffix:".v" filename then
+              match
+                ( extract_artifact_url build_job base_pipeline_summary
+                , extract_artifact_url build_job head_pipeline_summary
+                , extract_artifact_url name base_pipeline_summary
+                , extract_artifact_url name head_pipeline_summary )
+              with
+              | ( Some base_build_url
+                , Some head_build_url
+                , Some base_job_url
+                , Some head_job_url ) ->
+                  run_ci_minimization ~bot_info ~comment_thread_id:pr_id ~owner
+                    ~repo ~docker_image ~target ~opam_switch
+                    ~failing_urls:(head_build_url ^ " " ^ head_job_url)
+                    ~passing_urls:(base_build_url ^ " " ^ base_job_url)
+                    ~base ~head
+              | None, _, _, _ ->
+                  Lwt_io.printf
+                    "Couldn't find base build job url for %s in:\n%s\n"
+                    build_job base_pipeline_summary
+              | _, None, _, _ ->
+                  Lwt_io.printf
+                    "Couldn't find head build job url for %s in:\n%s\n"
+                    build_job head_pipeline_summary
+              | _, _, None, _ ->
+                  Lwt_io.printf "Couldn't find base job url for %s in:\n%s\n"
+                    name base_pipeline_summary
+              | _, _, _, None ->
+                  Lwt_io.printf "Couldn't find head job url for %s in:\n%s\n"
+                    name head_pipeline_summary
+            else
+              Lwt_io.printf
+                "Not a Coq failure for job %s (%s is not a Coq file): not \
+                 minimizing.\n"
+                name filename
+          else
+            Lwt_io.printf
+              "Couldn't find an error message for job %s in details text:\n%s\n"
+              name text
+        else
+          Lwt_io.printf
+            "Couldn't find needed parameters for job %s in summary:\n%s\n" name
+            summary
+      else
+        Lwt_io.printf "Ignored failed test %s (not a library nor a plugin).\n"
+          full_name
+  | {name; summary= None} ->
+      Lwt_io.printf "Couldn't find summary for job %s.\n" name
+  | {name; text= None} ->
+      Lwt_io.printf "Couldn't find text for job %s.\n" name
+
+let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
+    ~head_pipeline_summary =
+  match pr_number with
+  | None ->
+      Lwt_io.printf
+        "Error while looking for failed library tests to minimize on %s/%s@%s: \
+         this is not a pull request build.\n"
+        owner repo head
+  | Some pr_number -> (
+      Lwt_io.printf
+        "The pipeline of PR #%d failed. I'm going to look for failed tests to \
+         minimize.\n"
+        pr_number
+      >>= fun () ->
+      GitHub_queries.get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number
+        ~base ~head
+      >>= function
+      | Error err ->
+          Lwt_io.printf
+            "Error while looking for failed library tests to minimize: %s\n" err
+      | Ok (pr_id, base_checks, head_checks) -> (
+          let partition_errors =
+            List.partition_map ~f:(function
+              | Error error ->
+                  Either.First error
+              | Ok result ->
+                  Either.Second result)
+          in
+          let base_checks_errors, base_checks = partition_errors base_checks in
+          let head_checks_errors, head_checks = partition_errors head_checks in
+          head_checks_errors
+          |> Lwt_list.iter_p (fun (_, error) ->
+                 Lwt_io.printf
+                   "Non-fatal error while looking for failed tests to \
+                    minimize: %s\n"
+                   error)
+          >>= fun () ->
+          let extract_pipeline_check =
+            List.partition_map ~f:(fun (check_tab_info, success) ->
+                if
+                  String.is_prefix ~prefix:"GitLab CI pipeline"
+                    check_tab_info.name
+                then Either.First check_tab_info
+                else Either.Second (check_tab_info, success))
+          in
+          match
+            ( extract_pipeline_check base_checks
+            , extract_pipeline_check head_checks )
+          with
+          | ( ([{summary= Some base_pipeline_summary}], base_checks)
+            , (_, head_checks) ) -> (
+              Lwt_io.printf
+                "Looking for failed tests to minimize among %d head checks (%d \
+                 base checks).\n"
+                (List.length head_checks) (List.length base_checks)
+              >>= fun () ->
+              match
+                List.filter_map head_checks ~f:(fun ({name}, success) ->
+                    if String.is_prefix name ~prefix:"test-suite" && not success
+                    then Some name
+                    else None)
+                @ List.filter_map head_checks_errors ~f:(fun (name, _) ->
+                      if String.is_prefix name ~prefix:"test-suite" then
+                        Some name
+                      else None)
+              with
+              | [] -> (
+                match
+                  head_checks
+                  |> List.filter_map
+                       ~f:(fun (check_tab_info_head, success_head) ->
+                         if not success_head then Some check_tab_info_head
+                         else None)
+                with
+                | [] ->
+                    Lwt_io.printf "Found no failed tests to minimize.\n"
+                | failed_tests ->
+                    let ignored_tests, to_minimize =
+                      failed_tests
+                      |> List.partition_map ~f:(fun check_tab_info_head ->
+                             let head_name = check_tab_info_head.name in
+                             if
+                               List.exists base_checks
+                                 ~f:(fun (check_tab_info_base, success_base) ->
+                                   String.equal head_name
+                                     check_tab_info_base.name
+                                   && not success_base)
+                             then
+                               Either.First
+                                 (f "%s because it failed for the base commit"
+                                    head_name)
+                             else
+                               match
+                                 List.find base_checks_errors
+                                   ~f:(fun (base_name, _) ->
+                                     String.equal head_name base_name)
+                               with
+                               | Some (_, error) ->
+                                   Either.First
+                                     (f
+                                        "%s because it errored (%s) for the \
+                                         base commit"
+                                        head_name error)
+                               | None ->
+                                   Either.Second check_tab_info_head)
+                    in
+                    ( match ignored_tests with
+                    | [] ->
+                        Lwt.return_unit
+                    | _ ->
+                        Lwt_io.printf "Ignoring these failed tests: %s"
+                          (String.concat ~sep:", " ignored_tests) )
+                    >>= fun () ->
+                    to_minimize
+                    |> Lwt_list.iter_p
+                         (minimize_failed_test ~bot_info ~owner ~repo ~pr_id
+                            ~base ~head ~base_pipeline_summary
+                            ~head_pipeline_summary) )
+              | test_suite_names ->
+                  test_suite_names |> String.concat ~sep:", "
+                  |> Lwt_io.printf
+                       "Ignore failed library tests because of the test-suite \
+                        failures or errors: %s.\n" )
+          | ([{summary= None}], _), _ ->
+              Lwt_io.printf
+                "Couldn't find pipeline check summary for base commit %s.\n"
+                base
+          | ([], _), _ ->
+              Lwt_io.printf "Couldn't find pipeline check for base commit %s.\n"
+                base
+          | (_ :: _ :: _, _), _ ->
+              Lwt_io.printf
+                "Found several pipeline checks instead of one for base commit \
+                 %s.\n"
+                base ) )
+
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
@@ -474,6 +711,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
           gitlab_full_name ;
         gitlab_full_name
   in
+  let pr_number, _ = pr_from_branch pipeline_info.common_info.branch in
   match pipeline_info.state with
   | "skipped" ->
       Lwt.return ()
@@ -527,7 +765,8 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
       match bot_info.github_install_token with
       | None ->
           GitHub_mutations.send_status_check ~repo_full_name
-            ~commit:pipeline_info.common_info.commit ~state ~url:pipeline_url
+            ~commit:pipeline_info.common_info.head_commit ~state
+            ~url:pipeline_url
             ~context:
               (f "GitLab CI pipeline (%s)"
                  (pr_from_branch pipeline_info.common_info.branch |> snd))
@@ -538,40 +777,53 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
           in
           GitHub_queries.get_repository_id ~bot_info ~owner ~repo
           >>= function
-          | Ok repo_id ->
+          | Error e ->
+              Lwt_io.printf "No repo id: %s\n" e
+          | Ok repo_id -> (
+              let summary =
+                create_pipeline_summary ?summary_top pipeline_info pipeline_url
+              in
               GitHub_mutations.create_check_run ~bot_info
                 ~name:
                   (f "GitLab CI pipeline (%s)"
                      (pr_from_branch pipeline_info.common_info.branch |> snd))
-                ~repo_id ~head_sha:pipeline_info.common_info.commit ~status
-                ?conclusion ~title ~details_url:pipeline_url
-                ~summary:
-                  (create_pipeline_summary ?summary_top pipeline_info
-                     pipeline_url)
+                ~repo_id ~head_sha:pipeline_info.common_info.head_commit ~status
+                ?conclusion ~title ~details_url:pipeline_url ~summary
                 ~external_id ()
-          | Error e ->
-              Lwt_io.printf "No repo id: %s\n" e ) )
+              >>= fun () ->
+              Lwt_unix.sleep 5.
+              >>= fun () ->
+              match
+                ( owner
+                , repo
+                , pipeline_info.state
+                , pipeline_info.common_info.base_commit )
+              with
+              | "coq", "coq", "failed", Some base_commit ->
+                  minimize_failed_tests ~bot_info ~owner ~repo ~base:base_commit
+                    ~head:pipeline_info.common_info.head_commit ~pr_number
+                    ~head_pipeline_summary:summary
+              | _ ->
+                  Lwt.return () ) ) )
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo =
   git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo
   >>= function
-  | Ok ok ->
-      if ok then
-        GitHub_mutations.post_comment ~id:comment_thread_id
-          ~message:
-            (f
-               "Hey @%s, the coq bug minimizer is running your script, I'll \
-                come back to you with the results once it's done."
-               comment_author)
-          ~bot_info
-        >>= GitHub_mutations.report_on_posting_comment
-      else Lwt.return ()
+  | Ok () ->
+      GitHub_mutations.post_comment ~id:comment_thread_id
+        ~message:
+          (f
+             "Hey @%s, the coq bug minimizer is running your script, I'll come \
+              back to you with the results once it's done."
+             comment_author)
+        ~bot_info
+      >>= GitHub_mutations.report_on_posting_comment
   | Error f ->
       Lwt_io.printf "Error: %s\n" f
 
-let coq_bug_minimizer_results_action ~bot_info ~key ~app_id body =
+let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
@@ -581,7 +833,7 @@ let coq_bug_minimizer_results_action ~bot_info ~key ~app_id body =
           Github_installations.action_as_github_app ~bot_info ~key ~app_id
             ~owner ~repo
             (GitHub_mutations.post_comment ~id
-               ~message:(f "@%s, %s" author message))
+               ~message:(if ci then message else f "@%s, %s" author message))
           >>= GitHub_mutations.report_on_posting_comment
           <&> ( execute_cmd
                   (* To delete the branch we need to identify as

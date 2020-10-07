@@ -256,7 +256,11 @@ let callback _conn req body =
   | "/coq-bug-minimizer" ->
       body
       >>= fun body ->
-      coq_bug_minimizer_results_action body ~bot_info ~key ~app_id
+      coq_bug_minimizer_results_action ~ci:false body ~bot_info ~key ~app_id
+  | "/ci-minimization" ->
+      body
+      >>= fun body ->
+      coq_bug_minimizer_results_action ~ci:true body ~bot_info ~key ~app_id
   | _ ->
       Server.respond_not_found ()
 
