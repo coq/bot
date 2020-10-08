@@ -20,8 +20,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
     match job_info.allow_fail with Some f -> f | None -> false
   in
   let job_url =
-    Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-      job_info.build_id
+    f "https://gitlab.com/%s/-/jobs/%d" repo_full_name job_info.build_id
   in
   if allow_fail then
     Lwt_io.printf "Job is allowed to fail.\n"
@@ -66,7 +65,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
                     then GitHub_mutations.post_comment ~bot_info ~id ~message
                     else Lwt.return ()
                 | Error e ->
-                    Lwt_io.printf "No repo id: %s" e ) )
+                    Lwt_io.printf "No repo id: %s\n" e ) )
         | Ok {head} ->
             Lwt_io.printf
               "We are on a PR branch but the commit (%s) is not the current \
@@ -98,12 +97,12 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
               ~title:(failure_reason ^ " on GitLab CI")
               ~details_url:job_url ~summary:"" ()
         | Error e ->
-            Lwt_io.printf "No repo id: %s" e )
+            Lwt_io.printf "No repo id: %s\n" e )
 
 let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
     job_info github_repo_full_name repo_full_name (kind, url) =
-  let context = Printf.sprintf "%s: %s artifact" job_info.build_name kind in
-  let description_base = Printf.sprintf "Link to %s build artifact" kind in
+  let context = f "%s: %s artifact" job_info.build_name kind in
+  let description_base = f "Link to %s build artifact" kind in
   url |> Uri.of_string |> Client.get
   >>= fun (resp, _) ->
   if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
@@ -121,13 +120,12 @@ let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
               ~details_url:url ~conclusion:SUCCESS
               ~title:(description_base ^ ".") ~summary:"" ()
         | Error e ->
-            Lwt_io.printf "No repo id: %s" e )
+            Lwt_io.printf "No repo id: %s\n" e )
   else
     Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
     <&>
     let job_url =
-      Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-        job_info.build_id
+      f "https://gitlab.com/%s/-/jobs/%d" repo_full_name job_info.build_id
     in
     match (bot_info.github_token, force_status_check) with
     | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
@@ -145,7 +143,7 @@ let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
               ~title:(description_base ^ ": not found.")
               ~details_url:job_url ~summary:"" ()
         | Error e ->
-            Lwt_io.printf "No repo id: %s" e )
+            Lwt_io.printf "No repo id: %s\n" e )
 
 let push_status_check ~bot_info (gh_owner, gh_repo) job_info
     github_repo_full_name repo_full_name =
@@ -160,8 +158,8 @@ let push_status_check ~bot_info (gh_owner, gh_repo) job_info
           "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_install_ci/share/doc/coq"
           job_info.build_id
       in
-      [ ("refman", Printf.sprintf "%s/sphinx/html/index.html" url_base)
-      ; ("stdlib", Printf.sprintf "%s/html/stdlib/index.html" url_base) ]
+      [ ("refman", f "%s/sphinx/html/index.html" url_base)
+      ; ("stdlib", f "%s/html/stdlib/index.html" url_base) ]
       |> List.map
            ~f:
              (send_url ~bot_info ~force_status_check:true (gh_owner, gh_repo)
@@ -294,8 +292,7 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
          it.\n"
       <&>
       let job_url =
-        Printf.sprintf "https://gitlab.com/%s/-/jobs/%d" repo_full_name
-          job_info.build_id
+        f "https://gitlab.com/%s/-/jobs/%d" repo_full_name job_info.build_id
       in
       match bot_info.github_token with
       | ACCESS_TOKEN _t ->
@@ -315,7 +312,7 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
                 ~title:"Test succeeded on GitLab CI after being retried"
                 ~details_url:job_url ~summary:"" ()
           | Error e ->
-              Lwt_io.printf "No repo id: %s" e ) )
+              Lwt_io.printf "No repo id: %s\n" e ) )
   | Ok _ ->
       Lwt.return ()
   | Error e ->
@@ -363,8 +360,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
       Lwt.return ()
   | _ -> (
       let pipeline_url =
-        Printf.sprintf "https://gitlab.com/%s/pipelines/%d" gitlab_full_name
-          pipeline_info.id
+        f "https://gitlab.com/%s/pipelines/%d" gitlab_full_name pipeline_info.id
       in
       match bot_info.github_token with
       | ACCESS_TOKEN _t ->
@@ -432,7 +428,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                   ~repo_id ~head_sha:pipeline_info.commit ~status:COMPLETED
                   ~conclusion ~title ~details_url:pipeline_url ~summary:"" () )
           | Error e ->
-              Lwt_io.printf "No repo id: %s" e ) )
+              Lwt_io.printf "No repo id: %s\n" e ) )
 
 let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
     ~app_id body =
@@ -452,8 +448,10 @@ let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
                      (Bot_info.get_token coq_minimizer_repo_token)
                      repo_name branch_name)
               >>= function
-              | Ok () -> Lwt.return () | Error f -> Lwt_io.printf "Error: %s" f
-              ))
+              | Ok () ->
+                  Lwt.return ()
+              | Error f ->
+                  Lwt_io.printf "Error: %s\n" f ))
         |> Lwt.async ;
         Server.respond_string ~status:`OK ~body:"" ()
     | _ ->

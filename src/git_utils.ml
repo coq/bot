@@ -158,4 +158,4 @@ let run_coq_minimizer ~bot_info ~coq_minimizer_repo_token ~script
           ~bot_info
       else Lwt.return ()
   | Error f ->
-      Lwt_io.printf "Error: %s" f
+      Lwt_io.printf "Error: %s\n" f
