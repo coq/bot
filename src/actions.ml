@@ -14,71 +14,62 @@ let owner_team_map =
     (module String)
     [("martijnbastiaan-test-org", "martijnbastiaan-test-team")]
 
-let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
-    github_repo_full_name repo_full_name context failure_reason =
+let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
+    ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason =
   let allow_fail =
     match job_info.allow_fail with Some f -> f | None -> false
   in
   let job_url =
-    f "https://gitlab.com/%s/-/jobs/%d" repo_full_name job_info.build_id
+    f "https://gitlab.com/%s/-/jobs/%d" gitlab_repo_full_name job_info.build_id
   in
   if allow_fail then
     Lwt_io.printf "Job is allowed to fail.\n"
+    <&> ( match bot_info.github_token with
+        | ACCESS_TOKEN _ ->
+            (* Allow failure messages are reported with the Checks API only. *)
+            Lwt.return ()
+        | INSTALL_TOKEN _ -> (
+            GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
+              ~repo:gh_repo
+            >>= function
+            | Ok repo_id ->
+                GitHub_mutations.create_check_run ~bot_info ~name:context
+                  ~repo_id ~head_sha:job_info.commit ~conclusion:NEUTRAL
+                  ~status:COMPLETED
+                  ~title:(failure_reason ^ " on GitLab CI")
+                  ~details_url:job_url ~summary:"" ()
+            | Error e ->
+                Lwt_io.printf "No repo id: %s\n" e ) )
     <&>
-    (* If we are in a PR branch, we can post a comment instead of
-       reporting a failed status check. *)
-    match pr_num with
-    | Some number -> (
-        GitHub_queries.get_pull_request_refs ~bot_info ~owner:gh_owner
-          ~repo:gh_repo ~number
-        >>= function
-        | Ok {issue= id; head}
-        (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
-          when String.equal head.sha (f "\"%s\"" job_info.commit) -> (
-            let message =
-              f "The job [%s](%s) has failed in allow failure mode%s"
-                job_info.build_name job_url
-                ( if
-                  String.equal job_info.build_name
-                    "library:ci-fiat_crypto_legacy"
-                then "\nping @JasonGross"
-                else "" )
-            in
-            match bot_info.github_token with
-            | ACCESS_TOKEN _t ->
-                (* Allow failure messages are reported with the Checks API only. *)
-                Lwt.return ()
-            | INSTALL_TOKEN _t -> (
-                GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
-                  ~repo:gh_repo
-                >>= function
-                | Ok repo_id ->
-                    GitHub_mutations.create_check_run ~bot_info ~name:context
-                      ~repo_id ~head_sha:job_info.commit ~conclusion:NEUTRAL
-                      ~status:COMPLETED
-                      ~title:(failure_reason ^ " on GitLab CI")
-                      ~details_url:job_url ~summary:message ()
-                    <&>
-                    if
-                      String.equal job_info.build_name
-                        "library:ci-fiat_crypto_legacy"
-                    then GitHub_mutations.post_comment ~bot_info ~id ~message
-                    else Lwt.return ()
-                | Error e ->
-                    Lwt_io.printf "No repo id: %s\n" e ) )
-        | Ok {head} ->
-            Lwt_io.printf
-              "We are on a PR branch but the commit (%s) is not the current \
-               head of the PR (%s). Doing nothing.\n"
-              job_info.commit head.sha
-        | Error err ->
-            Lwt_io.printf
-              "Couldn't get a database id for %s#%d because the following \
-               error occured:\n\
-               %s\n"
-              repo_full_name number err )
-    | None ->
-        Lwt_io.printf "We are not on a PR branch. Doing nothing.\n"
+    (* If we are in a PR branch, we can post a comment. *)
+    if String.equal job_info.build_name "library:ci-fiat_crypto_legacy" then
+      let message =
+        f "The job [%s](%s) has failed in allow failure mode\nping @JasonGross"
+          job_info.build_name job_url
+      in
+      match pr_num with
+      | Some number -> (
+          GitHub_queries.get_pull_request_refs ~bot_info ~owner:gh_owner
+            ~repo:gh_repo ~number
+          >>= function
+          | Ok {issue= id; head}
+          (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
+            when String.equal head.sha (f "\"%s\"" job_info.commit) ->
+              GitHub_mutations.post_comment ~bot_info ~id ~message
+          | Ok {head} ->
+              Lwt_io.printf
+                "We are on a PR branch but the commit (%s) is not the current \
+                 head of the PR (%s). Doing nothing.\n"
+                job_info.commit head.sha
+          | Error err ->
+              Lwt_io.printf
+                "Couldn't get a database id for %s#%d because the following \
+                 error occured:\n\
+                 %s\n"
+                gitlab_repo_full_name number err )
+      | None ->
+          Lwt_io.printf "We are not on a PR branch. Doing nothing.\n"
+    else Lwt.return ()
   else
     Lwt_io.printf "Pushing a status check...\n"
     <&>
@@ -100,7 +91,7 @@ let send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
             Lwt_io.printf "No repo id: %s\n" e )
 
 let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
-    job_info github_repo_full_name repo_full_name (kind, url) =
+    job_info ~github_repo_full_name ~gitlab_repo_full_name (kind, url) =
   let context = f "%s: %s artifact" job_info.build_name kind in
   let description_base = f "Link to %s build artifact" kind in
   url |> Uri.of_string |> Client.get
@@ -125,7 +116,8 @@ let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
     Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
     <&>
     let job_url =
-      f "https://gitlab.com/%s/-/jobs/%d" repo_full_name job_info.build_id
+      f "https://gitlab.com/%s/-/jobs/%d" gitlab_repo_full_name
+        job_info.build_id
     in
     match (bot_info.github_token, force_status_check) with
     | ACCESS_TOKEN _t, _ | INSTALL_TOKEN _t, true ->
@@ -146,7 +138,7 @@ let send_url ~bot_info ?(force_status_check = false) (gh_owner, gh_repo)
             Lwt_io.printf "No repo id: %s\n" e )
 
 let push_status_check ~bot_info (gh_owner, gh_repo) job_info
-    github_repo_full_name repo_full_name =
+    ~github_repo_full_name ~gitlab_repo_full_name =
   match job_info.build_name with
   | "doc:refman" ->
       Lwt_io.printf
@@ -163,7 +155,7 @@ let push_status_check ~bot_info (gh_owner, gh_repo) job_info
       |> List.map
            ~f:
              (send_url ~bot_info ~force_status_check:true (gh_owner, gh_repo)
-                job_info github_repo_full_name repo_full_name)
+                job_info ~github_repo_full_name ~gitlab_repo_full_name)
       |> Lwt.all |> Lwt.map ignore
   | "doc:ml-api:odoc" ->
       Lwt_io.printf
@@ -177,22 +169,13 @@ let push_status_check ~bot_info (gh_owner, gh_repo) job_info
       in
       ("ml-api", url_base)
       |> send_url ~bot_info ~force_status_check:true (gh_owner, gh_repo)
-           job_info github_repo_full_name repo_full_name
+           job_info ~github_repo_full_name ~gitlab_repo_full_name
   | _ ->
       Lwt.return ()
 
-let _repeat_request request =
-  let rec aux t =
-    request
-    >>= fun body ->
-    if String.is_empty body then Lwt_unix.sleep t >>= fun () -> aux (t *. 2.)
-    else Lwt.return body
-  in
-  aux 2.
+type build_failure = Warn of string | Retry | Ignore
 
-type build_failure = Warn | Retry | Ignore
-
-let _trace_action ~repo_full_name trace =
+let trace_action ~repo_full_name trace =
   let trace_size = String.length trace in
   Stdio.printf "Trace size: %d.\n" trace_size ;
   let test regexp = string_match ~regexp trace in
@@ -242,44 +225,33 @@ let _trace_action ~repo_full_name trace =
   then (
     Stdio.printf "Docker image not found. Do not report anything specific.\n" ;
     Ignore )
-  else Warn
+  else Warn trace
 
-let job_failure ~bot_info job_info pr_num (gh_owner, gh_repo)
-    github_repo_full_name repo_full_name context failure_reason =
-  Lwt_io.printf "Failed job %d of project %d.\nFailure reason: %s\n"
-    job_info.build_id job_info.project_id failure_reason
+let job_failure ~bot_info ({project_id; build_id} as job_info) ~pr_num
+    (gh_owner, gh_repo) ~github_repo_full_name ~gitlab_repo_full_name ~context
+    ~failure_reason =
+  Lwt_io.printf "Failed job %d of project %d.\nFailure reason: %s\n" build_id
+    project_id failure_reason
   >>= fun () ->
   if String.equal failure_reason "runner_system_failure" then
     Lwt_io.printf "Runner failure reported by GitLab CI. Retrying...\n"
-    <&> GitLab_mutations.retry_job ~project_id:job_info.project_id
-          ~build_id:job_info.build_id ~bot_info
-  else if
-    String.equal failure_reason "stuck_or_timeout_failure"
-    || String.equal failure_reason "job_execution_timeout"
-  then
-    Lwt_io.printf "Timeout reported by GitLab CI.\n"
-    <&> send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
-          github_repo_full_name repo_full_name context failure_reason
-  else if String.equal failure_reason "script_failure" then
-    Lwt_io.printf "Script failure reported by GitLab CI.\n"
-    <&> send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
-          github_repo_full_name repo_full_name context failure_reason
-    (*
-        Lwt_io.printf
-          "GitLab CI reports a script failure but it could be something else. \
-           Checking the trace...\n"
-        >>= fun () ->
-        repeat_request (GitLab_queries.get_build_trace ~project_id ~build_id)
-        >|= trace_action ~repo_full_name
-        >>= function
-        | Warn -> Lwt_io.printf "Actual failure.\n" <&> send_status_check ()
-        | Retry -> GitLab_mutations.retry_job ~project_id ~build_id
-        | Ignore -> Lwt.return ()
-        *)
+    <&> GitLab_mutations.retry_job ~project_id ~build_id ~bot_info
   else
-    Lwt_io.printf "Unusual error.\n"
-    <&> send_status_check ~bot_info job_info pr_num (gh_owner, gh_repo)
-          github_repo_full_name repo_full_name context failure_reason
+    Lwt_io.printf
+      "Failure reason reported by GitLab CI: %s.\nRetrieving the trace...\n"
+      failure_reason
+    <&> ( GitLab_queries.get_build_trace ~bot_info ~project_id ~build_id
+        >|= trace_action ~repo_full_name:gitlab_repo_full_name
+        >>= function
+        | Warn _trace ->
+            Lwt_io.printf "Actual failure.\n"
+            <&> send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
+                  ~github_repo_full_name ~gitlab_repo_full_name ~context
+                  ~failure_reason
+        | Retry ->
+            GitLab_mutations.retry_job ~bot_info ~project_id ~build_id
+        | Ignore ->
+            Lwt.return () )
 
 let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
     github_repo_full_name repo_full_name context =
@@ -327,20 +299,20 @@ let job_action ~bot_info (job_info : job_info) ~gitlab_mapping =
       failwith "Could not match project name on repository url.\n" ;
     (Str.matched_group 1 repo_url, Str.matched_group 2 repo_url)
   in
-  let repo_full_name = owner ^ "/" ^ repo in
+  let gitlab_repo_full_name = owner ^ "/" ^ repo in
   let gh_owner, gh_repo =
-    github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name
+    github_repo_of_gitlab_project_path ~gitlab_mapping gitlab_repo_full_name
   in
   let github_repo_full_name = gh_owner ^ "/" ^ gh_repo in
   if String.equal job_info.build_status "failed" then
     let failure_reason = Option.value_exn job_info.failure_reason in
-    job_failure ~bot_info job_info pr_num (gh_owner, gh_repo)
-      github_repo_full_name repo_full_name context failure_reason
+    job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
+      ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason
   else if String.equal job_info.build_status "success" then
     job_success ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
-      repo_full_name context
+      gitlab_repo_full_name context
     <&> push_status_check ~bot_info (gh_owner, gh_repo) job_info
-          github_repo_full_name repo_full_name
+          ~github_repo_full_name ~gitlab_repo_full_name
   else Lwt.return ()
 
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
