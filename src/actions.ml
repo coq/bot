@@ -189,14 +189,14 @@ let trace_action ~repo_full_name trace =
     Stdio.printf "System failure. Retrying...\n" ;
     Retry )
   else if
-    ( test "Uploading artifacts to coordinator... failed"
-    || test "Uploading artifacts to coordinator... error" )
-    && not (test "Uploading artifacts to coordinator... ok")
+    ( test "Uploading artifacts.*to coordinator... failed"
+    || test "Uploading artifacts.*to coordinator... error" )
+    && not (test "Uploading artifacts.*to coordinator... ok")
   then (
     Stdio.printf "Artifact uploading failure. Retrying...\n" ;
     Retry )
   else if
-    test "ERROR: Downloading artifacts from coordinator... error"
+    test "ERROR: Downloading artifacts.*from coordinator... error"
     && test "FATAL: invalid argument"
   then (
     Stdio.printf "Artifact downloading failure. Retrying...\n" ;
