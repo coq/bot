@@ -612,7 +612,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
           git_push ~force:true ~remote_ref ~local_ref:local_head_branch)
     >>= execute_cmd )
   else (
-    (* Remove rebase label *)
+    (* Add rebase label *)
     (fun () -> GitHub_mutations.add_rebase_label pr_info.issue.issue ~bot_info)
     |> Lwt.async ;
     (* Add fail status check *)
