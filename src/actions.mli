@@ -20,7 +20,8 @@ val coq_bug_minimizer_results_action :
 
 val merge_pull_request_action :
      bot_info:Bot_components.Bot_info.t
-  -> comment_info:Bot_components.GitHub_types.comment_info
+  -> ?t:float
+  -> Bot_components.GitHub_types.comment_info
   -> unit Lwt.t
 
 val run_ci_action :

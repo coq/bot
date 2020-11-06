@@ -214,7 +214,7 @@ let callback _conn req body =
               action_as_github_app ~bot_info ~key ~app_id
                 ~owner:comment_info.issue.issue.owner
                 ~repo:comment_info.issue.issue.repo
-                (merge_pull_request_action ~comment_info))
+                (merge_pull_request_action comment_info))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:(f "Received a request to merge the PR.")

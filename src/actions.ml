@@ -433,7 +433,7 @@ let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
         Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
   else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
 
-let merge_pull_request_action ~bot_info ~comment_info =
+let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
   let pr = comment_info.issue in
   let reasons_for_not_merging =
     List.filter_opt
@@ -474,18 +474,17 @@ let merge_pull_request_action ~bot_info ~comment_info =
                 String.equal comment_info.id c.id)
           in
           if (not comment_info.review_comment) && Option.is_none comment then
-            GitHub_mutations.post_comment ~bot_info
-              ~message:
-                (f "@%s: Could not find merge comment. cc @Zimmi48"
-                   comment_info.author)
-              ~id:pr.id
-            <&> ( reviews_info.last_comments
-                |> List.map ~f:(fun (c : comment) ->
-                       c.id ^ " sent by " ^ c.author
-                       ^ if c.created_by_email then " via email" else "")
-                |> String.concat ~sep:"\n"
-                |> Lwt_io.printf "Could not find merge comment %s among:\n%s\n"
-                     comment_info.id )
+            if Float.(t > 5.) then
+              GitHub_mutations.post_comment ~bot_info
+                ~message:
+                  "Something unexpected happened: did not find merge comment \
+                   after retrying three times.\n\
+                   cc @coq/coqbot-maintainers"
+                ~id:pr.id
+            else
+              Lwt_unix.sleep t
+              >>= fun () ->
+              merge_pull_request_action ~t:(t *. 2.) ~bot_info comment_info
           else if
             (not comment_info.review_comment)
             && (Option.value_exn comment).created_by_email
@@ -574,9 +573,8 @@ let merge_pull_request_action ~bot_info ~comment_info =
       | Error e ->
           GitHub_mutations.post_comment ~bot_info
             ~message:
-              (f
-                 "@%s: Something unexpected happend: %s\n\
-                  cc @coq/coqbot-maintainers" comment_info.author e)
+              (f "Something unexpected happened: %s\ncc @coq/coqbot-maintainers"
+                 e)
             ~id:pr.id )
 
 let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
