@@ -114,7 +114,6 @@ let check_suite_info_of_json json =
   in
   { id= check_suite |> member "id" |> to_int
   ; node_id= check_suite |> member "node_id" |> to_string
-  ; url= check_suite |> member "url" |> to_string
   ; head_sha= check_suite |> member "head_sha" |> to_string
   ; status }
 
@@ -131,11 +130,11 @@ let check_run_info_of_json json =
   in
   { id= check_run |> member "id" |> to_int
   ; node_id= check_run |> member "node_id" |> to_string
-  ; url= check_run |> member "url" |> to_string
   ; head_sha= check_run |> member "head_sha" |> to_string
   ; status
   ; check_suite_info= check_suite_info_of_json check_run
-  ; repository_info= repository_info_of_json json }
+  ; repository_info= repository_info_of_json json
+  ; external_id= check_run |> member "external_id" |> to_string }
 
 let push_event_info_of_json json =
   let open Yojson.Basic.Util in
@@ -160,6 +159,7 @@ type msg =
   | CommentCreated of comment_info
   | CheckRunCreated of check_run_info
   | CheckRunUpdated of check_run_info
+  | CheckRunReRequested of check_run_info
   | CheckSuiteCreated of check_suite_info
   | CheckSuiteRequested of check_suite_info
   | PushEvent of push_info
@@ -193,6 +193,8 @@ let github_action ~event ~action json =
       Ok (CommentCreated (comment_info_of_json json ~review_comment:true))
   | "check_run", "created" ->
       Ok (CheckRunCreated (check_run_info_of_json json))
+  | "check_run", "rerequested" ->
+      Ok (CheckRunReRequested (check_run_info_of_json json))
   | "check_suite", "requested" ->
       Ok (CheckSuiteRequested (check_suite_info_of_json json))
   | _ ->

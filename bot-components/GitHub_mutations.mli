@@ -24,6 +24,7 @@ val create_check_run :
   -> title:string
   -> ?text:string
   -> summary:string
+  -> ?external_id:string
   -> unit
   -> unit Lwt.t
 

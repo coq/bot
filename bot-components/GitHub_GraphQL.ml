@@ -262,7 +262,7 @@ module NewCheckRun =
 {|
   mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
   $status: RequestableCheckStatusState!, $title: String!, $text: String, $summary: String!,
-  $url: String!, $conclusion: CheckConclusionState) {
+  $url: String!, $conclusion: CheckConclusionState, $externalId: String) {
     createCheckRun(
       input: {
         status:$status,
@@ -276,6 +276,7 @@ module NewCheckRun =
           text:$text,
           summary:$summary
         }
+        externalId:$externalId
       }) {
       clientMutationId
     }

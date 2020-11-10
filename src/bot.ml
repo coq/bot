@@ -223,6 +223,24 @@ let callback _conn req body =
             Server.respond_string ~status:`OK
               ~body:(f "Unhandled comment: %s." body)
               ()
+      | Ok (signed, CheckRunReRequested {external_id}) ->
+          if not signed then
+            Server.respond_string ~status:(Code.status_of_code 401)
+              ~body:"Request to rerun check run must be signed." ()
+          else if String.is_empty external_id then
+            Server.respond_string ~status:(Code.status_of_code 400)
+              ~body:"Request to rerun check run but empty external ID." ()
+          else (
+            (fun () ->
+              GitLab_mutations.generic_retry ~bot_info ~url_part:external_id)
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Received a request to re-run a job / pipeline (GitLab ID : \
+                    %s)."
+                   external_id)
+              () )
       | Ok (_, UnsupportedEvent s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
       | Ok _ ->

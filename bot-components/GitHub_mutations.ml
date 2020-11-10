@@ -91,7 +91,7 @@ let string_of_conclusion conclusion =
       `TIMED_OUT
 
 let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
-    ~details_url ~title ?text ~summary () =
+    ~details_url ~title ?text ~summary ?external_id () =
   let conclusion = Option.map conclusion ~f:string_of_conclusion in
   let status =
     match status with
@@ -103,7 +103,7 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
         `QUEUED
   in
   NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ?text
-    ~summary ~url:details_url ?conclusion ()
+    ~summary ~url:details_url ?conclusion ?externalId:external_id ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->

@@ -10,4 +10,9 @@ type job_info =
   ; allow_fail: bool option }
 
 type pipeline_info =
-  {state: string; id: int; commit: string; branch: string; project_path: string}
+  { state: string
+  ; id: int
+  ; commit: string
+  ; branch: string
+  ; project_path: string
+  ; project_id: int }

@@ -99,16 +99,16 @@ type check_conclusion =
   | TIMED_OUT
 
 type check_suite_info =
-  {id: int; node_id: id; head_sha: string; url: string; status: check_run_status}
+  {id: int; node_id: id; head_sha: string; status: check_run_status}
 
 type check_run_info =
   { id: int
   ; node_id: id
   ; head_sha: string
   ; status: check_run_status
-  ; url: string
   ; check_suite_info: check_suite_info
-  ; repository_info: repository_info }
+  ; repository_info: repository_info
+  ; external_id: string }
 
 type check_run =
   { id: int

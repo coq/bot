@@ -57,10 +57,10 @@ let pipeline_info_of_json json =
   let branch =
     json |> member "object_attributes" |> member "ref" |> to_string
   in
-  let project_path =
-    json |> member "project" |> member "path_with_namespace" |> to_string
-  in
-  {state; id; commit; branch; project_path}
+  let project = json |> member "project" in
+  let project_path = project |> member "path_with_namespace" |> to_string in
+  let project_id = project |> member "id" |> to_int in
+  {state; id; commit; branch; project_path; project_id}
 
 type msg =
   | JobEvent of job_info
