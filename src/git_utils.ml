@@ -70,6 +70,10 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
 let execute_cmd command =
+  (*
+  Lwt_io.printf "Executing command: %s\n" command
+  >>= fun () ->
+   *)
   Lwt_unix.system command
   >|= fun status ->
   match status with
@@ -84,17 +88,21 @@ let execute_cmd command =
 let git_fetch ?(force = true) remote_ref local_branch_name =
   f "git fetch -fu %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then "+" else "")
-    remote_ref.name local_branch_name
+    (Stdlib.Filename.quote remote_ref.name)
+    (Stdlib.Filename.quote local_branch_name)
 
 let git_push ?(force = true) ~remote_ref ~local_ref =
   f "git push %s %s%s:refs/heads/%s" remote_ref.repo_url
     (if force then " +" else " ")
-    local_ref remote_ref.name
+    (Stdlib.Filename.quote local_ref)
+    (Stdlib.Filename.quote remote_ref.name)
 
 let git_delete ~remote_ref = git_push ~force:false ~remote_ref ~local_ref:""
 
 let git_make_ancestor ~pr_title ~pr_number ~base head =
-  f "./make_ancestor.sh %s %s %s %d" base head
+  f "./make_ancestor.sh %s %s %s %d"
+    (Stdlib.Filename.quote base)
+    (Stdlib.Filename.quote head)
     (Stdlib.Filename.quote pr_title)
     pr_number
   |> Lwt_unix.system
