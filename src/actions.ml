@@ -222,8 +222,8 @@ let job_failure ~bot_info ({project_id; build_id} as job_info) ~pr_num
         | Ignore ->
             Lwt.return () )
 
-let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
-    github_repo_full_name repo_full_name context ~external_id =
+let job_success_or_pending ~bot_info (gh_owner, gh_repo) (job_info : job_info)
+    ~github_repo_full_name ~gitlab_repo_full_name ~context ~state ~external_id =
   GitHub_queries.get_status_check ~bot_info ~owner:gh_owner ~repo:gh_repo
     ~commit:job_info.commit ~context
   >>= function
@@ -233,25 +233,45 @@ let job_success ~bot_info (gh_owner, gh_repo) (job_info : job_info)
          it.\n"
       <&>
       let job_url =
-        f "https://gitlab.com/%s/-/jobs/%d" repo_full_name job_info.build_id
+        f "https://gitlab.com/%s/-/jobs/%d" gitlab_repo_full_name
+          job_info.build_id
+      in
+      let state, status, conclusion, description =
+        match state with
+        | "success" ->
+            ( "success"
+            , COMPLETED
+            , Some SUCCESS
+            , "Test succeeded on GitLab CI after being retried" )
+        | "created" ->
+            ( "pending"
+            , QUEUED
+            , None
+            , "Test pending on GitLab CI after being retried" )
+        | "running" ->
+            ( "pending"
+            , IN_PROGRESS
+            , None
+            , "Test running on GitLab CI after being retried" )
+        | _ ->
+            failwith
+              (f "Error: job_success_or_pending received unknown state %s."
+                 state)
       in
       match bot_info.github_token with
       | ACCESS_TOKEN _t ->
-          GitHub_mutations.send_status_check
-            ~repo_full_name:github_repo_full_name ~commit:job_info.commit
-            ~state:"success" ~url:job_url ~context
-            ~description:"Test succeeded on GitLab CI after being retried"
-            ~bot_info
+          GitHub_mutations.send_status_check ~bot_info
+            ~repo_full_name:github_repo_full_name ~commit:job_info.commit ~state
+            ~url:job_url ~context ~description
       | INSTALL_TOKEN _t -> (
           GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
             ~repo:gh_repo
           >>= function
           | Ok repo_id ->
-              GitHub_mutations.create_check_run ~bot_info ~name:context
-                ~status:COMPLETED ~repo_id ~head_sha:job_info.commit
-                ~conclusion:SUCCESS
-                ~title:"Test succeeded on GitLab CI after being retried"
-                ~details_url:job_url ~summary:"" ~external_id ()
+              GitHub_mutations.create_check_run ~bot_info ~name:context ~status
+                ~repo_id ~head_sha:job_info.commit ?conclusion
+                ~title:description ~details_url:job_url ~summary:"" ~external_id
+                ()
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e ) )
   | Ok _ ->
@@ -276,16 +296,23 @@ let job_action ~bot_info (job_info : job_info) ~gitlab_mapping =
   let external_id =
     f "projects/%d/jobs/%d" job_info.project_id job_info.build_id
   in
-  if String.equal job_info.build_status "failed" then
-    let failure_reason = Option.value_exn job_info.failure_reason in
-    job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
-      ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason
-      ~external_id
-  else if String.equal job_info.build_status "success" then
-    job_success ~bot_info (gh_owner, gh_repo) job_info github_repo_full_name
-      gitlab_repo_full_name context ~external_id
-    <&> send_doc_url ~bot_info job_info ~github_repo_full_name
-  else Lwt.return ()
+  match job_info.build_status with
+  | "failed" ->
+      let failure_reason = Option.value_exn job_info.failure_reason in
+      job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
+        ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason
+        ~external_id
+  | "success" as state ->
+      job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
+        ~github_repo_full_name ~gitlab_repo_full_name ~context ~state
+        ~external_id
+      <&> send_doc_url ~bot_info job_info ~github_repo_full_name
+  | ("created" | "running") as state ->
+      job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
+        ~github_repo_full_name ~gitlab_repo_full_name ~context ~state
+        ~external_id
+  | unknown_state ->
+      Lwt_io.printf "Unknown job status: %s\n" unknown_state
 
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
