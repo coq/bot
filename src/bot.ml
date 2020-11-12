@@ -56,7 +56,8 @@ let callback _conn req body =
       | Ok (_, JobEvent job_info) ->
           (fun () ->
             let gh_owner, gh_repo =
-              github_repo_of_gitlab_url ~gitlab_mapping job_info.repo_url
+              github_repo_of_gitlab_url ~gitlab_mapping
+                job_info.common_info.repo_url
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
               ~repo:gh_repo

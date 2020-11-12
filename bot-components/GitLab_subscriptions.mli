@@ -1,7 +1,7 @@
 open GitLab_types
 
 type msg =
-  | JobEvent of job_info
+  | JobEvent of ci_common_info job_info
   | PipelineEvent of pipeline_info
   | UnsupportedEvent of string
 

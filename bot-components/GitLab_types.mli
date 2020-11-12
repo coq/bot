@@ -1,18 +1,16 @@
-type job_info =
+type ci_common_info =
+  {commit: string; branch: string; repo_url: string; project_id: int}
+
+type 'a job_info =
   { build_status: string
   ; build_id: int
   ; build_name: string
-  ; commit: string
-  ; branch: string
-  ; repo_url: string
-  ; project_id: int
   ; failure_reason: string option
-  ; allow_fail: bool option }
+  ; allow_fail: bool
+  ; common_info: 'a }
 
 type pipeline_info =
   { state: string
-  ; id: int
-  ; commit: string
-  ; branch: string
+  ; pipeline_id: int
   ; project_path: string
-  ; project_id: int }
+  ; common_info: ci_common_info }

@@ -32,38 +32,37 @@ let job_info_of_json json =
   let commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
   let repo_url = json |> member "repository" |> member "url" |> to_string in
-  let failure_reason, allow_fail =
-    if String.equal build_status "failed" then
-      ( json |> member "build_failure_reason" |> to_string |> Option.some
-      , json |> member "build_allow_failure" |> to_bool |> Option.some )
-    else (None, None)
+  let failure_reason =
+    json |> member "build_failure_reason" |> to_string |> Option.some
   in
+  let allow_fail = json |> member "build_allow_failure" |> to_bool in
   { build_status
   ; build_id
   ; build_name
-  ; commit
-  ; branch
-  ; repo_url
-  ; project_id
   ; failure_reason
-  ; allow_fail }
+  ; allow_fail
+  ; common_info= {commit; branch; repo_url; project_id} }
 
 let pipeline_info_of_json json =
   let open Yojson.Basic.Util in
   let pipeline_json = json |> member "object_attributes" in
   let state = pipeline_json |> member "status" |> to_string in
-  let id = pipeline_json |> member "id" |> to_int in
+  let pipeline_id = pipeline_json |> member "id" |> to_int in
   let commit = json |> extract_commit in
   let branch =
     json |> member "object_attributes" |> member "ref" |> to_string
   in
   let project = json |> member "project" in
+  let repo_url = project |> member "web_url" |> to_string in
   let project_path = project |> member "path_with_namespace" |> to_string in
   let project_id = project |> member "id" |> to_int in
-  {state; id; commit; branch; project_path; project_id}
+  { state
+  ; pipeline_id
+  ; project_path
+  ; common_info= {commit; branch; repo_url; project_id} }
 
 type msg =
-  | JobEvent of job_info
+  | JobEvent of ci_common_info job_info
   | PipelineEvent of pipeline_info
   | UnsupportedEvent of string
 
