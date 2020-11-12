@@ -321,6 +321,7 @@ Then, you need to set the following permissions:
   - Projects: read & write
 
 - Subscribe to events (check the following events):
+  - Check run
   - Commit comment
   - Create
   - Issue comment
