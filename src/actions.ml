@@ -16,12 +16,39 @@ let owner_team_map =
 
 let send_status_check ~bot_info (job_info : job_info) ~pr_num
     (gh_owner, gh_repo) ~github_repo_full_name ~gitlab_repo_full_name ~context
-    ~failure_reason ~external_id =
+    ~failure_reason ~external_id ~trace =
   let allow_fail =
     match job_info.allow_fail with Some f -> f | None -> false
   in
   let job_url =
     f "https://gitlab.com/%s/-/jobs/%d" gitlab_repo_full_name job_info.build_id
+  in
+  let title =
+    match failure_reason with
+    | "script_failure" ->
+        "Test has failed on GitLab CI"
+    | _ ->
+        failure_reason ^ " on GitLab CI"
+  in
+  let trace_lines =
+    trace
+    |> Str.global_replace (Str.regexp "\027\\[[0-9]*;1?m") ""
+    |> Str.global_replace (Str.regexp "\027\\[0K") ""
+    |> Str.global_replace (Str.regexp "section_start:[0-9]*:[a-z_]*\r") ""
+    |> Str.global_replace (Str.regexp "section_end:[0-9]*:[a-z_]*\r") ""
+    |> String.split_lines
+  in
+  let short_trace =
+    (* We display only the last 30 lines of the trace *)
+    List.drop trace_lines (List.length trace_lines - 30)
+    |> String.concat ~sep:"\n"
+  in
+  let text = "```\n" ^ short_trace ^ "\n```" in
+  let trace_description =
+    f
+      "Below, we show the last 30 lines of the trace from GitLab (the complete \
+       trace is available [here](%s))."
+      job_url
   in
   if allow_fail then
     Lwt_io.printf "Job is allowed to fail.\n"
@@ -36,9 +63,10 @@ let send_status_check ~bot_info (job_info : job_info) ~pr_num
             | Ok repo_id ->
                 GitHub_mutations.create_check_run ~bot_info ~name:context
                   ~repo_id ~head_sha:job_info.commit ~conclusion:NEUTRAL
-                  ~status:COMPLETED
-                  ~title:(failure_reason ^ " on GitLab CI")
-                  ~details_url:job_url ~summary:"" ~external_id ()
+                  ~status:COMPLETED ~title ~details_url:job_url
+                  ~summary:
+                    ("This job is allowed to fail.\n\n" ^ trace_description)
+                  ~text ~external_id ()
             | Error e ->
                 Lwt_io.printf "No repo id: %s\n" e ) )
     <&>
@@ -78,16 +106,19 @@ let send_status_check ~bot_info (job_info : job_info) ~pr_num
     | ACCESS_TOKEN _t ->
         GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
           ~commit:job_info.commit ~state:"failure" ~url:job_url ~context
-          ~description:(failure_reason ^ " on GitLab CI")
-          ~bot_info
+          ~description:title ~bot_info
     | INSTALL_TOKEN _t -> (
         GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
         >>= function
         | Ok repo_id ->
             GitHub_mutations.create_check_run ~bot_info ~name:context ~repo_id
               ~head_sha:job_info.commit ~conclusion:FAILURE ~status:COMPLETED
-              ~title:(failure_reason ^ " on GitLab CI")
-              ~details_url:job_url ~summary:"" ~external_id ()
+              ~title ~details_url:job_url
+              ~summary:
+                ( "This job has failed. If you need to, you can restart it \
+                   directly in the GitHub interface using the \"Re-run\" \
+                   button.\n\n" ^ trace_description )
+              ~text ~external_id ()
         | Error e ->
             Lwt_io.printf "No repo id: %s\n" e )
 
@@ -212,11 +243,11 @@ let job_failure ~bot_info ({project_id; build_id} as job_info) ~pr_num
     <&> ( GitLab_queries.get_build_trace ~bot_info ~project_id ~build_id
         >|= trace_action ~repo_full_name:gitlab_repo_full_name
         >>= function
-        | Warn _trace ->
+        | Warn trace ->
             Lwt_io.printf "Actual failure.\n"
             <&> send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
                   ~github_repo_full_name ~gitlab_repo_full_name ~context
-                  ~failure_reason ~external_id
+                  ~failure_reason ~external_id ~trace
         | Retry ->
             GitLab_mutations.retry_job ~bot_info ~project_id ~build_id
         | Ignore ->
