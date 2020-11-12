@@ -184,7 +184,7 @@ let trace_action ~repo_full_name trace =
     Ignore )
   else if
     test "fatal: Remote branch pr-[0-9]* not found in upstream origin"
-    || test "fatal: Couldn't find remote ref refs/heads/pr-"
+    || test "fatal: [Cc]ouldn't find remote ref refs/heads/pr-"
   then (
     Stdio.printf "Normal failure: pull request was closed.\n" ;
     Ignore )
