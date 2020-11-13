@@ -32,6 +32,7 @@ let job_info_of_json json =
   let commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
   let repo_url = json |> member "repository" |> member "url" |> to_string in
+  let stage = json |> member "build_stage" |> to_string in
   let failure_reason =
     json |> member "build_failure_reason" |> to_string |> Option.some
   in
@@ -39,9 +40,26 @@ let job_info_of_json json =
   { build_status
   ; build_id
   ; build_name
+  ; stage
   ; failure_reason
   ; allow_fail
   ; common_info= {commit; branch; repo_url; project_id} }
+
+(* For use to decode builds inside a pipeline webhook *)
+let build_info_of_json json =
+  let open Yojson.Basic.Util in
+  let build_status = json |> member "status" |> to_string in
+  let build_id = json |> member "id" |> to_int in
+  let build_name = json |> member "name" |> to_string in
+  let stage = json |> member "stage" |> to_string in
+  let allow_fail = json |> member "allow_failure" |> to_bool in
+  { build_status
+  ; build_id
+  ; build_name
+  ; stage
+  ; allow_fail
+  ; failure_reason= None
+  ; common_info= () }
 
 let pipeline_info_of_json json =
   let open Yojson.Basic.Util in
@@ -49,17 +67,23 @@ let pipeline_info_of_json json =
   let state = pipeline_json |> member "status" |> to_string in
   let pipeline_id = pipeline_json |> member "id" |> to_int in
   let commit = json |> extract_commit in
-  let branch =
-    json |> member "object_attributes" |> member "ref" |> to_string
-  in
+  let branch = pipeline_json |> member "ref" |> to_string in
   let project = json |> member "project" in
   let repo_url = project |> member "web_url" |> to_string in
   let project_path = project |> member "path_with_namespace" |> to_string in
   let project_id = project |> member "id" |> to_int in
+  let stages =
+    pipeline_json |> member "stages" |> to_list |> List.map ~f:to_string
+  in
+  let builds =
+    json |> member "builds" |> to_list |> List.map ~f:build_info_of_json
+  in
   { state
   ; pipeline_id
   ; project_path
-  ; common_info= {commit; branch; repo_url; project_id} }
+  ; common_info= {commit; branch; repo_url; project_id}
+  ; stages
+  ; builds }
 
 type msg =
   | JobEvent of ci_common_info job_info
