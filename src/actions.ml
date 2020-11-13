@@ -347,6 +347,28 @@ let job_action ~bot_info ({build_name} as job_info) ~gitlab_mapping =
   | unknown_state ->
       Lwt_io.printf "Unknown job status: %s\n" unknown_state
 
+let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
+  let sorted_builds =
+    pipeline_info.builds
+    |> List.sort ~compare:(fun build1 build2 ->
+           String.compare build1.build_name build2.build_name)
+  in
+  pipeline_info.stages
+  |> List.concat_map ~f:(fun stage ->
+         sorted_builds
+         |> List.filter_map ~f:(fun build ->
+                if String.equal build.stage stage then
+                  Some
+                    (f "  - [%s](%s/-/jobs/%d)" build.build_name
+                       pipeline_info.common_info.repo_url build.build_id)
+                else None)
+         |> List.cons ("- " ^ stage))
+  |> List.cons
+       (f "This [GitLab pipeline](%s) contains the following stages and jobs:"
+          pipeline_url)
+  |> (match summary_top with Some text -> List.cons text | None -> Fn.id)
+  |> String.concat ~sep:"\n\n"
+
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
@@ -364,36 +386,50 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
       Lwt.return ()
   | _ -> (
       let pipeline_url =
-        f "https://gitlab.com/%s/pipelines/%d" gitlab_full_name
+        f "%s/pipelines/%d" pipeline_info.common_info.repo_url
           pipeline_info.pipeline_id
       in
       let external_id =
         f "projects/%d/pipelines/%d" pipeline_info.common_info.project_id
           pipeline_info.pipeline_id
       in
-      let state, status, conclusion, title =
+      let state, status, conclusion, title, summary_top =
         match pipeline_info.state with
         | "pending" ->
-            ("pending", QUEUED, None, "Pipeline is pending on GitLab CI")
+            ("pending", QUEUED, None, "Pipeline is pending on GitLab CI", None)
         | "running" ->
-            ("pending", IN_PROGRESS, None, "Pipeline is running on GitLab CI")
+            ( "pending"
+            , IN_PROGRESS
+            , None
+            , "Pipeline is running on GitLab CI"
+            , None )
         | "success" ->
             ( "success"
             , COMPLETED
             , Some SUCCESS
-            , "Pipeline completed on GitLab CI" )
+            , "Pipeline completed on GitLab CI"
+            , None )
         | "failed" ->
             ( "failure"
             , COMPLETED
             , Some FAILURE
-            , "Pipeline completed with errors on GitLab CI" )
+            , "Pipeline completed with errors on GitLab CI"
+            , Some
+                "*If you need to restart the entire pipeline, you may do so \
+                 directly in the GitHub interface using the \"Re-run\" \
+                 button.*" )
         | "cancelled" | "canceled" ->
             ( "error"
             , COMPLETED
             , Some CANCELLED
-            , "Pipeline was cancelled on GitLab CI" )
+            , "Pipeline was cancelled on GitLab CI"
+            , None )
         | s ->
-            ("error", COMPLETED, Some FAILURE, "Unknown pipeline status: " ^ s)
+            ( "error"
+            , COMPLETED
+            , Some FAILURE
+            , "Unknown pipeline status: " ^ s
+            , None )
       in
       match bot_info.github_token with
       | ACCESS_TOKEN _ ->
@@ -415,7 +451,10 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                   (f "GitLab CI pipeline (%s)"
                      (pr_from_branch pipeline_info.common_info.branch |> snd))
                 ~repo_id ~head_sha:pipeline_info.common_info.commit ~status
-                ?conclusion ~title ~details_url:pipeline_url ~summary:""
+                ?conclusion ~title ~details_url:pipeline_url
+                ~summary:
+                  (create_pipeline_summary ?summary_top pipeline_info
+                     pipeline_url)
                 ~external_id ()
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e ) )
