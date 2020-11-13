@@ -371,72 +371,52 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
         f "projects/%d/pipelines/%d" pipeline_info.common_info.project_id
           pipeline_info.pipeline_id
       in
+      let state, status, conclusion, title =
+        match pipeline_info.state with
+        | "pending" ->
+            ("pending", QUEUED, None, "Pipeline is pending on GitLab CI")
+        | "running" ->
+            ("pending", IN_PROGRESS, None, "Pipeline is running on GitLab CI")
+        | "success" ->
+            ( "success"
+            , COMPLETED
+            , Some SUCCESS
+            , "Pipeline completed on GitLab CI" )
+        | "failed" ->
+            ( "failure"
+            , COMPLETED
+            , Some FAILURE
+            , "Pipeline completed with errors on GitLab CI" )
+        | "cancelled" | "canceled" ->
+            ( "error"
+            , COMPLETED
+            , Some CANCELLED
+            , "Pipeline was cancelled on GitLab CI" )
+        | s ->
+            ("error", COMPLETED, Some FAILURE, "Unknown pipeline status: " ^ s)
+      in
       match bot_info.github_token with
-      | ACCESS_TOKEN _t ->
-          let state, description =
-            match pipeline_info.state with
-            | "success" ->
-                ("success", "Pipeline completed on GitLab CI")
-            | "pending" ->
-                ("pending", "Pipeline is pending on GitLab CI")
-            | "running" ->
-                ("pending", "Pipeline is running on GitLab CI")
-            | "failed" ->
-                ("failure", "Pipeline completed with errors on GitLab CI")
-            | "cancelled" | "canceled" ->
-                ("error", "Pipeline was cancelled on GitLab CI")
-            | s ->
-                ("error", "Unknown pipeline status: " ^ s)
-          in
+      | ACCESS_TOKEN _ ->
           GitHub_mutations.send_status_check ~repo_full_name
             ~commit:pipeline_info.common_info.commit ~state ~url:pipeline_url
             ~context:
               (f "GitLab CI pipeline (%s)"
                  (pr_from_branch pipeline_info.common_info.branch |> snd))
-            ~description ~bot_info
-      | INSTALL_TOKEN _t -> (
+            ~description:title ~bot_info
+      | INSTALL_TOKEN _ -> (
           let owner, repo =
             github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name
           in
           GitHub_queries.get_repository_id ~bot_info ~owner ~repo
           >>= function
-          | Ok repo_id -> (
-            match pipeline_info.state with
-            | "pending" ->
-                GitHub_mutations.create_check_run ~bot_info
-                  ~name:
-                    (f "GitLab CI pipeline (%s)"
-                       (pr_from_branch pipeline_info.common_info.branch |> snd))
-                  ~repo_id ~head_sha:pipeline_info.common_info.commit
-                  ~status:QUEUED ~title:"Pipeline is pending on GitLab CI"
-                  ~details_url:pipeline_url ~summary:"" ~external_id ()
-            | "running" ->
-                GitHub_mutations.create_check_run ~bot_info
-                  ~name:
-                    (f "GitLab CI pipeline (%s)"
-                       (pr_from_branch pipeline_info.common_info.branch |> snd))
-                  ~repo_id ~head_sha:pipeline_info.common_info.commit
-                  ~status:IN_PROGRESS ~title:"Pipeline is running on GitLab CI"
-                  ~details_url:pipeline_url ~summary:"" ~external_id ()
-            | _ ->
-                let conclusion, title =
-                  match pipeline_info.state with
-                  | "success" ->
-                      (SUCCESS, "Pipeline completed on GitLab CI")
-                  | "failed" ->
-                      (FAILURE, "Pipeline completed with errors on GitLab CI")
-                  | "cancelled" | "canceled" ->
-                      (CANCELLED, "Pipeline was cancelled on GitLab CI")
-                  | s ->
-                      (FAILURE, "Unknown pipeline status: " ^ s)
-                in
-                GitHub_mutations.create_check_run ~bot_info
-                  ~name:
-                    (f "GitLab CI pipeline (%s)"
-                       (pr_from_branch pipeline_info.common_info.branch |> snd))
-                  ~repo_id ~head_sha:pipeline_info.common_info.commit
-                  ~status:COMPLETED ~conclusion ~title ~details_url:pipeline_url
-                  ~summary:"" ~external_id () )
+          | Ok repo_id ->
+              GitHub_mutations.create_check_run ~bot_info
+                ~name:
+                  (f "GitLab CI pipeline (%s)"
+                     (pr_from_branch pipeline_info.common_info.branch |> snd))
+                ~repo_id ~head_sha:pipeline_info.common_info.commit ~status
+                ?conclusion ~title ~details_url:pipeline_url ~summary:""
+                ~external_id ()
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e ) )
 
