@@ -28796,6 +28796,16 @@
             "description": "A list of comments associated with the Issue.",
             "args": [
               {
+                "name": "orderBy",
+                "description": "Ordering options for issue comments returned from the connection.",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "IssueCommentOrder",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
                 "name": "after",
                 "description": "Returns the elements in the list that come after the specified cursor.",
                 "type": {
@@ -30535,6 +30545,62 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "INPUT_OBJECT",
+        "name": "IssueCommentOrder",
+        "description": "Ways in which lists of issue comments can be ordered upon return.",
+        "fields": null,
+        "inputFields": [
+          {
+            "name": "field",
+            "description": "The field in which to order issue comments by.",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "IssueCommentOrderField",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "direction",
+            "description": "The direction in which to order issue comments by the specified field.",
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "OrderDirection",
+                "ofType": null
+              }
+            },
+            "defaultValue": null
+          }
+        ],
+        "interfaces": null,
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "IssueCommentOrderField",
+        "description": "Properties by which issue comment connections can be ordered.",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "UPDATED_AT",
+            "description": "Order issue comments by update time",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
         "possibleTypes": null
       },
       {
@@ -50565,6 +50631,22 @@
             "deprecationReason": null
           },
           {
+            "name": "hasSponsorsListing",
+            "description": "True if this user/organization has a GitHub Sponsors listing.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -50657,6 +50739,22 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "IpAllowListEntryConnection",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "isSponsoringViewer",
+            "description": "True if the viewer is sponsored by this user/organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
                 "ofType": null
               }
             },
@@ -51575,7 +51673,7 @@
           },
           {
             "name": "sponsorsListing",
-            "description": "The GitHub Sponsors listing for this user.",
+            "description": "The GitHub Sponsors listing for this user or organization.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -52048,8 +52146,40 @@
             "deprecationReason": null
           },
           {
+            "name": "viewerCanSponsor",
+            "description": "Whether or not the viewer is able to sponsor this user/organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "viewerIsAMember",
             "description": "Viewer is an active member of this organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "viewerIsSponsoring",
+            "description": "True if the viewer is sponsoring this user/organization.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -59157,6 +59287,16 @@
             "name": "comments",
             "description": "A list of comments associated with the pull request.",
             "args": [
+              {
+                "name": "orderBy",
+                "description": "Ordering options for issue comments returned from the connection.",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "IssueCommentOrder",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
               {
                 "name": "after",
                 "description": "Returns the elements in the list that come after the specified cursor.",
@@ -86016,8 +86156,40 @@
         "description": "Entities that can be sponsored through GitHub Sponsors",
         "fields": [
           {
+            "name": "hasSponsorsListing",
+            "description": "True if this user/organization has a GitHub Sponsors listing.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "isSponsoringViewer",
+            "description": "True if the viewer is sponsored by this user/organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "sponsorsListing",
-            "description": "The GitHub Sponsors listing for this user.",
+            "description": "The GitHub Sponsors listing for this user or organization.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -86165,6 +86337,38 @@
               "ofType": {
                 "kind": "OBJECT",
                 "name": "SponsorshipConnection",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "viewerCanSponsor",
+            "description": "Whether or not the viewer is able to sponsor this user/organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "viewerIsSponsoring",
+            "description": "True if the viewer is sponsoring this user/organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
                 "ofType": null
               }
             },
@@ -86900,7 +87104,7 @@
           },
           {
             "name": "sponsorEntity",
-            "description": "The user or organization that is sponsoring. Returns null if the sponsorship is private.",
+            "description": "The user or organization that is sponsoring, if you have permission to view them.",
             "args": [],
             "type": {
               "kind": "UNION",
@@ -101156,6 +101360,22 @@
             "deprecationReason": null
           },
           {
+            "name": "hasSponsorsListing",
+            "description": "True if this user/organization has a GitHub Sponsors listing.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "hovercard",
             "description": "The hovercard information for this user in a given context",
             "args": [
@@ -101295,6 +101515,22 @@
             "deprecationReason": null
           },
           {
+            "name": "isSponsoringViewer",
+            "description": "True if the viewer is sponsored by this user/organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "isViewer",
             "description": "Whether or not this user is the viewing user.",
             "args": [],
@@ -101314,6 +101550,16 @@
             "name": "issueComments",
             "description": "A list of issue comments made by this user.",
             "args": [
+              {
+                "name": "orderBy",
+                "description": "Ordering options for issue comments returned from the connection.",
+                "type": {
+                  "kind": "INPUT_OBJECT",
+                  "name": "IssueCommentOrder",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
               {
                 "name": "after",
                 "description": "Returns the elements in the list that come after the specified cursor.",
@@ -102604,7 +102850,7 @@
           },
           {
             "name": "sponsorsListing",
-            "description": "The GitHub Sponsors listing for this user.",
+            "description": "The GitHub Sponsors listing for this user or organization.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -103021,8 +103267,40 @@
             "deprecationReason": null
           },
           {
+            "name": "viewerCanSponsor",
+            "description": "Whether or not the viewer is able to sponsor this user/organization.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "viewerIsFollowing",
             "description": "Whether or not this user is followed by the viewer.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "viewerIsSponsoring",
+            "description": "True if the viewer is sponsoring this user/organization.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
