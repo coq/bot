@@ -36,14 +36,14 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     |> String.split_lines
   in
   let short_trace =
-    (* We display only the last 30 lines of the trace *)
-    List.drop trace_lines (List.length trace_lines - 30)
+    (* We display only the last 40 lines of the trace *)
+    List.drop trace_lines (List.length trace_lines - 40)
     |> String.concat ~sep:"\n"
   in
   let text = "```\n" ^ short_trace ^ "\n```" in
   let trace_description =
     f
-      "Below, we show the last 30 lines of the trace from GitLab (the complete \
+      "Below, we show the last 40 lines of the trace from GitLab (the complete \
        trace is available [here](%s))."
       job_url
   in
