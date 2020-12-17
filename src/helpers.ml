@@ -46,10 +46,10 @@ let github_repo_of_gitlab_project_path ~gitlab_mapping gitlab_full_name =
         gitlab_full_name
   in
   match Str.split (Str.regexp "/") github_full_name with
-  | [owner_; repo_] ->
-      (owner_, repo_)
+  | [owner; repo] ->
+      (owner, repo)
   | _ ->
-      raise (Failure "Str.split")
+      failwith "Could not split github_full_name into (owner, repo)."
 
 let github_repo_of_gitlab_url ~gitlab_mapping gitlab_repo_url =
   let owner, repo =

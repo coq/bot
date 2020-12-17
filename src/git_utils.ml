@@ -5,8 +5,8 @@ open Bot_components.GitHub_types
 open Helpers
 open Lwt.Infix
 
-let gitlab_repo ~bot_info ~owner ~name =
-  f "https://oauth2:%s@gitlab.com/%s/%s.git" bot_info.gitlab_token owner name
+let gitlab_repo ~bot_info ~gitlab_full_name =
+  f "https://oauth2:%s@gitlab.com/%s.git" bot_info.gitlab_token gitlab_full_name
 
 let report_status command report code =
   Error (f "Command \"%s\" %s %d\n" command report code)
@@ -56,16 +56,9 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
           Lwt.return gh_repo )
   | Some r ->
       Lwt.return r )
-  >|= fun gl_repo ->
-  let owner, name =
-    match Str.split (Str.regexp "/") gl_repo with
-    | [owner; repo] ->
-        (owner, repo)
-    | _ ->
-        raise (Failure "Str.split")
-  in
-  ( {name= f "pr-%d" issue.number; repo_url= gitlab_repo ~owner ~name ~bot_info}
-    : remote_ref_info )
+  >|= fun gitlab_full_name ->
+  { name= f "pr-%d" issue.number
+  ; repo_url= gitlab_repo ~gitlab_full_name ~bot_info }
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
