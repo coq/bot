@@ -134,7 +134,9 @@ alerting of the change.
 ![updated milestone screenshot](screenshots/changed-milestone.png)
 
 This feature won't be activated if you don't select the "issue" event
-when configuring the GitHub webhook.
+when configuring the GitHub webhook.  However, it is activated if you
+installed the bot as a [GitHub App](#as-a-github-app).  Please open an
+issue if you would like this behavior to be configurable.
 
 ### Post comment when a pull request does not respect certain standards ###
 
