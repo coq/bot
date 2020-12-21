@@ -18,7 +18,7 @@ depends: [
   "stdio" {>= "v0.14.0"}
   "yojson" {>= "1.7.0"}
   "bot-components" {dev}
-  "toml" {>= "5.0.0"}
+  "toml" {>= "5.0.0" & < "6.0.0"}
   "odoc" {>= "1.5.2" & with-doc}
 ]
 build: [
