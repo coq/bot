@@ -1,33 +1,33 @@
-val toml_of_file : string -> TomlTypes.table
+val toml_of_file : string -> Toml.Types.table
 
-val toml_of_string : string -> TomlTypes.table
+val toml_of_string : string -> Toml.Types.table
 
-val subkey_value : TomlTypes.table -> string -> string -> string option
+val subkey_value : Toml.Types.table -> string -> string -> string option
 
 val string_of_mapping : (string, string) Base.Hashtbl.t -> string
 
-val port : TomlTypes.table -> int
+val port : Toml.Types.table -> int
 
-val gitlab_access_token : TomlTypes.table -> string
+val gitlab_access_token : Toml.Types.table -> string
 
-val github_access_token : TomlTypes.table -> string
+val github_access_token : Toml.Types.table -> string
 
-val github_webhook_secret : TomlTypes.table -> string
+val github_webhook_secret : Toml.Types.table -> string
 
-val gitlab_webhook_secret : TomlTypes.table -> string
+val gitlab_webhook_secret : Toml.Types.table -> string
 
-val daily_schedule_secret : TomlTypes.table -> string
+val daily_schedule_secret : Toml.Types.table -> string
 
-val bot_name : TomlTypes.table -> string
+val bot_name : Toml.Types.table -> string
 
-val bot_domain : TomlTypes.table -> string
+val bot_domain : Toml.Types.table -> string
 
-val bot_email : TomlTypes.table -> string
+val bot_email : Toml.Types.table -> string
 
-val github_app_id : TomlTypes.table -> int
+val github_app_id : Toml.Types.table -> int
 
 val github_private_key : Mirage_crypto_pk.Rsa.priv
 
 val make_mappings_table :
-     TomlTypes.value TomlTypes.Table.t
+     Toml.Types.value Toml.Types.Table.t
   -> (string, string) Base.Hashtbl.t * (string, string) Base.Hashtbl.t

@@ -5,14 +5,14 @@ let toml_of_file file_path = Toml.Parser.(from_filename file_path |> unsafe)
 
 let toml_of_string s = Toml.Parser.(from_string s |> unsafe)
 
-let find k = TomlTypes.Table.find (Toml.key k)
+let find k = Toml.Types.Table.find (Toml.Types.Table.Key.bare_key_of_string k)
 
 let subkey_value toml_table k k' =
-  TomlLenses.(get toml_table (key k |-- table |-- key k' |-- string))
+  Toml.Lenses.(get toml_table (key k |-- table |-- key k' |-- string))
 
 let list_table_keys toml_table =
-  TomlTypes.Table.fold
-    (fun k _ ks -> TomlTypes.Table.Key.to_string k :: ks)
+  Toml.Types.Table.fold
+    (fun k _ ks -> Toml.Types.Table.Key.to_string k :: ks)
     toml_table []
 
 let string_of_mapping =
@@ -135,7 +135,7 @@ let parse_mappings mappings =
 let make_mappings_table toml_data =
   try
     match find "mappings" toml_data with
-    | TomlTypes.TTable a ->
+    | Toml.Types.TTable a ->
         parse_mappings a
     | _ ->
         (Hashtbl.create (module String), Hashtbl.create (module String))
