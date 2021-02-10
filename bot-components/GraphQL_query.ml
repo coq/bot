@@ -28,6 +28,8 @@ let send_graphql_query ~bot_info ?(extra_headers = []) query =
         |> Yojson.Basic.Util.member "data"
         |> query#parse )
     with
+    | Failure err ->
+        Error (f "Exception: %s" err)
     | Yojson.Json_error err ->
         Error (f "Json error: %s" err)
     | Yojson.Basic.Util.Type_error (err, _) ->
