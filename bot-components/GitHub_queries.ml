@@ -1,6 +1,5 @@
 open Base
 open Bot_info
-open GitHub_GraphQL
 open GitHub_types
 open Lwt
 open Utils
@@ -61,7 +60,7 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
     else None
 
 let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
-  PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
+  GitHub_GraphQL.PullRequest_Milestone_and_Cards.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok result -> (
@@ -126,7 +125,7 @@ let get_backported_pr_info ~bot_info number base_ref =
       Error (f "Error in backported_pr_info: %s." err)
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
-  PullRequest_ID_and_Milestone.make ~owner ~repo ~number ()
+  GitHub_GraphQL.PullRequest_ID_and_Milestone.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.bind ~f:(fun result ->
           match result#repository with
@@ -181,7 +180,7 @@ let team_membership_of_resp ~org ~team ~user resp =
           Ok false ) )
 
 let get_team_membership ~bot_info ~org ~team ~user =
-  TeamMembership.make ~org ~team ~user ()
+  GitHub_GraphQL.TeamMembership.make ~org ~team ~user ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_team_membership failed with %s" err)
@@ -222,7 +221,7 @@ let pull_request_info_of_resp ~owner ~repo ~number resp :
                 ; last_commit_message= Some node#commit#message } ) ) )
 
 let get_pull_request_refs ~bot_info ~owner ~repo ~number =
-  PullRequest_Refs.make ~owner ~repo ~number ()
+  GitHub_GraphQL.PullRequest_Refs.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_info failed with %s" err)
@@ -322,7 +321,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                         REVIEW_REQUIRED ) ) } ) ) )
 
 let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
-  PullRequestReviewsInfo.make ~owner ~repo ~number ()
+  GitHub_GraphQL.PullRequestReviewsInfo.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_reviews_info failed with %s" err)
@@ -342,7 +341,9 @@ let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
         Ok None )
 
 let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
-  FileContent.make ~owner ~repo ~file:(branch ^ ":" ^ file_name) ()
+  GitHub_GraphQL.FileContent.make ~owner ~repo
+    ~file:(branch ^ ":" ^ file_name)
+    ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err -> f "Query file_content failed with %s" err)
   >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
@@ -359,7 +360,7 @@ let default_branch_of_resp ~owner ~repo resp =
         Ok (default_branch#name : string) )
 
 let get_default_branch ~bot_info ~owner ~repo =
-  DefaultBranch.make ~owner ~repo ()
+  GitHub_GraphQL.DefaultBranch.make ~owner ~repo ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_default_branch failed with %s" err)
@@ -418,7 +419,7 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
           Error (f "No close event for issue %s/%s#%d." owner repo number) ) )
 
 let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
-  Issue_Milestone.make ~owner ~repo ~number ()
+  GitHub_GraphQL.Issue_Milestone.make ~owner ~repo ~number ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query issue_milestone failed with %s" err)
@@ -432,14 +433,15 @@ let repo_id_of_resp ~owner ~repo resp =
       Ok repository#id
 
 let get_repository_id ~bot_info ~owner ~repo =
-  RepoId.make ~owner ~repo ()
+  GitHub_GraphQL.RepoId.make ~owner ~repo ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_repository_id failed with %s" err)
   >|= Result.bind ~f:(repo_id_of_resp ~owner ~repo)
 
 let get_status_check ~bot_info ~owner ~repo ~commit ~context =
-  GetCheckRuns.make ~owner ~repo ~commit ~context ~appId:bot_info.app_id ()
+  GitHub_GraphQL.GetCheckRuns.make ~owner ~repo ~commit ~context
+    ~appId:bot_info.app_id ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err ->
           f "Query get_status_check failed with %s" err)

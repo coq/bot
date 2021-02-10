@@ -1,6 +1,5 @@
 open Base
 open Bot_info
-open GitHub_GraphQL
 open GitHub_types
 open Cohttp_lwt_unix
 open Lwt
@@ -8,7 +7,7 @@ open Utils
 
 let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     =
-  MoveCardToColumn.make ~card_id ~column_id ()
+  GitHub_GraphQL.MoveCardToColumn.make ~card_id ~column_id ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
@@ -17,7 +16,7 @@ let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
       Stdio.print_endline (f "Error while moving project card: %s" err)
 
 let post_comment ~bot_info ~id ~message =
-  PostComment.make ~id ~message ()
+  GitHub_GraphQL.PostComment.make ~id ~message ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
@@ -26,7 +25,7 @@ let post_comment ~bot_info ~id ~message =
       Stdio.print_endline (f "Error while posting comment: %s" err)
 
 let update_milestone ~bot_info ~issue ~milestone =
-  UpdateMilestone.make ~issue ~milestone ()
+  GitHub_GraphQL.UpdateMilestone.make ~issue ~milestone ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
@@ -45,7 +44,8 @@ let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
       | SQUASH ->
           `SQUASH)
   in
-  MergePullRequest.make ~pr_id ?commit_headline ?commit_body ?merge_method ()
+  GitHub_GraphQL.MergePullRequest.make ~pr_id ?commit_headline ?commit_body
+    ?merge_method ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
@@ -102,8 +102,9 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
     | QUEUED ->
         `QUEUED
   in
-  NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ?text
-    ~summary ~url:details_url ?conclusion ?externalId:external_id ()
+  GitHub_GraphQL.NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha
+    ~status ~title ?text ~summary ~url:details_url ?conclusion
+    ?externalId:external_id ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
@@ -114,8 +115,8 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
 let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
     ~title ?text ~summary () =
   let conclusion = string_of_conclusion conclusion in
-  UpdateCheckRun.make ~checkRunId:check_run_id ~repoId:repo_id ~conclusion
-    ?url:details_url ~title ?text ~summary ()
+  GitHub_GraphQL.UpdateCheckRun.make ~checkRunId:check_run_id ~repoId:repo_id
+    ~conclusion ?url:details_url ~title ?text ~summary ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= function
   | Ok _ ->
