@@ -344,6 +344,13 @@ let job_action ~bot_info ({build_name} as job_info) ~gitlab_mapping =
       job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
         ~github_repo_full_name ~gitlab_repo_full_name ~context ~state
         ~external_id
+  | "cancelled" | "canceled" ->
+      (* Ideally we should check if a status was already reported for
+         this job.  But it is important to avoid making dozens of
+         requests at once when a pipeline is canceled.  So we should
+         have a caching mechanism to limit this case to a single
+         request. *)
+      Lwt.return_unit
   | unknown_state ->
       Lwt_io.printf "Unknown job status: %s\n" unknown_state
 
