@@ -833,9 +833,10 @@ let pull_request_updated_action ~bot_info
         ()
 
 let rec adjust_milestone ~bot_info ~issue ~sleep_time =
-  (* We implement an exponential backoff strategy to try again
-     after 5, 25, and 125 seconds, if the issue was closed by a
-     commit not yet associated to a pull request. *)
+  (* We implement an exponential backoff strategy to try again after
+     5, 25, and 125 seconds, if the issue was closed by a commit not
+     yet associated to a pull request or if we couldn't find the close
+     event. *)
   GitHub_queries.get_issue_closer_info ~bot_info issue
   >>= function
   | Ok (ClosedByPullRequest result) ->
