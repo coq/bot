@@ -413,10 +413,10 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
                          issue#milestone
                          |> Option.map ~f:(fun milestone -> milestone#id)
                      ; closer= closer_info }
-               | (ClosedByCommit | ClosedByOther) as reason ->
+               | (ClosedByCommit | ClosedByOther | NoCloseEvent) as reason ->
                    reason)
       | _ ->
-          Error (f "No close event for issue %s/%s#%d." owner repo number) ) )
+          Result.return NoCloseEvent ) )
 
 let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
   GitHub_GraphQL.Issue_Milestone.make ~owner ~repo ~number ()

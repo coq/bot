@@ -26,6 +26,7 @@ type 'a closed_by =
   | ClosedByCommit
   (* Only used when commit is not associated to a PR *)
   | ClosedByOther
+  | NoCloseEvent
 
 type issue_closer_info =
   {issue_id: id; milestone_id: id option; closer: closer_info}

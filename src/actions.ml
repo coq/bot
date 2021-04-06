@@ -841,18 +841,20 @@ let rec adjust_milestone ~bot_info ~issue ~sleep_time =
   >>= function
   | Ok (ClosedByPullRequest result) ->
       GitHub_mutations.reflect_pull_request_milestone ~bot_info result
-  | Ok ClosedByCommit ->
+  | Ok ClosedByCommit when Float.(sleep_time > 200.) ->
+      Lwt_io.print "Closed by commit not associated to any pull request.\n"
+  | Ok NoCloseEvent when Float.(sleep_time > 200.) ->
+      Lwt_io.printf "Error: no close event after 200 seconds.\n"
+  | Ok (ClosedByCommit | NoCloseEvent) ->
       (* May be worth trying again later. *)
-      if Float.(sleep_time > 200.) then
-        Lwt_io.print "Closed by commit not associated to any pull request.\n"
-      else
-        Lwt_io.printf
-          "Closed by commit not yet associated to any pull request... Trying \
-           again in %f seconds.\n"
-          sleep_time
-        >>= (fun () -> Lwt_unix.sleep sleep_time)
-        >>= fun () ->
-        adjust_milestone ~issue ~sleep_time:(sleep_time *. 5.) ~bot_info
+      Lwt_io.printf
+        "Closed by commit not yet associated to any pull request or no close \
+         event yet...\n\
+        \ Trying again in %f seconds.\n"
+        sleep_time
+      >>= (fun () -> Lwt_unix.sleep sleep_time)
+      >>= fun () ->
+      adjust_milestone ~issue ~sleep_time:(sleep_time *. 5.) ~bot_info
   | Ok ClosedByOther ->
       (* Not worth trying again *)
       Lwt_io.print "Not closed by pull request or commit.\n"
