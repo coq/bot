@@ -84,6 +84,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
             when String.equal head.sha (f "\"%s\"" job_info.common_info.commit)
             ->
               GitHub_mutations.post_comment ~bot_info ~id ~message
+              >>= GitHub_mutations.report_on_posting_comment
           | Ok {head} ->
               Lwt_io.printf
                 "We are on a PR branch but the commit (%s) is not the current \
@@ -478,6 +479,7 @@ let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
             ~owner ~repo
             (GitHub_mutations.post_comment ~id
                ~message:(f "@%s, %s" author message))
+          >>= GitHub_mutations.report_on_posting_comment
           <&> ( execute_cmd
                   (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
                      bot_info.name
@@ -517,14 +519,12 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       ; ( if comment_info.issue.milestoned then None
         else Some "no milestone is set" ) ]
   in
-  match reasons_for_not_merging with
+  ( match reasons_for_not_merging with
   | _ :: _ ->
       let reasons = reasons_for_not_merging |> String.concat ~sep:" and " in
-      GitHub_mutations.post_comment ~bot_info
-        ~message:
-          (f "@%s: You can't merge the PR because %s." comment_info.author
-             reasons)
-        ~id:pr.id
+      Lwt.return_error
+        (f "@%s: You can't merge the PR because %s." comment_info.author
+           reasons)
   | [] -> (
       GitHub_queries.get_pull_request_reviews_refs ~bot_info
         ~owner:pr.issue.owner ~repo:pr.issue.repo ~number:pr.issue.number
@@ -536,56 +536,47 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
           in
           if (not comment_info.review_comment) && Option.is_none comment then
             if Float.(t > 5.) then
-              GitHub_mutations.post_comment ~bot_info
-                ~message:
-                  "Something unexpected happened: did not find merge comment \
-                   after retrying three times.\n\
-                   cc @coq/coqbot-maintainers"
-                ~id:pr.id
+              Lwt.return_error
+                "Something unexpected happened: did not find merge comment \
+                 after retrying three times.\n\
+                 cc @coq/coqbot-maintainers"
             else
               Lwt_unix.sleep t
               >>= fun () ->
               merge_pull_request_action ~t:(t *. 2.) ~bot_info comment_info
+              >>= fun () -> Lwt.return_ok ()
           else if
             (not comment_info.review_comment)
             && (Option.value_exn comment).created_by_email
             (* Option.value_exn doesn't raise an exception because comment isn't None at this point*)
           then
-            GitHub_mutations.post_comment ~bot_info
-              ~message:
-                (f
-                   "@%s: Merge requests sent over e-mail are not accepted \
-                    because this put less guarantee on the authenticity of the \
-                    author of the request."
-                   comment_info.author)
-              ~id:pr.id
+            Lwt.return_error
+              (f
+                 "@%s: Merge requests sent over e-mail are not accepted \
+                  because this puts less guarantee on the authenticity of the \
+                  author of the request."
+                 comment_info.author)
           else if not (String.equal reviews_info.baseRef "master") then
-            GitHub_mutations.post_comment ~bot_info
-              ~message:
-                (f
-                   "@%s: This PR targets branch `%s` instead of `master`. Only \
-                    release managers can merge in release branches. Merging \
-                    with the bot is not supported."
-                   comment_info.author reviews_info.baseRef)
-              ~id:pr.id
+            Lwt.return_error
+              (f
+                 "@%s: This PR targets branch `%s` instead of `master`. Only \
+                  release managers can merge in release branches. Merging with \
+                  the bot is not supported."
+                 comment_info.author reviews_info.baseRef)
           else
             match reviews_info.review_decision with
             | NONE | REVIEW_REQUIRED ->
-                GitHub_mutations.post_comment ~bot_info
-                  ~message:
-                    (f
-                       "@%s: You can't merge the PR because it hasn't been \
-                        approved yet."
-                       comment_info.author)
-                  ~id:pr.id
+                Lwt.return_error
+                  (f
+                     "@%s: You can't merge the PR because it hasn't been \
+                      approved yet."
+                     comment_info.author)
             | CHANGES_REQUESTED ->
-                GitHub_mutations.post_comment ~bot_info
-                  ~message:
-                    (f
-                       "@%s: You can't merge the PR because some changes are \
-                        requested."
-                       comment_info.author)
-                  ~id:pr.id
+                Lwt.return_error
+                  (f
+                     "@%s: You can't merge the PR because some changes are \
+                      requested."
+                     comment_info.author)
             | APPROVED -> (
                 GitHub_queries.get_team_membership ~bot_info ~org:"coq"
                   ~team:"pushers" ~user:comment_info.author
@@ -612,9 +603,9 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                           else acc)
                     with
                     | [] ->
-                        Lwt.return ()
+                        Lwt.return_ok ()
                     | overlays ->
-                        GitHub_mutations.post_comment ~bot_info
+                        GitHub_mutations.post_comment ~bot_info ~id:pr.id
                           ~message:
                             (f
                                "@%s: Please take care of the following overlays:\n\
@@ -622,21 +613,24 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                                comment_info.author
                                (List.fold_left overlays ~init:"" ~f:(fun s o ->
                                     s ^ f "- %s\n" o)))
-                          ~id:pr.id )
+                        >>= GitHub_mutations.report_on_posting_comment
+                        >>= fun () -> Lwt.return_ok () )
                 | Error _ ->
-                    GitHub_mutations.post_comment ~bot_info
-                      ~message:
-                        (f
-                           "@%s: You can't merge this PR because you're not a \
-                            member of the `@coq/pushers` team."
-                           comment_info.author)
-                      ~id:pr.id ) )
+                    Lwt.return_error
+                      (f
+                         "@%s: You can't merge this PR because you're not a \
+                          member of the `@coq/pushers` team."
+                         comment_info.author) ) )
       | Error e ->
-          GitHub_mutations.post_comment ~bot_info
-            ~message:
-              (f "Something unexpected happened: %s\ncc @coq/coqbot-maintainers"
-                 e)
-            ~id:pr.id )
+          Lwt.return_error
+            (f "Something unexpected happened: %s\ncc @coq/coqbot-maintainers"
+               e) ) )
+  >>= function
+  | Ok () ->
+      Lwt.return_unit
+  | Error err ->
+      GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
+      >>= GitHub_mutations.report_on_posting_comment
 
 let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
     ~github_mapping =
@@ -787,7 +781,8 @@ let pull_request_updated_action ~bot_info
                 as the name of your branch when submitting a pull request.\n\
                 By the way, you may be interested in reading [our contributing \
                 guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
-               pr_info.base.branch.name))
+               pr_info.base.branch.name)
+        >>= GitHub_mutations.report_on_posting_comment)
       |> Lwt.async
   | _ ->
       () ) ;
@@ -878,11 +873,12 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
         rejected_milestone
       >>= fun () ->
       GitHub_mutations.update_milestone rejected_milestone issue ~bot_info
-      <&> GitHub_mutations.post_comment ~bot_info ~id
-            ~message:
-              "This PR was postponed. Please update accordingly the milestone \
-               of any issue that this fixes as this cannot be done \
-               automatically."
+      <&> ( GitHub_mutations.post_comment ~bot_info ~id
+              ~message:
+                "This PR was postponed. Please update accordingly the \
+                 milestone of any issue that this fixes as this cannot be done \
+                 automatically."
+          >>= GitHub_mutations.report_on_posting_comment )
   | _ ->
       Lwt_io.printf "This was not a request inclusion column: ignoring.\n"
 

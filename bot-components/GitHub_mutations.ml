@@ -18,11 +18,26 @@ let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
 let post_comment ~bot_info ~id ~message =
   GitHub_GraphQL.PostComment.make ~id ~message ()
   |> GraphQL_query.send_graphql_query ~bot_info
-  >|= function
-  | Ok _ ->
-      ()
-  | Error err ->
-      Stdio.print_endline (f "Error while posting comment: %s" err)
+  >|= Result.bind ~f:(fun result ->
+          match result#payload with
+          | None ->
+              Error "No payload"
+          | Some result -> (
+            match result#commentEdge with
+            | None ->
+                Error "No comment edge"
+            | Some result -> (
+              match result#node with
+              | None ->
+                  Error "No comment node"
+              | Some result ->
+                  Ok result#url ) ))
+
+let report_on_posting_comment = function
+  | Ok url ->
+      Lwt_io.printf "Posted a new comment: %s\n" url
+  | Error f ->
+      Lwt_io.printf "Error while posting a comment: %s\n" f
 
 let update_milestone ~bot_info ~issue ~milestone =
   GitHub_GraphQL.UpdateMilestone.make ~issue ~milestone ()
@@ -66,10 +81,11 @@ let reflect_pull_request_milestone ~bot_info issue_closer_info =
         Lwt_io.print "Issue is already in the right milestone: doing nothing.\n"
     | Some _ ->
         update_milestone ~bot_info ~issue:issue_closer_info.issue_id ~milestone
-        <&> post_comment ~bot_info ~id:issue_closer_info.issue_id
-              ~message:
-                "The milestone of this issue was changed to reflect the one of \
-                 the pull request that closed it." )
+        <&> ( post_comment ~bot_info ~id:issue_closer_info.issue_id
+                ~message:
+                  "The milestone of this issue was changed to reflect the one \
+                   of the pull request that closed it."
+            >>= report_on_posting_comment ) )
 
 let string_of_conclusion conclusion =
   match conclusion with

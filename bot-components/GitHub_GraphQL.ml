@@ -65,7 +65,7 @@ module TeamMembership =
   }
 |}]
 
-module StringOid = struct
+module ParseAsString = struct
   let parse = Yojson.Basic.to_string
 
   let serialize = Yojson.Basic.from_string
@@ -81,9 +81,9 @@ module PullRequest_Refs =
       pullRequest(number: $number) {
         id
         baseRefName
-        baseRefOid @ppxCustom(module: "StringOid")
+        baseRefOid @ppxCustom(module: "ParseAsString")
         headRefName
-        headRefOid @ppxCustom(module: "StringOid")
+        headRefOid @ppxCustom(module: "ParseAsString")
         merged
         commits(last: 1) {
           nodes {
@@ -223,8 +223,12 @@ module PostComment =
 [%graphql
 {|
   mutation addComment($id:ID!,$message:String!) {
-    addComment(input:{subjectId:$id,body:$message}) {
-      clientMutationId
+    payload: addComment(input:{subjectId:$id,body:$message}) {
+      commentEdge {
+        node {
+          url @ppxCustom(module: "ParseAsString")
+        }
+      }
     }
   }
 |}]

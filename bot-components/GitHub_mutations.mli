@@ -3,7 +3,13 @@ open GitHub_types
 val mv_card_to_column :
   bot_info:Bot_info.t -> mv_card_to_column_input -> unit Lwt.t
 
-val post_comment : bot_info:Bot_info.t -> id:id -> message:string -> unit Lwt.t
+val post_comment :
+     bot_info:Bot_info.t
+  -> id:id
+  -> message:string
+  -> (string, string) result Lwt.t
+
+val report_on_posting_comment : (string, string) result -> unit Lwt.t
 
 val merge_pull_request :
      bot_info:Bot_info.t

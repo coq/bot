@@ -157,6 +157,7 @@ let run_coq_minimizer ~bot_info ~coq_minimizer_repo_token ~script
                 come back to you with the results once it's done."
                comment_author)
           ~bot_info
+        >>= GitHub_mutations.report_on_posting_comment
       else Lwt.return ()
   | Error f ->
       Lwt_io.printf "Error: %s\n" f
