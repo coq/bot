@@ -222,7 +222,7 @@ let callback _conn req body =
               () )
           else
             Server.respond_string ~status:`OK
-              ~body:(f "Unhandled comment: %s." body)
+              ~body:(f "Unhandled comment: %s" body)
               ()
       | Ok (signed, CheckRunReRequested {external_id}) ->
           if not signed then
