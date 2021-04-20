@@ -14,18 +14,19 @@ let owner_team_map =
     (module String)
     [("martijnbastiaan-test-org", "martijnbastiaan-test-team")]
 
+type coq_job_info =
+  { docker_image: string
+  ; build_dependency: string
+  ; compiler: string
+  ; compiler_edge: string
+  ; opam_variant: string
+  ; opam_switch: string }
+
 let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason
     ~external_id ~trace =
   let job_url =
     f "https://gitlab.com/%s/-/jobs/%d" gitlab_repo_full_name job_info.build_id
-  in
-  let title =
-    match failure_reason with
-    | "script_failure" ->
-        "Test has failed on GitLab CI"
-    | _ ->
-        failure_reason ^ " on GitLab CI"
   in
   let trace_lines =
     trace
@@ -35,18 +36,103 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     |> Str.global_replace (Str.regexp "section_end:[0-9]*:[a-z_]*\r") ""
     |> String.split_lines
   in
-  let short_trace =
-    (* We display only the last 40 lines of the trace *)
-    List.drop trace_lines (List.length trace_lines - 40)
-    |> String.concat ~sep:"\n"
+  let title, last_index_of_error =
+    (* We try to find the line starting with "Error" only in the case
+       of an actual script failure. *)
+    match failure_reason with
+    | "script_failure" ->
+        ( "Test has failed on GitLab CI"
+        , trace_lines
+          |> List.filter_mapi ~f:(fun i line ->
+                 if String.is_prefix ~prefix:"Error" line then Some i else None)
+          |> List.last )
+    | "job_execution_timeout" ->
+        ("Test has reached timeout on GitLab CI", None)
+    | _ ->
+        (failure_reason ^ " on GitLab CI", None)
+  in
+  let trace_description, short_trace =
+    (* If we have a last index of error, we display 40 lines starting
+       at the line before (which should include the filename).
+       Otherwise, we display only the last 40 lines of the trace *)
+    match last_index_of_error with
+    | None ->
+        ( f
+            "We show below the last 40 lines of the trace from GitLab (the \
+             complete trace is available [here](%s))."
+            job_url
+        , trace_lines
+          |> Fn.flip List.drop (List.length trace_lines - 40)
+          |> String.concat ~sep:"\n" )
+    | Some index_of_error ->
+        ( f
+            "We show below an excerpt from the trace from GitLab starting \
+             around the last detected \"Error\" (the complete trace is \
+             available [here](%s))."
+            job_url
+        , trace_lines
+          |> Fn.flip List.drop (index_of_error - 1)
+          |> Fn.flip List.take 40 |> String.concat ~sep:"\n" )
+  in
+  let coq_job_info =
+    let open Option in
+    let find regexp =
+      List.find_map trace_lines ~f:(fun line ->
+          if string_match ~regexp line then Some (Str.matched_group 1 line)
+          else None)
+    in
+    find "^Using Docker executor with image \\([^ ]+\\)"
+    >>= fun docker_image ->
+    find "^Downloading artifacts for \\(build:[^ ]+\\)"
+    >>= fun build_dependency ->
+    find "^COMPILER=\\(.*\\)"
+    >>= fun compiler ->
+    find "^COMPILER_EDGE=\\(.*\\)"
+    >>= fun compiler_edge ->
+    find "^OPAM_VARIANT=\\(.*\\)"
+    >>= fun opam_variant ->
+    find "^OPAM_SWITCH=\\(.*\\)"
+    >>= fun opam_switch ->
+    Some
+      { docker_image
+      ; build_dependency
+      ; compiler
+      ; compiler_edge
+      ; opam_variant
+      ; opam_switch }
+  in
+  let summary_tail =
+    ( match coq_job_info with
+    | Some
+        { docker_image
+        ; build_dependency
+        ; compiler
+        ; compiler_edge
+        ; opam_variant
+        ; opam_switch= ("base" | "edge") as opam_switch } ->
+        let switch_name =
+          ( match opam_switch with
+          | "base" ->
+              compiler
+          | "edge" ->
+              compiler_edge
+          | _ ->
+              failwith "opam_switch was already determined to be base or edge"
+          )
+          ^ opam_variant
+        in
+        f
+          "This job ran on the Docker image `%s`, depended on the build job \
+           `%s` with OCaml `%s`.\n\n"
+          docker_image build_dependency switch_name
+    | Some {opam_switch} ->
+        Stdio.printf "Unrecognized OPAM_SWITCH: %s.\n" opam_switch ;
+        ""
+    | None ->
+        "" )
+    ^ trace_description
   in
   let text = "```\n" ^ short_trace ^ "\n```" in
-  let trace_description =
-    f
-      "Below, we show the last 40 lines of the trace from GitLab (the complete \
-       trace is available [here](%s))."
-      job_url
-  in
   if job_info.allow_fail then
     Lwt_io.printf "Job is allowed to fail.\n"
     <&> ( match bot_info.github_install_token with
@@ -62,8 +148,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
                   ~repo_id ~head_sha:job_info.common_info.commit
                   ~conclusion:NEUTRAL ~status:COMPLETED ~title
                   ~details_url:job_url
-                  ~summary:
-                    ("This job is allowed to fail.\n\n" ^ trace_description)
+                  ~summary:("This job is allowed to fail.\n\n" ^ summary_tail)
                   ~text ~external_id ()
             | Error e ->
                 Lwt_io.printf "No repo id: %s\n" e ) )
@@ -117,7 +202,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
               ~summary:
                 ( "This job has failed. If you need to, you can restart it \
                    directly in the GitHub interface using the \"Re-run\" \
-                   button.\n\n" ^ trace_description )
+                   button.\n\n" ^ summary_tail )
               ~text ~external_id ()
         | Error e ->
             Lwt_io.printf "No repo id: %s\n" e )
