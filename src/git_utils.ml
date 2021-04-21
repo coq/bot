@@ -114,10 +114,11 @@ let git_make_ancestor ~pr_title ~pr_number ~base head =
 
 let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo =
+  (* To push a new branch we need to identify as coqbot the GitHub
+     user, who is a collaborator on the run-coq-bug-minimizer repo,
+     not coqbot the GitHub App *)
   f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s %s %s" script comment_thread_id
-    comment_author
-    (get_token bot_info.github_token)
-    bot_info.name bot_info.domain owner repo
+    comment_author bot_info.github_pat bot_info.name bot_info.domain owner repo
   |> Lwt_unix.system
   >|= fun status ->
   match status with

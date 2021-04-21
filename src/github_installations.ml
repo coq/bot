@@ -10,13 +10,13 @@ let action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
   (* Installation tokens expire after one hour, we stop using them after 40 minutes *)
   GitHub_app.get_installation_token ~bot_info ~key ~app_id ~owner ~repo
   >>= function
-  | Ok (github_token, expiration_date) ->
+  | Ok (install_token, expiration_date) ->
       let _ =
         Hashtbl.add installation_tokens ~key:owner
-          ~data:(github_token, expiration_date)
+          ~data:(install_token, expiration_date)
       in
       let bot_info : Bot_info.t =
-        {bot_info with github_token= INSTALL_TOKEN github_token}
+        {bot_info with github_install_token= Some install_token}
       in
       action ~bot_info
   | Error _ ->
@@ -29,14 +29,14 @@ let action_as_github_app ~bot_info ~key ~app_id ~owner ~repo action =
      the GitHub app installed.
      Generates a new installation token if the existing one has expired. *)
   match Hashtbl.find installation_tokens owner with
-  | Some (github_token, expiration_date) ->
+  | Some (install_token, expiration_date) ->
       if Float.(expiration_date < Unix.time ()) then (
         Hashtbl.remove installation_tokens owner ;
         action_with_new_installation_token ~bot_info ~key ~app_id ~owner ~repo
           action )
       else
         let bot_info : Bot_info.t =
-          {bot_info with github_token= INSTALL_TOKEN github_token}
+          {bot_info with github_install_token= Some install_token}
         in
         action ~bot_info
   | None -> (

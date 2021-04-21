@@ -14,7 +14,6 @@ val pipeline_action :
 
 val run_coq_minimizer :
      bot_info:Bot_components.Bot_info.t
-  -> coq_minimizer_repo_token:Bot_components.Bot_info.github_token
   -> script:string
   -> comment_thread_id:string
   -> comment_author:string
@@ -24,7 +23,6 @@ val run_coq_minimizer :
 
 val coq_bug_minimizer_results_action :
      bot_info:Bot_info.t
-  -> coq_minimizer_repo_token:Bot_info.github_token
   -> key:Mirage_crypto_pk.Rsa.priv
   -> app_id:int
   -> string

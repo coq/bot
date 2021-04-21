@@ -51,12 +51,12 @@ let project_api_preview_header =
 let app_api_preview_header =
   [("Accept", "application/vnd.github.machine-man-preview+json")]
 
+let github_header bot_info =
+  [("Authorization", "bearer " ^ github_token bot_info)]
+
 let generic_get ~bot_info relative_uri ?(header_list = []) json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
-  let github_header =
-    [("Authorization", "bearer " ^ get_token bot_info.github_token)]
-  in
-  let headers = headers (header_list @ github_header) ~bot_info in
+  let headers = headers (header_list @ github_header bot_info) ~bot_info in
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
   >|= handle_json json_handler

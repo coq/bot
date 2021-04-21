@@ -49,11 +49,11 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
   in
   if job_info.allow_fail then
     Lwt_io.printf "Job is allowed to fail.\n"
-    <&> ( match bot_info.github_token with
-        | ACCESS_TOKEN _ ->
+    <&> ( match bot_info.github_install_token with
+        | None ->
             (* Allow failure messages are reported with the Checks API only. *)
             Lwt.return ()
-        | INSTALL_TOKEN _ -> (
+        | Some _ -> (
             GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
               ~repo:gh_repo
             >>= function
@@ -102,12 +102,12 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
   else
     Lwt_io.printf "Pushing a status check...\n"
     <&>
-    match bot_info.github_token with
-    | ACCESS_TOKEN _t ->
+    match bot_info.github_install_token with
+    | None ->
         GitHub_mutations.send_status_check ~repo_full_name:github_repo_full_name
           ~commit:job_info.common_info.commit ~state:"failure" ~url:job_url
           ~context ~description:title ~bot_info
-    | INSTALL_TOKEN _t -> (
+    | Some _ -> (
         GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
         >>= function
         | Ok repo_id ->
@@ -291,13 +291,13 @@ let job_success_or_pending ~bot_info (gh_owner, gh_repo)
               (f "Error: job_success_or_pending received unknown state %s."
                  state)
       in
-      match bot_info.github_token with
-      | ACCESS_TOKEN _t ->
+      match bot_info.github_install_token with
+      | None ->
           GitHub_mutations.send_status_check ~bot_info
             ~repo_full_name:github_repo_full_name
             ~commit:job_info.common_info.commit ~state ~url:job_url ~context
             ~description
-      | INSTALL_TOKEN _t -> (
+      | Some _ -> (
           GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
             ~repo:gh_repo
           >>= function
@@ -439,15 +439,15 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
             , "Unknown pipeline status: " ^ s
             , None )
       in
-      match bot_info.github_token with
-      | ACCESS_TOKEN _ ->
+      match bot_info.github_install_token with
+      | None ->
           GitHub_mutations.send_status_check ~repo_full_name
             ~commit:pipeline_info.common_info.commit ~state ~url:pipeline_url
             ~context:
               (f "GitLab CI pipeline (%s)"
                  (pr_from_branch pipeline_info.common_info.branch |> snd))
             ~description:title ~bot_info
-      | INSTALL_TOKEN _ -> (
+      | Some _ -> (
           let owner, repo =
             github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name
           in
@@ -467,11 +467,10 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e ) )
 
-let run_coq_minimizer ~bot_info ~coq_minimizer_repo_token ~script
-    ~comment_thread_id ~comment_author ~owner ~repo =
-  git_coq_bug_minimizer
-    ~bot_info:{bot_info with github_token= coq_minimizer_repo_token}
-    ~script ~comment_thread_id ~comment_author ~owner ~repo
+let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
+    ~owner ~repo =
+  git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
+    ~owner ~repo
   >>= function
   | Ok ok ->
       if ok then
@@ -487,8 +486,7 @@ let run_coq_minimizer ~bot_info ~coq_minimizer_repo_token ~script
   | Error f ->
       Lwt_io.printf "Error: %s\n" f
 
-let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
-    ~app_id body =
+let coq_bug_minimizer_results_action ~bot_info ~key ~app_id body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
@@ -501,10 +499,12 @@ let coq_bug_minimizer_results_action ~bot_info ~coq_minimizer_repo_token ~key
                ~message:(f "@%s, %s" author message))
           >>= GitHub_mutations.report_on_posting_comment
           <&> ( execute_cmd
+                  (* To delete the branch we need to identify as
+                     coqbot the GitHub user, who is a collaborator on
+                     the run-coq-bug-minimizer repo, not coqbot the
+                     GitHub App *)
                   (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
-                     bot_info.name
-                     (Bot_info.get_token coq_minimizer_repo_token)
-                     repo_name branch_name)
+                     bot_info.name bot_info.github_pat repo_name branch_name)
               >>= function
               | Ok () ->
                   Lwt.return ()
@@ -689,8 +689,8 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
     (fun () -> GitHub_mutations.add_rebase_label pr_info.issue.issue ~bot_info)
     |> Lwt.async ;
     (* Add fail status check *)
-    match bot_info.github_token with
-    | ACCESS_TOKEN _t ->
+    match bot_info.github_install_token with
+    | None ->
         GitHub_mutations.send_status_check
           ~repo_full_name:
             (f "%s/%s" pr_info.issue.issue.owner pr_info.issue.issue.repo)
@@ -701,7 +701,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
              base branch."
           ~bot_info
         |> Lwt_result.ok
-    | INSTALL_TOKEN _t -> (
+    | Some _ -> (
         let open Lwt.Infix in
         GitHub_queries.get_repository_id ~bot_info
           ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo

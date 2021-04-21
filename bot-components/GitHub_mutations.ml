@@ -1,5 +1,4 @@
 open Base
-open Bot_info
 open GitHub_types
 open Cohttp_lwt_unix
 open Lwt
@@ -152,16 +151,10 @@ let add_rebase_label ~bot_info (issue : issue) =
          url)
     |> Uri.of_string
   in
-  let github_header =
-    [("Authorization", "bearer " ^ get_token bot_info.github_token)]
-  in
-  send_request ~body ~uri github_header ~bot_info
+  send_request ~body ~uri (github_header bot_info) ~bot_info
 
 let remove_rebase_label ~bot_info (issue : issue) =
-  let github_header =
-    [("Authorization", "bearer " ^ get_token bot_info.github_token)]
-  in
-  let headers = headers github_header ~bot_info in
+  let headers = headers (github_header bot_info) ~bot_info in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
       issue.owner issue.repo issue.number
@@ -174,10 +167,7 @@ let remove_rebase_label ~bot_info (issue : issue) =
   >>= fun () -> Client.delete ~headers uri >>= print_response
 
 let update_milestone ~bot_info new_milestone (issue : issue) =
-  let github_header =
-    [("Authorization", "bearer " ^ get_token bot_info.github_token)]
-  in
-  let headers = headers github_header ~bot_info in
+  let headers = headers (github_header bot_info) ~bot_info in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
       issue.number
@@ -209,10 +199,7 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
     "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
     |> Uri.of_string
   in
-  let github_header =
-    [("Authorization", "bearer " ^ get_token bot_info.github_token)]
-  in
-  send_request ~body ~uri github_header ~bot_info
+  send_request ~body ~uri (github_header bot_info) ~bot_info
 
 let add_pr_to_column ~bot_info ~pr_id ~column_id =
   let body =
@@ -231,7 +218,6 @@ let add_pr_to_column ~bot_info ~pr_id ~column_id =
          url)
     |> Uri.of_string
   in
-  let github_header =
-    [("Authorization", "bearer " ^ get_token bot_info.github_token)]
-  in
-  send_request ~body ~uri (project_api_preview_header @ github_header) ~bot_info
+  send_request ~body ~uri
+    (project_api_preview_header @ github_header bot_info)
+    ~bot_info
