@@ -141,23 +141,3 @@ let init_git_bare_repository ~bot_info =
       Stdio.printf "Bare repository initialized.\n"
   | Error e ->
       Stdio.printf "%s.\n" e
-
-let run_coq_minimizer ~bot_info ~coq_minimizer_repo_token ~script
-    ~comment_thread_id ~comment_author ~owner ~repo =
-  git_coq_bug_minimizer
-    ~bot_info:{bot_info with github_token= coq_minimizer_repo_token}
-    ~script ~comment_thread_id ~comment_author ~owner ~repo
-  >>= function
-  | Ok ok ->
-      if ok then
-        GitHub_mutations.post_comment ~id:comment_thread_id
-          ~message:
-            (f
-               "Hey @%s, the coq bug minimizer is running your script, I'll \
-                come back to you with the results once it's done."
-               comment_author)
-          ~bot_info
-        >>= GitHub_mutations.report_on_posting_comment
-      else Lwt.return ()
-  | Error f ->
-      Lwt_io.printf "Error: %s\n" f

@@ -12,6 +12,16 @@ val pipeline_action :
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> unit Lwt.t
 
+val run_coq_minimizer :
+     bot_info:Bot_components.Bot_info.t
+  -> coq_minimizer_repo_token:Bot_components.Bot_info.github_token
+  -> script:string
+  -> comment_thread_id:string
+  -> comment_author:string
+  -> owner:string
+  -> repo:string
+  -> unit Lwt.t
+
 val coq_bug_minimizer_results_action :
      bot_info:Bot_info.t
   -> coq_minimizer_repo_token:Bot_info.github_token
