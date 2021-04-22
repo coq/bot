@@ -610,10 +610,12 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
           in
           match
             ( extract_pipeline_check base_checks
-            , extract_pipeline_check head_checks )
+            , (head_pipeline_summary, extract_pipeline_check head_checks) )
           with
           | ( ([{summary= Some base_pipeline_summary}], base_checks)
-            , (_, head_checks) ) -> (
+            , ( Some head_pipeline_summary, (_, head_checks)
+              | None, ([{summary= Some head_pipeline_summary}], head_checks) ) )
+            -> (
               Lwt_io.printf
                 "Looking for failed tests to minimize among %d head checks (%d \
                  base checks).\n"
@@ -688,14 +690,29 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
                   |> Lwt_io.printf
                        "Ignore failed library tests because of the test-suite \
                         failures or errors: %s.\n" )
-          | ([{summary= None}], _), _ ->
+          | (_, _), (None, ([{summary= None}], _)) ->
+              Lwt_io.printf
+                "Couldn't find pipeline check summary for base commit %s and \
+                 no summary was passed.\n"
+                base
+          | (_, _), (None, ([], _)) ->
+              Lwt_io.printf
+                "Couldn't find pipeline check for base commit %s and no \
+                 summary was passed.\n"
+                base
+          | (_, _), (None, (_ :: _ :: _, _)) ->
+              Lwt_io.printf
+                "Found several pipeline checks instead of one for base commit \
+                 %s and no summary was passed.\n"
+                base
+          | ([{summary= None}], _), (_, _) ->
               Lwt_io.printf
                 "Couldn't find pipeline check summary for base commit %s.\n"
                 base
-          | ([], _), _ ->
+          | ([], _), (_, _) ->
               Lwt_io.printf "Couldn't find pipeline check for base commit %s.\n"
                 base
-          | (_ :: _ :: _, _), _ ->
+          | (_ :: _ :: _, _), (_, _) ->
               Lwt_io.printf
                 "Found several pipeline checks instead of one for base commit \
                  %s.\n"
@@ -781,7 +798,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
           >>= function
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e
-          | Ok repo_id -> (
+          | Ok repo_id ->
               let summary =
                 create_pipeline_summary ?summary_top pipeline_info pipeline_url
               in
@@ -793,20 +810,26 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                 ?conclusion ~title ~details_url:pipeline_url ~summary
                 ~external_id ()
               >>= fun () ->
-              Lwt_unix.sleep 5.
-              >>= fun () ->
-              match
-                ( owner
-                , repo
-                , pipeline_info.state
-                , pipeline_info.common_info.base_commit )
-              with
-              | "coq", "coq", "failed", Some base_commit ->
-                  minimize_failed_tests ~bot_info ~owner ~repo ~base:base_commit
-                    ~head:pipeline_info.common_info.head_commit ~pr_number
-                    ~head_pipeline_summary:summary
-              | _ ->
-                  Lwt.return () ) ) )
+              if false then
+                (* We don't want to do this until the criterion for
+                   minimization stabilizes, but we want OCaml to keep
+                   checking that this code typechecks *)
+                Lwt_unix.sleep 5.
+                >>= fun () ->
+                match
+                  ( owner
+                  , repo
+                  , pipeline_info.state
+                  , pipeline_info.common_info.base_commit )
+                with
+                | "coq", "coq", "failed", Some base_commit ->
+                    minimize_failed_tests ~bot_info ~owner ~repo
+                      ~base:base_commit
+                      ~head:pipeline_info.common_info.head_commit ~pr_number
+                      ~head_pipeline_summary:(Some summary)
+                | _ ->
+                    Lwt.return_unit
+              else Lwt.return_unit ) )
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo =

@@ -70,3 +70,13 @@ val push_action :
   -> base_ref:string
   -> commits_msg:string list
   -> unit Lwt.t
+
+val minimize_failed_tests :
+     bot_info:Bot_components.Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> pr_number:int option
+  -> base:string
+  -> head:string
+  -> head_pipeline_summary:string option
+  -> unit Lwt.t
