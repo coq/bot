@@ -676,6 +676,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
                         Lwt_io.printf "Ignoring these failed tests: %s"
                           (String.concat ~sep:", " ignored_tests) )
                     >>= fun () ->
+                    init_git_bare_repository ~bot_info
+                    >>= fun () ->
                     to_minimize
                     |> Lwt_list.iter_p
                          (minimize_failed_test ~bot_info ~owner ~repo ~pr_id
