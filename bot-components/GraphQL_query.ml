@@ -1,3 +1,4 @@
+open Base
 open Bot_info
 open Lwt.Infix
 open Utils
@@ -23,10 +24,20 @@ let send_graphql_query ~bot_info ?(extra_headers = []) query =
       Error body
   | true -> (
     try
-      Ok
-        ( Yojson.Basic.from_string body
-        |> Yojson.Basic.Util.member "data"
-        |> query#parse )
+      let json = Yojson.Basic.from_string body in
+      let open Yojson.Basic.Util in
+      let data = json |> member "data" |> query#parse in
+      match member "errors" json with
+      | `Null ->
+          Ok data
+      | errors ->
+          let errors =
+            to_list errors
+            |> List.map ~f:(fun error -> error |> member "message" |> to_string)
+          in
+          Error
+            ( "Server responded to GraphQL request with errors: "
+            ^ String.concat ~sep:", " errors )
     with
     | Failure err ->
         Error (f "Exception: %s" err)
