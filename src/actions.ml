@@ -799,15 +799,6 @@ let suggest_ci_minimization_for_pr = function
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
     ~head_pipeline_summary ~request =
-  let pluralize word ?(plural = None) ls =
-    match (ls, plural) with
-    | [_], None ->
-        word ^ "s"
-    | [_], Some plural ->
-        plural
-    | _, _ ->
-        word
-  in
   fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number ~base ~head
     ~head_pipeline_summary
   >>= function
@@ -869,6 +860,15 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
       run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
         ~ci_minimization_infos:jobs_to_minimize
       >>= fun (jobs_minimized, jobs_that_could_not_be_minimized) ->
+      let pluralize word ?(plural = None) ls =
+        match (ls, plural) with
+        | [_], None ->
+            word ^ "s"
+        | [_], Some plural ->
+            plural
+        | _, _ ->
+            word
+      in
       (* Construct a comment body *)
       let unminimizable_jobs_description ~f =
         match
