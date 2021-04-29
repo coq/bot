@@ -194,9 +194,17 @@ let callback _conn req body =
             )
           else if
             string_match
-              ~regexp:(f "@%s:? [Cc][Ii][- ][Mm]inimize" bot_name)
+              ~regexp:
+                (f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\( [^\n]*\\)?" bot_name)
               body
           then (
+            let requests =
+              String.split ~on:' '
+                (Stdlib.String.trim
+                   (* FIXME why not `String.trim`? ocamlc complains it's unbound... (cf https://coq.zulipchat.com/#narrow/stream/243318-coqbot-devs.20.26.20users/topic/.60String.2Etrim.60/near/236752334) *)
+                   (Str.global_replace (Str.regexp "[ ,]+") " "
+                      (Str.matched_group 1 body)))
+            in
             match comment_info.pull_request with
             | Some pull_request ->
                 (fun () ->
@@ -210,7 +218,15 @@ let callback _conn req body =
                     ~repo:comment_info.issue.issue.repo
                     ~base:pull_request.base.sha ~head:pull_request.head.sha
                     ~pr_number:(Some comment_info.issue.number)
-                    ~head_pipeline_summary:None)
+                    ~head_pipeline_summary:None
+                    ~request:
+                      ( match requests with
+                      | [] ->
+                          RequestSuggested
+                      | ["all"] ->
+                          RequestAll
+                      | _ ->
+                          RequestExplicit requests ))
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:"Handling CI minimization." ()
