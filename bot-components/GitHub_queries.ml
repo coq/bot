@@ -497,6 +497,13 @@ let get_status_check ~bot_info ~owner ~repo ~commit ~context =
 let get_check_tab_info checkRun =
   {name= checkRun#name; summary= checkRun#summary; text= checkRun#text}
 
+type base_and_head_checks_info =
+  { pr_id: string
+  ; base_checks: (check_tab_info * bool, string * string) Result.t list
+  ; head_checks: (check_tab_info * bool, string * string) Result.t list
+  ; draft: bool
+  ; labels: string list }
+
 let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
   let appId = bot_info.app_id in
   GitHub_GraphQL.GetBaseAndHeadChecks.make ~appId ~owner ~repo
@@ -621,10 +628,23 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                                     | `SUCCESS ->
                                         Ok (get_check_tab_info checkRun, true)))
                       in
+                      let labels : string list option =
+                        let open Option in
+                        pull_request#labels
+                        >>= fun labels ->
+                        labels#nodes
+                        >>= fun labels ->
+                        Array.to_list labels
+                        |> List.filter_map
+                             ~f:(Option.map ~f:(fun label -> label#name))
+                        |> Option.return
+                      in
                       Ok
-                        ( pull_request#id
-                        , completed_runs baseCheckRuns "base" base
-                        , completed_runs headCheckRuns "head" head ) )
+                        { pr_id= pull_request#id
+                        ; base_checks= completed_runs baseCheckRuns "base" base
+                        ; head_checks= completed_runs headCheckRuns "head" head
+                        ; draft= pull_request#isDraft
+                        ; labels= Option.value ~default:[] labels } )
               | _ ->
                   Error "Got more than one checkSuite." ))
 

@@ -4,7 +4,7 @@
 
 set -ex
 
-if [ $# != 13 ]; then >&2 echo Bad argument count; fi
+if [ $# != 13 ]; then >&2 echo Bad argument count; exit 1; fi
 
 comment_thread_id=$1
 token=$2

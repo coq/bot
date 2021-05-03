@@ -357,6 +357,12 @@ query getChecks($appId: Int!, $owner: String!, $repo:String!, $prNumber: Int!, $
   repository(name: $repo,owner:$owner) {
     pullRequest(number: $prNumber) {
       id
+      labels(first: 100) {
+        nodes {
+          name
+        }
+      }
+      isDraft
     }
     base: object(expression: $base) {
       ... on Commit {

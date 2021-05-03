@@ -473,8 +473,7 @@ type ci_minimization_info =
 
 let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
     ~ci_minimization_infos =
-  (* XXX Will parallel map cause interference with git locks? *)
-  Lwt_list.map_p
+  Lwt_list.map_s
     (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
       git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
         ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base
@@ -496,10 +495,9 @@ type ci_minimization_job_suggestion_info =
   ; head_job_succeeded: bool
   ; missing_error: bool
   ; non_v_file: string option
-  ; job_kind: string
-  ; overlayed: bool }
+  ; job_kind: string (*; overlayed: bool*) }
 
-let ci_minimization_fetch_suggestion_info ~head_pipeline_summary
+let ci_minimization_extract_job_specific_info ~head_pipeline_summary
     ~base_pipeline_summary ~base_checks_errors ~base_checks = function
   | ( {name= full_name; summary= Some summary; text= Some text}
     , head_job_succeeded ) ->
@@ -561,8 +559,7 @@ let ci_minimization_fetch_suggestion_info ~head_pipeline_summary
                   ; missing_error
                   ; non_v_file
                   ; job_kind
-                  ; head_job_succeeded
-                  ; overlayed= false (* XXX FIXME *) }
+                  ; head_job_succeeded (*; overlayed= false (* XXX FIXME *)*) }
                 , { target
                   ; full_target= name
                   ; docker_image
@@ -626,7 +623,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number ~base ~head
           Lwt.return_error
             (f "Error while looking for failed library tests to minimize: %s"
                err)
-      | Ok (pr_id, base_checks, head_checks) -> (
+      | Ok {pr_id; base_checks; head_checks; draft; labels} -> (
           let partition_errors =
             List.partition_map ~f:(function
               | Error error ->
@@ -678,7 +675,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number ~base ~head
                 head_checks
                 |> List.partition_map ~f:(fun (({name}, _) as head_check) ->
                        match
-                         ci_minimization_fetch_suggestion_info
+                         ci_minimization_extract_job_specific_info
                            ~head_pipeline_summary ~base_pipeline_summary
                            ~base_checks_errors ~base_checks head_check
                        with
@@ -692,8 +689,8 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number ~base ~head
                   ; base
                   ; head
                   ; pr_number
-                  ; draft= false (* XXX FIXME *)
-                  ; labels= [] (* XXX FIXME *)
+                  ; draft
+                  ; labels
                   ; failed_test_suite_jobs }
                 , possible_jobs_to_minimize
                 , unminimizable_jobs )
@@ -750,8 +747,7 @@ let ci_minimization_suggest ~base
     ; head_job_succeeded
     ; missing_error
     ; non_v_file
-    ; job_kind
-    ; overlayed } =
+    ; job_kind (*; overlayed*) } =
   if head_job_succeeded then Bad "job succeeded!"
   else if missing_error then Bad "no error message was found"
   else
@@ -762,8 +758,9 @@ let ci_minimization_suggest ~base
         Possible (f "base job at %s errored with message %s" base err)
     | None, None ->
         if base_job_failed then Possible (f "base job at %s failed" base)
-        else if overlayed then Possible (f "an overlay is present")
         else if
+          (*if overlayed then Possible (f "an overlay is present")
+            else*)
           not (List.exists ~f:(String.equal job_kind) ["library"; "plugin"])
         then
           Possible
@@ -788,10 +785,8 @@ let suggest_ci_minimization_for_pr = function
     when List.exists ~f:(String.equal "coqbot request ci minimization") labels
     ->
       RunAutomatically
-  (* TODO: Should we suggest on draft? *)
   | {labels} when List.exists ~f:(String.equal "kind: infrastructure") labels ->
       Silent "this PR is labeled with kind: infrastructure"
-  (* TODO: Should we suggest on draft? *)
   | {draft= true} ->
       Suggest
   | _ ->
@@ -1204,6 +1199,30 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
             "" )
         err
 
+let ci_minimize ~bot_info ~comment_info ~requests =
+  match comment_info.pull_request with
+  | Some pull_request ->
+      minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
+        ~repo:comment_info.issue.issue.repo ~base:pull_request.base.sha
+        ~head:pull_request.head.sha ~pr_number:(Some comment_info.issue.number)
+        ~head_pipeline_summary:None
+        ~request:
+          ( match requests with
+          | [] ->
+              RequestSuggested
+          | ["all"] ->
+              RequestAll
+          | _ ->
+              RequestExplicit requests )
+  | None ->
+      GitHub_mutations.post_comment ~bot_info ~id:comment_info.issue.id
+        ~message:
+          (f
+             "Hey @%s, you cannot run CI minimization on issues that are not \
+              pull requests."
+             comment_info.author)
+      >>= GitHub_mutations.report_on_posting_comment
+
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
   let repo_full_name =
@@ -1284,7 +1303,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
           >>= function
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e
-          | Ok repo_id ->
+          | Ok repo_id -> (
               let summary =
                 create_pipeline_summary ?summary_top pipeline_info pipeline_url
               in
@@ -1296,26 +1315,21 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                 ?conclusion ~title ~details_url:pipeline_url ~summary
                 ~external_id ()
               >>= fun () ->
-              if false then
-                (* We don't want to do this until the criterion for
-                   minimization stabilizes, but we want OCaml to keep
-                   checking that this code typechecks *)
-                Lwt_unix.sleep 5.
-                >>= fun () ->
-                match
-                  ( owner
-                  , repo
-                  , pipeline_info.state
-                  , pipeline_info.common_info.base_commit )
-                with
-                | "coq", "coq", "failed", Some base_commit ->
-                    minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
-                      ~base:base_commit
-                      ~head:pipeline_info.common_info.head_commit
-                      ~head_pipeline_summary:(Some summary) ~request:Auto
-                | _ ->
-                    Lwt.return_unit
-              else Lwt.return_unit ) )
+              Lwt_unix.sleep 5.
+              >>= fun () ->
+              match
+                ( owner
+                , repo
+                , pipeline_info.state
+                , pipeline_info.common_info.base_commit )
+              with
+              | "coq", "coq", "failed", Some base_commit ->
+                  minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
+                    ~base:base_commit
+                    ~head:pipeline_info.common_info.head_commit
+                    ~head_pipeline_summary:(Some summary) ~request:Auto
+              | _ ->
+                  Lwt.return_unit ) ) )
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo =

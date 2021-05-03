@@ -74,6 +74,13 @@ val get_status_check :
   -> context:string
   -> (bool, string) result Lwt.t
 
+type base_and_head_checks_info =
+  { pr_id: string
+  ; base_checks: (check_tab_info * bool, string * string) result list
+  ; head_checks: (check_tab_info * bool, string * string) result list
+  ; draft: bool
+  ; labels: string list }
+
 val get_base_and_head_checks :
      bot_info:Bot_info.t
   -> owner:string
@@ -81,12 +88,7 @@ val get_base_and_head_checks :
   -> pr_number:int
   -> base:string
   -> head:string
-  -> ( string
-       * (check_tab_info * bool, string * string) result list
-       * (check_tab_info * bool, string * string) result list
-     , string )
-     result
-     Lwt.t
+  -> (base_and_head_checks_info, string) result Lwt.t
 
 val get_cards_in_column :
   int -> bot_info:Bot_info.t -> ((string * int) list, string) result Lwt.t

@@ -4,7 +4,7 @@
 
 set -ex
 
-if [ $# != 8 ]; then >&2 echo Bad argument count; fi
+if [ $# != 8 ]; then >&2 echo Bad argument count; exit 1; fi
 
 script=$1
 comment_thread_id=$2

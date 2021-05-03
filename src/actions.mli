@@ -71,19 +71,8 @@ val push_action :
   -> commits_msg:string list
   -> unit Lwt.t
 
-type ci_minimization_request =
-  | Auto
-  | RequestSuggested
-  | RequestAll
-  | RequestExplicit of string list
-
-val minimize_failed_tests :
+val ci_minimize :
      bot_info:Bot_components.Bot_info.t
-  -> owner:string
-  -> repo:string
-  -> pr_number:int option
-  -> base:string
-  -> head:string
-  -> head_pipeline_summary:string option
-  -> request:ci_minimization_request
+  -> comment_info:Bot_components.GitHub_types.comment_info
+  -> requests:string list
   -> unit Lwt.t

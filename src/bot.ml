@@ -199,56 +199,20 @@ let callback _conn req body =
               body
           then (
             let requests =
-              String.split ~on:' '
-                (Stdlib.String.trim
-                   (* FIXME why not `String.trim`? ocamlc complains it's unbound... (cf https://coq.zulipchat.com/#narrow/stream/243318-coqbot-devs.20.26.20users/topic/.60String.2Etrim.60/near/236752334) *)
-                   (Str.global_replace (Str.regexp "[ ,]+") " "
-                      (Str.matched_group 1 body)))
+              Str.matched_group 1 body
+              |> Str.global_replace (Str.regexp "[ ,]+") " "
+              |> Stdlib.String.trim |> String.split ~on:' '
             in
-            match comment_info.pull_request with
-            | Some pull_request ->
-                (fun () ->
-                  (* XXX FIXME do we want this???
-                     action_as_github_app ~bot_info ~key ~app_id
-                       ~owner:comment_info.issue.issue.owner
-                       ~repo:comment_info.issue.issue.repo
-                  *)
-                  minimize_failed_tests ~bot_info
-                    ~owner:comment_info.issue.issue.owner
-                    ~repo:comment_info.issue.issue.repo
-                    ~base:pull_request.base.sha ~head:pull_request.head.sha
-                    ~pr_number:(Some comment_info.issue.number)
-                    ~head_pipeline_summary:None
-                    ~request:
-                      ( match requests with
-                      | [] ->
-                          RequestSuggested
-                      | ["all"] ->
-                          RequestAll
-                      | _ ->
-                          RequestExplicit requests ))
-                |> Lwt.async ;
-                Server.respond_string ~status:`OK
-                  ~body:"Handling CI minimization." ()
-            | None ->
-                (fun () ->
-                  (*XXX DO we need this? action_as_github_app ~bot_info ~key ~app_id
-                    ~owner:comment_info.issue.issue.owner ~repo:comment_info.issue.issue.repo*)
-                  GitHub_mutations.post_comment
-                    ~id:
-                      comment_info.id
-                      (* XXX This was comment_thread_id, is id correct here? *)
-                    ~message:
-                      (f
-                         "Hey @%s, you cannot run CI minimization on issues \
-                          that are not pull requests."
-                         comment_info.author)
-                    ~bot_info
-                  >>= GitHub_mutations.report_on_posting_comment)
-                |> Lwt.async ;
-                (* XXX IS this an Ok or a failure? *)
-                Server.respond_string ~status:`OK
-                  ~body:"Invalid request for CI minimization." () )
+            (fun () ->
+              init_git_bare_repository ~bot_info
+              >>= fun () ->
+              action_as_github_app ~bot_info ~key ~app_id
+                ~owner:comment_info.issue.issue.owner
+                ~repo:comment_info.issue.issue.repo
+                (ci_minimize ~comment_info ~requests))
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK ~body:"Handling CI minimization."
+              () )
           else if
             string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
             && comment_info.issue.pull_request
