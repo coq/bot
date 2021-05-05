@@ -13,7 +13,7 @@ val pipeline_action :
   -> unit Lwt.t
 
 val run_coq_minimizer :
-     bot_info:Bot_components.Bot_info.t
+     bot_info:Bot_info.t
   -> script:string
   -> comment_thread_id:string
   -> comment_author:string
@@ -72,7 +72,7 @@ val push_action :
   -> unit Lwt.t
 
 val ci_minimize :
-     bot_info:Bot_components.Bot_info.t
-  -> comment_info:Bot_components.GitHub_types.comment_info
+     bot_info:Bot_info.t
+  -> comment_info:GitHub_types.comment_info
   -> requests:string list
   -> unit Lwt.t
