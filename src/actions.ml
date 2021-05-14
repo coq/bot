@@ -513,7 +513,7 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
             String.equal full_name base_name && not success_base)
           base_checks
       in
-      if string_match ~regexp:"\\([^:]*\\):\\(ci-[A-Za-z0-9_-]*\\)" full_name
+      if string_match ~regexp:"\\([^: ]*\\):\\(ci-[A-Za-z0-9_-]*\\)" full_name
       then
         let name = Str.matched_group 0 full_name in
         let job_kind = Str.matched_group 1 full_name in
