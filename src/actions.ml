@@ -847,10 +847,15 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
                        requests)
             , Error "the user requested an explicit list of jobs" )
       in
-      Lwt_io.printlf "Initiating CI minimization for PR #%d on jobs: %s"
-        pr_number
-        (String.concat ~sep:", "
-           (List.map ~f:(fun {target} -> target) jobs_to_minimize))
+      ( match jobs_to_minimize with
+      | [] ->
+          Lwt_io.printlf "Found no jobs to initiate CI minimization on for PR #%d"
+            pr_number
+      | _ ->
+          Lwt_io.printlf "Initiating CI minimization for PR #%d on jobs: %s"
+            pr_number
+            (String.concat ~sep:", "
+               (List.map ~f:(fun {target} -> target) jobs_to_minimize)) )
       >>= fun () ->
       run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
         ~ci_minimization_infos:jobs_to_minimize
@@ -1154,7 +1159,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
           | [], None, Some suggestion_msg, Error reason ->
               Lwt_io.printlf
                 "Candidates found for minimization on %s/%s@%s for PR #%d, but \
-                 I am not commenting because minimization is not suggested %s:\n\
+                 I am not commenting because minimization is not suggested because %s:\n\
                  %s"
                 owner repo head pr_number reason suggestion_msg
               >>= fun () -> Lwt.return_none
