@@ -195,7 +195,7 @@ let callback _conn req body =
           else if
             string_match
               ~regexp:
-                (f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\( [^\n]*\\)?" bot_name)
+                (f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)" bot_name)
               body
           then (
             let requests =
