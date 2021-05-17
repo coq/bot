@@ -1102,7 +1102,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
             | _ ->
                 Some
                   (f
-                     "If you tag me saying `@coqbot ci minimize`, I will minimize the \
+                     "If you tag me saying @`coqbot ci minimize`, I will minimize the \
                       following %s: %s.\n"
                      (pluralize "target" suggested_jobs_to_minimize)
                      ( suggested_jobs_to_minimize
