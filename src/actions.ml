@@ -602,20 +602,18 @@ type ci_minimization_pr_info =
   ; labels: string list
   ; failed_test_suite_jobs: string list }
 
-let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number ~base ~head
+let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary =
-  match pr_number with
-  | None ->
+  Lwt_io.printlf
+    "I'm going to look for failed tests to minimize on PR #%d failed." pr_number
+  >>= fun () ->
+  GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo ~number:pr_number
+  >>= function
+  | Error err ->
       Lwt.return_error
-        (f
-           "Error while looking for failed library tests to minimize on \
-            %s/%s@%s: this is not a pull request build."
-           owner repo head)
-  | Some pr_number -> (
-      Lwt_io.printlf
-        "I'm going to look for failed tests to minimize on PR #%d failed."
-        pr_number
-      >>= fun () ->
+        (f "Error while fetching PR refs for %s/%s#%d for CI minimization: %s" owner repo
+           pr_number err)
+  | Ok {base= {sha= base}; head= {sha= head}} -> (
       GitHub_queries.get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number
         ~base ~head
       >>= function
@@ -792,13 +790,13 @@ let suggest_ci_minimization_for_pr = function
   | _ ->
       Suggest
 
-let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
+let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary ~request =
-  fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number ~base ~head
+  fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary
   >>= function
   | Ok
-      ( ({comment_thread_id; pr_number} as ci_minimization_pr_info)
+      ( ({comment_thread_id; base; head} as ci_minimization_pr_info)
       , possible_jobs_to_minimize
       , unminimizable_jobs ) -> (
       possible_jobs_to_minimize
@@ -849,8 +847,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
       in
       ( match jobs_to_minimize with
       | [] ->
-          Lwt_io.printlf "Found no jobs to initiate CI minimization on for PR #%d"
-            pr_number
+          Lwt_io.printlf
+            "Found no jobs to initiate CI minimization on for PR #%d" pr_number
       | _ ->
           Lwt_io.printlf "Initiating CI minimization for PR #%d on jobs: %s"
             pr_number
@@ -1102,8 +1100,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
             | _ ->
                 Some
                   (f
-                     "If you tag me saying @`coqbot ci minimize`, I will minimize the \
-                      following %s: %s.\n"
+                     "If you tag me saying @`coqbot ci minimize`, I will \
+                      minimize the following %s: %s.\n"
                      (pluralize "target" suggested_jobs_to_minimize)
                      ( suggested_jobs_to_minimize
                      |> List.map ~f:(fun {target} -> target)
@@ -1159,7 +1157,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
           | [], None, Some suggestion_msg, Error reason ->
               Lwt_io.printlf
                 "Candidates found for minimization on %s/%s@%s for PR #%d, but \
-                 I am not commenting because minimization is not suggested because %s:\n\
+                 I am not commenting because minimization is not suggested \
+                 because %s:\n\
                  %s"
                 owner repo head pr_number reason suggestion_msg
               >>= fun () -> Lwt.return_none
@@ -1196,37 +1195,22 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number ~base ~head
              #%d)."
             owner repo head pr_number )
   | Error err ->
-      Lwt_io.printlf "Error while attempting to find jobs to minimize%s:\n%s"
-        ( match pr_number with
-        | Some pr_number ->
-            f "from PR #%d" pr_number
-        | None ->
-            "" )
-        err
+      Lwt_io.printlf
+        "Error while attempting to find jobs to minimize from PR #%d:\n%s"
+        pr_number err
 
 let ci_minimize ~bot_info ~comment_info ~requests =
-  match comment_info.pull_request with
-  | Some pull_request ->
-      minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
-        ~repo:comment_info.issue.issue.repo ~base:pull_request.base.sha
-        ~head:pull_request.head.sha ~pr_number:(Some comment_info.issue.number)
-        ~head_pipeline_summary:None
-        ~request:
-          ( match requests with
-          | [] ->
-              RequestSuggested
-          | ["all"] ->
-              RequestAll
-          | _ ->
-              RequestExplicit requests )
-  | None ->
-      GitHub_mutations.post_comment ~bot_info ~id:comment_info.issue.id
-        ~message:
-          (f
-             "Hey @%s, you cannot run CI minimization on issues that are not \
-              pull requests."
-             comment_info.author)
-      >>= GitHub_mutations.report_on_posting_comment
+  minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
+    ~repo:comment_info.issue.issue.repo ~pr_number:comment_info.issue.number
+    ~head_pipeline_summary:None
+    ~request:
+      ( match requests with
+      | [] ->
+          RequestSuggested
+      | ["all"] ->
+          RequestAll
+      | _ ->
+          RequestExplicit requests )
 
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
@@ -1322,16 +1306,9 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
               >>= fun () ->
               Lwt_unix.sleep 5.
               >>= fun () ->
-              match
-                ( owner
-                , repo
-                , pipeline_info.state
-                , pipeline_info.common_info.base_commit )
-              with
-              | "coq", "coq", "failed", Some base_commit ->
+              match (owner, repo, pipeline_info.state, pr_number) with
+              | "coq", "coq", "failed", Some pr_number ->
                   minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
-                    ~base:base_commit
-                    ~head:pipeline_info.common_info.head_commit
                     ~head_pipeline_summary:(Some summary) ~request:Auto
               | _ ->
                   Lwt.return_unit ) ) )
