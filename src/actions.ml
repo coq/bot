@@ -605,7 +605,7 @@ type ci_minimization_pr_info =
 let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary =
   Lwt_io.printlf
-    "I'm going to look for failed tests to minimize on PR #%d failed." pr_number
+    "I'm going to look for failed tests to minimize on PR #%d." pr_number
   >>= fun () ->
   GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo ~number:pr_number
   >>= function
