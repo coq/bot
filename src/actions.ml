@@ -659,8 +659,14 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
             ->
               Lwt_io.printf
                 "Looking for failed tests to minimize among %d head checks (%d \
-                 base checks).\n"
+                 base checks) (head checks: %s) (base checks: %s).\n"
                 (List.length head_checks) (List.length base_checks)
+                ( head_checks
+                |> List.map ~f:(fun ({name}, _) -> name)
+                |> String.concat ~sep:", " )
+                ( base_checks
+                |> List.map ~f:(fun ({name}, _) -> name)
+                |> String.concat ~sep:", " )
               >>= fun () ->
               let failed_test_suite_jobs =
                 List.filter_map head_checks ~f:(fun ({name}, success) ->
