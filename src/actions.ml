@@ -611,9 +611,12 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
   >>= function
   | Error err ->
       Lwt.return_error
-        (f "Error while fetching PR refs for %s/%s#%d for CI minimization: %s" owner repo
-           pr_number err)
+        (f "Error while fetching PR refs for %s/%s#%d for CI minimization: %s"
+           owner repo pr_number err)
   | Ok {base= {sha= base}; head= {sha= head}} -> (
+      (* TODO: figure out why there are quotes, cf https://github.com/coq/bot/issues/61 *)
+      let base = Str.global_replace (Str.regexp "\"") "" base in
+      let head = Str.global_replace (Str.regexp "\"") "" head in
       GitHub_queries.get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number
         ~base ~head
       >>= function
