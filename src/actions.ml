@@ -880,12 +880,12 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       >>= fun (jobs_minimized, jobs_that_could_not_be_minimized) ->
       let pluralize word ?(plural = None) ls =
         match (ls, plural) with
-        | [_], None ->
-            word ^ "s"
-        | [_], Some plural ->
+        | [_], _ ->
+            word
+        | _, Some plural ->
             plural
         | _, _ ->
-            word
+            word ^ "s"
       in
       (* Construct a comment body *)
       let unminimizable_jobs_description ~f =
