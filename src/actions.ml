@@ -1027,6 +1027,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 jobs_that_could_not_be_minimized
               @ List.map ~f:(fun (target, _) -> target) unminimizable_jobs
               @ List.map ~f:(fun (_, {target}) -> target) bad_jobs_to_minimize
+              |> List.sort ~compare:String.compare
             in
             match unfound_requests with
             | [] ->
