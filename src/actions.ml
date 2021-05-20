@@ -519,7 +519,10 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
         let job_kind = Str.matched_group 1 full_name in
         let target = Str.matched_group 2 full_name in
         let extract_artifact_url job_name summary =
-          if string_match ~regexp:(f "\\[%s\\](\\([^)]+\\))" job_name) summary
+          if
+            string_match
+              ~regexp:(f "\\[%s\\](\\([^)]+\\))" (Str.quote job_name))
+              summary
           then Some (Str.matched_group 1 summary ^ "/artifacts/download")
           else None
         in
@@ -986,18 +989,20 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
           requests
           |> List.partition3_map ~f:(fun request ->
                  match
-                   ( List.exists ~f:(string_match ~regexp:request) jobs_minimized
+                   ( List.exists
+                       ~f:(string_match ~regexp:(Str.quote request))
+                       jobs_minimized
                    , List.find
                        ~f:(fun (target, _) ->
-                         string_match ~regexp:request target)
+                         string_match ~regexp:(Str.quote request) target)
                        jobs_that_could_not_be_minimized
                    , List.find
                        ~f:(fun (target, _) ->
-                         string_match ~regexp:request target)
+                         string_match ~regexp:(Str.quote request) target)
                        unminimizable_jobs
                    , List.find
                        ~f:(fun (_, {target}) ->
-                         string_match ~regexp:request target)
+                         string_match ~regexp:(Str.quote request) target)
                        bad_jobs_to_minimize )
                  with
                  | true, _, _, _ ->
