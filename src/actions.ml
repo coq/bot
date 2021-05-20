@@ -1203,11 +1203,6 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         pr_number err
 
 let ci_minimize ~bot_info ~comment_info ~requests =
-  let requests =
-    requests
-    |> List.filter_map ~f:(fun r ->
-           match Stdlib.String.trim r with "" -> None | r -> Some r)
-  in
   minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
     ~repo:comment_info.issue.issue.repo ~pr_number:comment_info.issue.number
     ~head_pipeline_summary:None

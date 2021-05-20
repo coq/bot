@@ -194,14 +194,15 @@ let callback _conn req body =
             )
           else if
             string_match
-              ~regexp:
-                (f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)" bot_name)
+              ~regexp:(f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)" bot_name)
               body
           then (
             let requests =
               Str.matched_group 1 body
               |> Str.global_replace (Str.regexp "[ ,]+") " "
-              |> Stdlib.String.trim |> String.split ~on:' '
+              |> String.split ~on:' '
+              |> List.map ~f:Stdlib.String.trim
+              |> List.filter ~f:(fun r -> not (String.is_empty r))
             in
             (fun () ->
               init_git_bare_repository ~bot_info
