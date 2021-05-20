@@ -21876,6 +21876,16 @@
                 "defaultValue": "null"
               },
               {
+                "name": "isApproved",
+                "description": "Filter whether or not the domain is approved.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": "null"
+              },
+              {
                 "name": "orderBy",
                 "description": "Ordering options for verifiable domains returned.",
                 "type": {
@@ -22819,7 +22829,7 @@
           },
           {
             "name": "notificationDeliveryRestrictionEnabledSetting",
-            "description": "Indicates if email notification delivery for this enterprise is restricted to verified domains.",
+            "description": "Indicates if email notification delivery for this enterprise is restricted to verified or approved domains.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -35215,6 +35225,18 @@
             "deprecationReason": null
           },
           {
+            "name": "claimant",
+            "description": "The user that has claimed the data attributed to this mannequin.",
+            "args": [],
+            "type": {
+              "kind": "OBJECT",
+              "name": "User",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "createdAt",
             "description": "Identifies the date and time when the object was created.",
             "args": [],
@@ -42248,7 +42270,7 @@
           },
           {
             "name": "updateEnterpriseDefaultRepositoryPermissionSetting",
-            "description": "Sets the default repository permission for organizations in an enterprise.",
+            "description": "Sets the base repository permission for organizations in an enterprise.",
             "args": [
               {
                 "name": "input",
@@ -42734,7 +42756,7 @@
           },
           {
             "name": "updateNotificationRestrictionSetting",
-            "description": "Update the setting to restrict notifications to only verified domains available to an owner.",
+            "description": "Update the setting to restrict notifications to only verified or approved domains available to an owner.",
             "args": [
               {
                 "name": "input",
@@ -52745,6 +52767,16 @@
                 "defaultValue": "null"
               },
               {
+                "name": "isApproved",
+                "description": "Filter by if the domain is approved.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": "null"
+              },
+              {
                 "name": "orderBy",
                 "description": "Ordering options for verifiable domains returned.",
                 "type": {
@@ -53179,7 +53211,7 @@
           },
           {
             "name": "notificationDeliveryRestrictionEnabledSetting",
-            "description": "Indicates if email notification delivery for this organization is restricted to verified domains.",
+            "description": "Indicates if email notification delivery for this organization is restricted to verified or approved domains.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
@@ -67001,6 +67033,57 @@
             "deprecationReason": null
           }
         ],
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "PullRequestTemplate",
+        "description": "A repository pull request template.",
+        "fields": [
+          {
+            "name": "body",
+            "description": "The body of the template",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "filename",
+            "description": "The filename of the template",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "repository",
+            "description": "The repository the template belongs to",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Repository",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
         "possibleTypes": null
       },
       {
@@ -81934,6 +82017,26 @@
             "deprecationReason": null
           },
           {
+            "name": "pullRequestTemplates",
+            "description": "Returns a list of pull request templates associated to the repository",
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "OBJECT",
+                  "name": "PullRequestTemplate",
+                  "ofType": null
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "pullRequests",
             "description": "A list of pull requests that have been opened in the repository.",
             "args": [
@@ -88570,6 +88673,12 @@
           {
             "name": "COMPOSER",
             "description": "PHP packages hosted at packagist.org",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "GO",
+            "description": "Go modules",
             "isDeprecated": false,
             "deprecationReason": null
           }
@@ -101842,7 +101951,7 @@
         "inputFields": [
           {
             "name": "enterpriseId",
-            "description": "The ID of the enterprise on which to set the default repository permission setting.",
+            "description": "The ID of the enterprise on which to set the base repository permission setting.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -101856,7 +101965,7 @@
           },
           {
             "name": "settingValue",
-            "description": "The value for the default repository permission setting on the enterprise.",
+            "description": "The value for the base repository permission setting on the enterprise.",
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -101902,7 +102011,7 @@
           },
           {
             "name": "enterprise",
-            "description": "The enterprise with the updated default repository permission setting.",
+            "description": "The enterprise with the updated base repository permission setting.",
             "args": [],
             "type": {
               "kind": "OBJECT",
@@ -101914,7 +102023,7 @@
           },
           {
             "name": "message",
-            "description": "A message confirming the result of updating the default repository permission setting.",
+            "description": "A message confirming the result of updating the base repository permission setting.",
             "args": [],
             "type": {
               "kind": "SCALAR",
@@ -105127,6 +105236,37 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "HTML",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "canReceiveOrganizationEmailsWhenNotificationsRestricted",
+            "description": "Could this user receive email notifications, if the organization had notification restrictions enabled?",
+            "args": [
+              {
+                "name": "login",
+                "description": "The login of the organization to check.",
+                "type": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "SCALAR",
+                    "name": "String",
+                    "ofType": null
+                  }
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
                 "ofType": null
               }
             },
@@ -108652,7 +108792,7 @@
       {
         "kind": "OBJECT",
         "name": "VerifiableDomain",
-        "description": "A domain that can be verified for an organization or an enterprise.",
+        "description": "A domain that can be verified or approved for an organization or an enterprise.",
         "fields": [
           {
             "name": "createdAt",
@@ -108752,6 +108892,22 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "isApproved",
+            "description": "Whether or not the domain is approved.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
                 "ofType": null
               }
             },
