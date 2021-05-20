@@ -980,18 +980,24 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
           ^ Option.value ~default:"" failed_minimization_description
           |> Lwt.return_some
       | RequestExplicit requests, _, _ ->
+          (* N.B. requests may be things like library:ci-cross_crypto,
+             while the job targets are things like GitLab CI job
+             library:ci-cross_crypto (pull request) *)
           requests
           |> List.partition3_map ~f:(fun request ->
                  match
-                   ( List.exists ~f:(String.equal request) jobs_minimized
+                   ( List.exists ~f:(string_match ~regexp:request) jobs_minimized
                    , List.find
-                       ~f:(fun (target, _) -> String.equal request target)
+                       ~f:(fun (target, _) ->
+                         string_match ~regexp:request target)
                        jobs_that_could_not_be_minimized
                    , List.find
-                       ~f:(fun (target, _) -> String.equal request target)
+                       ~f:(fun (target, _) ->
+                         string_match ~regexp:request target)
                        unminimizable_jobs
                    , List.find
-                       ~f:(fun (_, {target}) -> String.equal request target)
+                       ~f:(fun (_, {target}) ->
+                         string_match ~regexp:request target)
                        bad_jobs_to_minimize )
                  with
                  | true, _, _, _ ->
