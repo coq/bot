@@ -1021,15 +1021,28 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                          unsuccessful_requests) )
           in
           let unfound_requests_report =
+            let all_jobs =
+              List.map
+                ~f:(fun (target, _) -> target)
+                jobs_that_could_not_be_minimized
+              @ List.map ~f:(fun (target, _) -> target) unminimizable_jobs
+              @ List.map ~f:(fun (_, {target}) -> target) bad_jobs_to_minimize
+            in
             match unfound_requests with
             | [] ->
                 None
             | [request] ->
-                Some (f "requested target '%s' could not be found" request)
+                Some
+                  (f
+                     "requested target '%s' could not be found among the jobs \
+                      %s"
+                     request
+                     (String.concat ~sep:", " all_jobs))
             | _ :: _ :: _ ->
                 Some
-                  (f "requested targets %s could not be found"
-                     (String.concat ~sep:", " unfound_requests))
+                  (f "requested targets %s could not be found among the jobs %s"
+                     (String.concat ~sep:", " unfound_requests)
+                     (String.concat ~sep:", " all_jobs))
           in
           let unsuccessful_requests_report =
             match (unsuccessful_requests_report, unfound_requests_report) with
