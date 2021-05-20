@@ -526,6 +526,9 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
           then Some (Str.matched_group 1 summary ^ "/artifacts/download")
           else None
         in
+        let collapse_summary name summary =
+          f "<details><summary>%s</summary>\n\n%s\n</details>\n" name summary
+        in
         if
           string_match
             ~regexp:
@@ -571,30 +574,35 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
                   ; passing_urls= base_build_url ^ " " ^ base_job_url } )
           | None, _, _, _ ->
               Error
-                (f "Couldn't find base build job url for %s in:\n%s" build_job
-                   base_pipeline_summary)
+                (f "Could not find base build job url for %s in:\n%s" build_job
+                   (collapse_summary "Base Pipeline Summary"
+                      base_pipeline_summary))
           | _, None, _, _ ->
               Error
-                (f "Couldn't find head build job url for %s in:\n%s" build_job
-                   head_pipeline_summary)
+                (f "Could not find head build job url for %s in:\n%s" build_job
+                   (collapse_summary "Head Pipeline Summary"
+                      head_pipeline_summary))
           | _, _, None, _ ->
               Error
-                (f "Couldn't find base job url for %s in:\n%s" name
-                   base_pipeline_summary)
+                (f "Could not find base job url for %s in:\n%s" name
+                   (collapse_summary "Base Pipeline Summary"
+                      base_pipeline_summary))
           | _, _, _, None ->
               Error
-                (f "Couldn't find head job url for %s in:\n%s" name
-                   head_pipeline_summary)
+                (f "Could not find head job url for %s in:\n%s" name
+                   (collapse_summary "Head Pipeline Summary"
+                      head_pipeline_summary))
         else
           Error
-            (f "Couldn't find needed parameters for job %s in summary:\n%s\n"
-               name summary)
+            (f "Could not find needed parameters for job %s in summary:\n%s\n"
+               name
+               (collapse_summary "Summary" summary))
       else
         Error (f "Could not separate '%s' into job_kind:ci-target." full_name)
   | {name; summary= None}, _ ->
-      Error (f "Couldn't find summary for job %s." name)
+      Error (f "Could not find summary for job %s." name)
   | {name; text= None}, _ ->
-      Error (f "Couldn't find text for job %s." name)
+      Error (f "Could not find text for job %s." name)
 
 type ci_minimization_pr_info =
   { comment_thread_id: string
@@ -707,13 +715,13 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
           | (_, _), (None, ([{summary= None}], _)) ->
               Lwt.return_error
                 (f
-                   "Couldn't find pipeline check summary for base commit %s \
+                   "Could not find pipeline check summary for base commit %s \
                     and no summary was passed."
                    base)
           | (_, _), (None, ([], _)) ->
               Lwt.return_error
                 (f
-                   "Couldn't find pipeline check for base commit %s and no \
+                   "Could not find pipeline check for base commit %s and no \
                     summary was passed."
                    base)
           | (_, _), (None, (_ :: _ :: _, _)) ->
@@ -724,11 +732,11 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                    base)
           | ([{summary= None}], _), (_, _) ->
               Lwt.return_error
-                (f "Couldn't find pipeline check summary for base commit %s."
+                (f "Could not find pipeline check summary for base commit %s."
                    base)
           | ([], _), (_, _) ->
               Lwt.return_error
-                (f "Couldn't find pipeline check for base commit %s." base)
+                (f "Could not find pipeline check for base commit %s." base)
           | (_ :: _ :: _, _), (_, _) ->
               Lwt.return_error
                 (f
