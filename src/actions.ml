@@ -715,21 +715,21 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
           | (_, _), (None, ([{summary= None}], _)) ->
               Lwt.return_error
                 (f
-                   "Could not find pipeline check summary for base commit %s \
+                   "Could not find pipeline check summary for head commit %s \
                     and no summary was passed."
-                   base)
+                   head)
           | (_, _), (None, ([], _)) ->
               Lwt.return_error
                 (f
-                   "Could not find pipeline check for base commit %s and no \
+                   "Could not find pipeline check for head commit %s and no \
                     summary was passed."
-                   base)
+                   head)
           | (_, _), (None, (_ :: _ :: _, _)) ->
               Lwt.return_error
                 (f
-                   "Found several pipeline checks instead of one for base \
+                   "Found several pipeline checks instead of one for head \
                     commit %s and no summary was passed."
-                   base)
+                   head)
           | ([{summary= None}], _), (_, _) ->
               Lwt.return_error
                 (f "Could not find pipeline check summary for base commit %s."
