@@ -604,8 +604,8 @@ type ci_minimization_pr_info =
 
 let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary =
-  Lwt_io.printlf
-    "I'm going to look for failed tests to minimize on PR #%d." pr_number
+  Lwt_io.printlf "I'm going to look for failed tests to minimize on PR #%d."
+    pr_number
   >>= fun () ->
   GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo ~number:pr_number
   >>= function
@@ -1019,7 +1019,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             | [] ->
                 None
             | [request] ->
-                Some (f "requested target %s could not be found" request)
+                Some (f "requested target '%s' could not be found" request)
             | _ :: _ :: _ ->
                 Some
                   (f "requested targets %s could not be found"
@@ -1203,6 +1203,11 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         pr_number err
 
 let ci_minimize ~bot_info ~comment_info ~requests =
+  let requests =
+    requests
+    |> List.filter_map ~f:(fun r ->
+           match Stdlib.String.trim r with "" -> None | r -> Some r)
+  in
   minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
     ~repo:comment_info.issue.issue.repo ~pr_number:comment_info.issue.number
     ~head_pipeline_summary:None
@@ -1212,7 +1217,7 @@ let ci_minimize ~bot_info ~comment_info ~requests =
           RequestSuggested
       | ["all"] ->
           RequestAll
-      | _ ->
+      | requests ->
           RequestExplicit requests )
 
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
