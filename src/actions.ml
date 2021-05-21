@@ -695,7 +695,9 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                         ( List.fold_left reviews_info.approved_reviews ~init:""
                             ~f:(fun s r -> s ^ f "Reviewed-by: %s\n" r)
                         ^ List.fold_left reviews_info.comment_reviews ~init:""
-                            ~f:(fun s r -> s ^ f "Ack-by: %s\n" r) )
+                            ~f:(fun s r -> s ^ f "Ack-by: %s\n" r)
+                        ^ f "Co-authored-by: %s <%s@users.noreply.github.com>\n"
+                            comment_info.author comment_info.author )
                       ~merge_method:MERGE
                     >>= fun () ->
                     match
