@@ -726,15 +726,21 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                 ( Some pr_id
                 , f
                     "Could not find pipeline check for head commit %s and no \
-                     summary was passed."
-                    head )
-          | (_, _), (None, (_ :: _ :: _, _)) ->
+                     summary was passed.  (Found checks: %s)"
+                    head
+                    ( head_checks
+                    |> List.map ~f:(fun ({name}, _) -> name)
+                    |> String.concat ~sep:", " ) )
+          | (_, _), (None, ((_ :: _ :: _ as pipeline_head_checks), _)) ->
               Lwt.return_error
                 ( Some pr_id
                 , f
                     "Found several pipeline checks instead of one for head \
-                     commit %s and no summary was passed."
-                    head )
+                     commit %s and no summary was passed.  (Found checks: %s)"
+                    head
+                    ( pipeline_head_checks
+                    |> List.map ~f:(fun {name} -> name)
+                    |> String.concat ~sep:", " ) )
           | ([{summary= None}], _), (_, _) ->
               Lwt.return_error
                 ( Some pr_id
@@ -743,14 +749,23 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
           | ([], _), (_, _) ->
               Lwt.return_error
                 ( Some pr_id
-                , f "Could not find pipeline check for base commit %s." base )
-          | (_ :: _ :: _, _), (_, _) ->
+                , f
+                    "Could not find pipeline check for base commit %s.  (Found \
+                     checks: %s)"
+                    base
+                    ( base_checks
+                    |> List.map ~f:(fun ({name}, _) -> name)
+                    |> String.concat ~sep:", " ) )
+          | ((_ :: _ :: _ as pipeline_base_checks), _), (_, _) ->
               Lwt.return_error
                 ( Some pr_id
                 , f
                     "Found several pipeline checks instead of one for base \
-                     commit %s."
-                    base ) ) )
+                     commit %s.  (Found checks: %s)"
+                    base
+                    ( pipeline_base_checks
+                    |> List.map ~f:(fun {name} -> name)
+                    |> String.concat ~sep:", " ) ) ) )
 
 type ci_minimization_request =
   | Auto
