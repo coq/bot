@@ -210,7 +210,7 @@ let callback _conn req body =
               action_as_github_app ~bot_info ~key ~app_id
                 ~owner:comment_info.issue.issue.owner
                 ~repo:comment_info.issue.issue.repo
-                (ci_minimize ~comment_info ~requests))
+                (ci_minimize ~comment_info ~requests ~comment_on_error:true))
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Handling CI minimization."
               () )

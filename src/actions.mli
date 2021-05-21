@@ -75,4 +75,5 @@ val ci_minimize :
      bot_info:Bot_info.t
   -> comment_info:GitHub_types.comment_info
   -> requests:string list
+  -> comment_on_error:bool
   -> unit Lwt.t

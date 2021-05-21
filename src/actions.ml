@@ -622,8 +622,9 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
   >>= function
   | Error err ->
       Lwt.return_error
-        (f "Error while fetching PR refs for %s/%s#%d for CI minimization: %s"
-           owner repo pr_number err)
+        ( None
+        , f "Error while fetching PR refs for %s/%s#%d for CI minimization: %s"
+            owner repo pr_number err )
   | Ok {base= {sha= base}; head= {sha= head}} -> (
       (* TODO: figure out why there are quotes, cf https://github.com/coq/bot/issues/61 *)
       let base = Str.global_replace (Str.regexp "\"") "" base in
@@ -633,8 +634,9 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
       >>= function
       | Error err ->
           Lwt.return_error
-            (f "Error while looking for failed library tests to minimize: %s"
-               err)
+            ( None
+            , f "Error while looking for failed library tests to minimize: %s"
+                err )
       | Ok {pr_id; base_checks; head_checks; draft; labels} -> (
           let partition_errors =
             List.partition_map ~f:(function
@@ -714,35 +716,41 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                 , unminimizable_jobs )
           | (_, _), (None, ([{summary= None}], _)) ->
               Lwt.return_error
-                (f
-                   "Could not find pipeline check summary for head commit %s \
-                    and no summary was passed."
-                   head)
+                ( Some pr_id
+                , f
+                    "Could not find pipeline check summary for head commit %s \
+                     and no summary was passed."
+                    head )
           | (_, _), (None, ([], _)) ->
               Lwt.return_error
-                (f
-                   "Could not find pipeline check for head commit %s and no \
-                    summary was passed."
-                   head)
+                ( Some pr_id
+                , f
+                    "Could not find pipeline check for head commit %s and no \
+                     summary was passed."
+                    head )
           | (_, _), (None, (_ :: _ :: _, _)) ->
               Lwt.return_error
-                (f
-                   "Found several pipeline checks instead of one for head \
-                    commit %s and no summary was passed."
-                   head)
+                ( Some pr_id
+                , f
+                    "Found several pipeline checks instead of one for head \
+                     commit %s and no summary was passed."
+                    head )
           | ([{summary= None}], _), (_, _) ->
               Lwt.return_error
-                (f "Could not find pipeline check summary for base commit %s."
-                   base)
+                ( Some pr_id
+                , f "Could not find pipeline check summary for base commit %s."
+                    base )
           | ([], _), (_, _) ->
               Lwt.return_error
-                (f "Could not find pipeline check for base commit %s." base)
+                ( Some pr_id
+                , f "Could not find pipeline check for base commit %s." base )
           | (_ :: _ :: _, _), (_, _) ->
               Lwt.return_error
-                (f
-                   "Found several pipeline checks instead of one for base \
-                    commit %s."
-                   base) ) )
+                ( Some pr_id
+                , f
+                    "Found several pipeline checks instead of one for base \
+                     commit %s."
+                    base ) ) )
 
 type ci_minimization_request =
   | Auto
@@ -811,7 +819,7 @@ let suggest_ci_minimization_for_pr = function
       Suggest
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
-    ~head_pipeline_summary ~request =
+    ~head_pipeline_summary ~request ~comment_on_error =
   fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary
   >>= function
@@ -1241,7 +1249,14 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             "NOT commenting with CI minimization information at %s/%s@%s (PR \
              #%d)."
             owner repo head pr_number )
-  | Error err ->
+  | Error (Some comment_thread_id, err) when comment_on_error ->
+      GitHub_mutations.post_comment ~id:comment_thread_id
+        ~message:
+          (f "Error while attempting to find job minimization information:\n%s"
+             err)
+        ~bot_info
+      >>= GitHub_mutations.report_on_posting_comment
+  | Error (_, err) ->
       Lwt_io.printlf
         "Error while attempting to find jobs to minimize from PR #%d:\n%s"
         pr_number err
@@ -1357,6 +1372,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
               | "coq", "coq", "failed", Some pr_number ->
                   minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                     ~head_pipeline_summary:(Some summary) ~request:Auto
+                    ~comment_on_error:false
               | _ ->
                   Lwt.return_unit ) ) )
 
