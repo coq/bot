@@ -22,6 +22,7 @@ head=${13}
 branch_id=$(($(od -A n -t uI -N 5 /dev/urandom | tr -d ' ')))
 repo_name="coq-community/run-coq-bug-minimizer"
 branch_name="run-coq-bug-minimizer-$branch_id"
+nl=$'\n'
 
 wtree=$(mktemp -d)
 
@@ -39,7 +40,7 @@ echo "${head}" > coqbot.failing-sha
 echo "${base}" > coqbot.passing-sha
 echo "https://$bot_domain/ci-minimization" > coqbot.url
 git add .
-git commit -m "Set up CI minimization run."
+git commit -m "Set up CI minimization run for ${target}${nl}${nl}At ${owner}/${repo}@${head} over ${owner}/${repo}@${base}"
 git push --set-upstream "https://$bot_name:$token@github.com/$repo_name.git" "$branch_name"
 
 popd
