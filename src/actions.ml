@@ -542,7 +542,7 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
             , Str.matched_group 3 summary )
           in
           let missing_error, non_v_file =
-            if string_match ~regexp:"\nFile \"\\([^\"]*\\)\"" text then
+            if string_match ~regexp:"\nFile \"\\([^\"]*\\)\", line [0-9]*, characters [0-9]*-[0-9]*:\nError:" text then
               let filename = Str.matched_group 1 text in
               ( false
               , if String.is_suffix ~suffix:".v" filename then None
