@@ -542,7 +542,14 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
             , Str.matched_group 3 summary )
           in
           let missing_error, non_v_file =
-            if string_match ~regexp:"\nFile \"\\([^\"]*\\)\", line [0-9]*, characters [0-9]*-[0-9]*:\nError:" text then
+            if
+              string_match
+                ~regexp:
+                  "\n\
+                   File \"\\([^\"]*\\)\", line [0-9]*, characters [0-9]*-[0-9]*:\n\
+                   Error:"
+                text
+            then
               let filename = Str.matched_group 1 text in
               ( false
               , if String.is_suffix ~suffix:".v" filename then None
@@ -683,12 +690,11 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
               >>= fun () ->
               let failed_test_suite_jobs =
                 List.filter_map head_checks ~f:(fun ({name}, success) ->
-                    if String.is_prefix name ~prefix:"test-suite" && not success
+                    if string_match ~regexp:"test-suite" name && not success
                     then Some name
                     else None)
                 @ List.filter_map head_checks_errors ~f:(fun (name, _) ->
-                      if String.is_prefix name ~prefix:"test-suite" then
-                        Some name
+                      if string_match ~regexp:"test-suite" name then Some name
                       else None)
               in
               let possible_jobs_to_minimize, unminimizable_jobs =
