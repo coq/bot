@@ -848,7 +848,17 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       ( ({comment_thread_id; base; head} as ci_minimization_pr_info)
       , possible_jobs_to_minimize
       , unminimizable_jobs ) -> (
+      let compare_minimization_info {target= target1} {target= target2} =
+        String.compare target1 target2
+      in
+      let unminimizable_jobs =
+        unminimizable_jobs
+        |> List.sort ~compare:(fun (name1, _) (name2, _) ->
+               String.compare name1 name2)
+      in
       possible_jobs_to_minimize
+      |> List.sort ~compare:(fun (_, info1) (_, info2) ->
+             compare_minimization_info info1 info2)
       |> List.map ~f:(fun (suggestion_info, minimization_info) ->
              (ci_minimization_suggest ~base suggestion_info, minimization_info))
       |> List.partition3_map ~f:(function
@@ -861,11 +871,18 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       |> fun ( suggested_jobs_to_minimize
              , possible_jobs_to_minimize
              , bad_jobs_to_minimize ) ->
+      let shorten_target_name target =
+        target
+        |> Str.global_replace (Str.regexp "GitLab CI job") ""
+        |> Str.global_replace (Str.regexp "(pull request)") ""
+        |> Stdlib.String.trim
+      in
       let suggested_and_possible_jobs_to_minimize =
         suggested_jobs_to_minimize
         @ List.map
             ~f:(fun (_, minimization_info) -> minimization_info)
             possible_jobs_to_minimize
+        |> List.sort ~compare:compare_minimization_info
       in
       let jobs_to_minimize, suggest_minimization =
         match
@@ -901,8 +918,9 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       | _ ->
           Lwt_io.printlf "Initiating CI minimization for PR #%d on jobs: %s"
             pr_number
-            (String.concat ~sep:", "
-               (List.map ~f:(fun {target} -> target) jobs_to_minimize)) )
+            ( jobs_to_minimize
+            |> List.map ~f:(fun {target} -> target)
+            |> String.concat ~sep:", " ) )
       >>= fun () ->
       run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
         ~ci_minimization_infos:jobs_to_minimize
@@ -1015,7 +1033,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 "I am now running minimization at commit %s on %s. I'll come \
                  back to you with the results once it's done."
                 head
-                (String.concat ~sep:", " jobs_minimized) )
+                (jobs_minimized |> String.concat ~sep:", ") )
           ^ "\n\n"
           ^ Option.value ~default:"" failed_minimization_description
           |> Lwt.return_some
@@ -1063,10 +1081,9 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             | _ ->
                 Some
                   ( "The following requests were not fulfilled:\n"
-                  ^ String.concat ~sep:"\n"
-                      (List.map
-                         ~f:(fun msg -> "- " ^ msg)
-                         unsuccessful_requests) )
+                  ^ ( unsuccessful_requests
+                    |> List.map ~f:(fun msg -> "- " ^ msg)
+                    |> String.concat ~sep:"\n" ) )
           in
           let unfound_requests_report =
             let all_jobs =
@@ -1075,11 +1092,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 jobs_that_could_not_be_minimized
               @ List.map ~f:(fun (target, _) -> target) unminimizable_jobs
               @ List.map ~f:(fun (_, {target}) -> target) bad_jobs_to_minimize
-              |> List.map ~f:(fun request ->
-                     request
-                     |> Str.global_replace (Str.regexp "GitLab CI job") ""
-                     |> Str.global_replace (Str.regexp "(pull request)") ""
-                     |> Stdlib.String.trim)
+              |> List.map ~f:shorten_target_name
               |> List.sort ~compare:String.compare
             in
             match unfound_requests with
@@ -1091,12 +1104,12 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                      "requested target '%s' could not be found among the jobs \
                       %s"
                      request
-                     (String.concat ~sep:", " all_jobs))
+                     (all_jobs |> String.concat ~sep:", "))
             | _ :: _ :: _ ->
                 Some
                   (f "requested targets %s could not be found among the jobs %s"
-                     (String.concat ~sep:", " unfound_requests)
-                     (String.concat ~sep:", " all_jobs))
+                     (unfound_requests |> String.concat ~sep:", ")
+                     (all_jobs |> String.concat ~sep:", "))
           in
           let unsuccessful_requests_report =
             match (unsuccessful_requests_report, unfound_requests_report) with
@@ -1122,7 +1135,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  %s"
                 head
                 (pluralize "target" successful_requests)
-                (String.concat ~sep:", " successful_requests)
+                (successful_requests |> String.concat ~sep:", ")
                 (Option.value ~default:"" unsuccessful_requests_report) )
           |> Lwt.return_some
       | RequestSuggested, [], None ->
@@ -1133,13 +1146,12 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
               f
                 "You requested minimization of suggested failing CI jobs, but \
                  no jobs were suggested at commit %s. You can trigger \
-                 minimization of %s with `ci miniminize all` or by requesting \
+                 minimization of %s with `ci minimize all` or by requesting \
                  some targets by name."
                 head
-                (String.concat ~sep:", "
-                   (List.map
-                      ~f:(fun (_, {target}) -> target)
-                      possible_jobs_to_minimize)) )
+                ( possible_jobs_to_minimize
+                |> List.map ~f:(fun (_, {target}) -> target)
+                |> String.concat ~sep:", " ) )
           |> Lwt.return_some
       | RequestSuggested, [], Some failed_minimization_description ->
           f
@@ -1155,7 +1167,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
              %s"
             head
             (pluralize "target" jobs_minimized)
-            (String.concat ~sep:", " jobs_minimized)
+            (jobs_minimized |> String.concat ~sep:", ")
             (Option.value ~default:"" failed_minimization_description)
           |> Lwt.return_some
       | Auto, jobs_minimized, failed_minimization_description -> (
@@ -1255,7 +1267,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  come back to you with the results once it's done.\n\
                  %s"
                 (pluralize "job" jobs_minimized)
-                (String.concat ~sep:", " jobs_minimized)
+                (jobs_minimized |> String.concat ~sep:", ")
                 head
                 (pluralize "job" jobs_minimized)
                 base
