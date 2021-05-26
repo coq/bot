@@ -618,6 +618,8 @@ type ci_minimization_pr_info =
   ; pr_number: int
   ; draft: bool
   ; labels: string list
+  ; base_pipeline_finished: bool
+  ; head_pipeline_finished: bool
   ; failed_test_suite_jobs: string list }
 
 let shorten_ci_check_name target =
@@ -668,30 +670,49 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                    pr_number error)
           >>= fun () ->
           let extract_pipeline_check =
-            List.partition_map ~f:(fun (check_tab_info, success) ->
+            List.partition3_map ~f:(fun (check_tab_info, success) ->
                 if
                   String.is_prefix ~prefix:"GitLab CI pipeline"
                     check_tab_info.name
-                then Either.First check_tab_info
-                else Either.Second (check_tab_info, success))
+                then `Fst (check_tab_info, Option.is_some success)
+                else
+                  match success with
+                  | Some success ->
+                      `Snd (check_tab_info, success)
+                  | None ->
+                      `Trd check_tab_info)
           in
           match
             ( extract_pipeline_check base_checks
-            , (head_pipeline_summary, extract_pipeline_check head_checks) )
+            , ((head_pipeline_summary, true), extract_pipeline_check head_checks)
+            )
           with
-          | ( ([{summary= Some base_pipeline_summary}], base_checks)
-            , ( Some head_pipeline_summary, (_, head_checks)
-              | None, ([{summary= Some head_pipeline_summary}], head_checks) ) )
-            ->
+          | ( ( [({summary= Some base_pipeline_summary}, base_pipeline_finished)]
+              , base_checks
+              , unfinished_base_checks )
+            , ( ( (Some head_pipeline_summary, head_pipeline_finished)
+                , (_, head_checks, unfinished_head_checks) )
+              | ( (None, _)
+                , ( [ ( {summary= Some head_pipeline_summary}
+                      , head_pipeline_finished ) ]
+                  , head_checks
+                  , unfinished_head_checks ) ) ) ) ->
               Lwt_io.printf
                 "Looking for failed tests to minimize among %d head checks (%d \
-                 base checks) (head checks: %s) (base checks: %s).\n"
+                 base checks) (head checks: %s) (unfinished head checks: %s) \
+                 (base checks: %s) (unfinished base checks: %s).\n"
                 (List.length head_checks) (List.length base_checks)
                 ( head_checks
                 |> List.map ~f:(fun ({name}, _) -> name)
                 |> String.concat ~sep:", " )
+                ( unfinished_head_checks
+                |> List.map ~f:(fun {name} -> name)
+                |> String.concat ~sep:", " )
                 ( base_checks
                 |> List.map ~f:(fun ({name}, _) -> name)
+                |> String.concat ~sep:", " )
+                ( unfinished_base_checks
+                |> List.map ~f:(fun {name} -> name)
                 |> String.concat ~sep:", " )
               >>= fun () ->
               let failed_test_suite_jobs =
@@ -716,6 +737,12 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                        | Ok result ->
                            Either.First result)
               in
+              let unminimizable_jobs =
+                unminimizable_jobs
+                @ ( unfinished_head_checks
+                  |> List.map ~f:(fun {name} ->
+                         (name, f "Job %s is still in progress." name)) )
+              in
               Lwt.return_ok
                 ( { comment_thread_id= pr_id
                   ; base
@@ -723,17 +750,19 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                   ; pr_number
                   ; draft
                   ; labels
+                  ; base_pipeline_finished
+                  ; head_pipeline_finished
                   ; failed_test_suite_jobs }
                 , possible_jobs_to_minimize
                 , unminimizable_jobs )
-          | (_, _), (None, ([{summary= None}], _)) ->
+          | (_, _, _), ((None, _), ([({summary= None}, _)], _, _)) ->
               Lwt.return_error
                 ( Some pr_id
                 , f
                     "Could not find pipeline check summary for head commit %s \
                      and no summary was passed."
                     head )
-          | (_, _), (None, ([], _)) ->
+          | (_, _, _), ((None, _), ([], _, _)) ->
               Lwt.return_error
                 ( Some pr_id
                 , f
@@ -744,7 +773,8 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                     |> List.map ~f:(fun ({name}, _) -> name)
                     |> List.map ~f:shorten_ci_check_name
                     |> String.concat ~sep:", " ) )
-          | (_, _), (None, ((_ :: _ :: _ as pipeline_head_checks), _)) ->
+          | (_, _, _), ((None, _), ((_ :: _ :: _ as pipeline_head_checks), _, _))
+            ->
               Lwt.return_error
                 ( Some pr_id
                 , f
@@ -752,14 +782,14 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                      commit %s and no summary was passed.  (Found checks: %s)"
                     head
                     ( pipeline_head_checks
-                    |> List.map ~f:(fun {name} -> name)
+                    |> List.map ~f:(fun ({name}, _) -> name)
                     |> String.concat ~sep:", " ) )
-          | ([{summary= None}], _), (_, _) ->
+          | ([({summary= None}, _)], _, _), ((_, _), (_, _, _)) ->
               Lwt.return_error
                 ( Some pr_id
                 , f "Could not find pipeline check summary for base commit %s."
                     base )
-          | ([], _), (_, _) ->
+          | ([], _, _), ((_, _), (_, _, _)) ->
               Lwt.return_error
                 ( Some pr_id
                 , f
@@ -770,7 +800,8 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                     |> List.map ~f:(fun ({name}, _) -> name)
                     |> List.map ~f:shorten_ci_check_name
                     |> String.concat ~sep:", " ) )
-          | ((_ :: _ :: _ as pipeline_base_checks), _), (_, _) ->
+          | ((_ :: _ :: _ as pipeline_base_checks), _, _), ((_, _), (_, _, _))
+            ->
               Lwt.return_error
                 ( Some pr_id
                 , f
@@ -778,7 +809,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                      commit %s.  (Found checks: %s)"
                     base
                     ( pipeline_base_checks
-                    |> List.map ~f:(fun {name} -> name)
+                    |> List.map ~f:(fun ({name}, _) -> name)
                     |> String.concat ~sep:", " ) ) ) )
 
 type ci_minimization_request =
@@ -853,7 +884,11 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary
   >>= function
   | Ok
-      ( ({comment_thread_id; base; head} as ci_minimization_pr_info)
+      ( ( { comment_thread_id
+          ; base
+          ; head
+          ; base_pipeline_finished
+          ; head_pipeline_finished } as ci_minimization_pr_info )
       , possible_jobs_to_minimize
       , unminimizable_jobs ) -> (
       let compare_minimization_info {target= target1} {target= target2} =
@@ -890,7 +925,11 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         match
           (request, suggest_ci_minimization_for_pr ci_minimization_pr_info)
         with
+        | Auto, RunAutomatically
+          when base_pipeline_finished && head_pipeline_finished ->
+            (suggested_jobs_to_minimize, Ok ())
         | Auto, RunAutomatically ->
+            (* XXX TODO: What should we do in the "run automatically case" when base or head pipeline has not finished? *)
             (suggested_jobs_to_minimize, Ok ())
         | Auto, Suggest ->
             ([], Ok ())
@@ -927,7 +966,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
         ~ci_minimization_infos:jobs_to_minimize
       >>= fun (jobs_minimized, jobs_that_could_not_be_minimized) ->
-      let pluralize word ?(plural = None) ls =
+      let pluralize word ?plural ls =
         match (ls, plural) with
         | [_], _ ->
             word
@@ -999,6 +1038,48 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 |> String.concat ~sep:"\n" )
               ^ "\n" )
       in
+      let unfinished_pipelines_description =
+        (if base_pipeline_finished then [] else [f "base commit (%s)" base])
+        @ if head_pipeline_finished then [] else [f "head commit (%s)" head]
+      in
+      let try_again_msg =
+        match unfinished_pipelines_description with
+        | [] ->
+            ""
+        | ls ->
+            f "\nHowever, you may want to try again once the %s for the %s %s."
+              (pluralize "pipeline" ls)
+              (ls |> String.concat ~sep:" and ")
+              (pluralize "finishes" ~plural:"finish" ls)
+      in
+      let may_wish_to_wait_msg =
+        match unfinished_pipelines_description with
+        | [] ->
+            ""
+        | ls ->
+            f "\nHowever, you may want to wait until the %s for the %s %s."
+              (pluralize "pipeline" ls)
+              (ls |> String.concat ~sep:" and ")
+              (pluralize "finishes" ~plural:"finish" ls)
+      in
+      let note_some_head_unfinished_msg =
+        if head_pipeline_finished then ""
+        else
+          f
+            "\n\
+             Some jobs may have been missed because the pipeline for the head \
+             commit (%s) has not yet finished."
+            head
+      in
+      let note_some_base_unfinished_msg =
+        if base_pipeline_finished then ""
+        else
+          f
+            "\n\
+             However, minimization may fail because the pipeline for the base \
+             commit (%s) has not yet finished."
+            base
+      in
       ( match (request, jobs_minimized, failed_minimization_description) with
       | RequestAll, [], None ->
           Lwt.return_some
@@ -1006,13 +1087,14 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 bad_and_unminimizable_jobs_description ~f:(fun _ -> true)
               with
             | None ->
-                f "No valid CI jobs detected for %s" head
+                f "No valid CI jobs detected for %s.%s" head try_again_msg
             | Some msg ->
                 f
                   "I attempted to run all CI jobs at commit %s for \
-                   minimization, but was unable to find any jobs to minimize.\n\n\
+                   minimization, but was unable to find any jobs to \
+                   minimize.%s\n\n\
                    %s"
-                  head msg )
+                  head try_again_msg msg )
       | RequestAll, _, _ ->
           ( match bad_and_unminimizable_jobs_description ~f:(fun _ -> true) with
           | Some msg ->
@@ -1028,14 +1110,15 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
           | [] ->
               f
                 "I did not succeed at triggering minimization on any jobs at \
-                 commit %s."
-                head
+                 commit %s.%s"
+                head try_again_msg
           | _ :: _ ->
               f
                 "I am now running minimization at commit %s on %s. I'll come \
-                 back to you with the results once it's done."
+                 back to you with the results once it's done.%s"
                 head
-                (jobs_minimized |> String.concat ~sep:", ") )
+                (jobs_minimized |> String.concat ~sep:", ")
+                note_some_head_unfinished_msg )
           ^ "\n\n"
           ^ Option.value ~default:"" failed_minimization_description
           |> Lwt.return_some
@@ -1104,14 +1187,18 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 Some
                   (f
                      "requested target '%s' could not be found among the jobs \
-                      %s"
+                      %s.%s"
                      request
-                     (all_jobs |> String.concat ~sep:", "))
+                     (all_jobs |> String.concat ~sep:", ")
+                     note_some_head_unfinished_msg)
             | _ :: _ :: _ ->
                 Some
-                  (f "requested targets %s could not be found among the jobs %s"
+                  (f
+                     "requested targets %s could not be found among the jobs \
+                      %s.%s"
                      (unfound_requests |> String.concat ~sep:", ")
-                     (all_jobs |> String.concat ~sep:", "))
+                     (all_jobs |> String.concat ~sep:", ")
+                     note_some_head_unfinished_msg)
           in
           let unsuccessful_requests_report =
             match (unsuccessful_requests_report, unfound_requests_report) with
@@ -1129,47 +1216,51 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
               "No CI minimization requests made?"
           | [], Some msg ->
               "I was unable to minimize any of the CI targets that you \
-               requested.\n" ^ msg
+               requested." ^ try_again_msg ^ "\n" ^ msg
           | _ :: _, _ ->
               f
                 "I am now running minimization at commit %s on requested %s \
-                 %s. I'll come back to you with the results once it's done.\n\n\
+                 %s. I'll come back to you with the results once it's done.%s\n\n\
                  %s"
                 head
                 (pluralize "target" successful_requests)
                 (successful_requests |> String.concat ~sep:", ")
+                note_some_base_unfinished_msg
                 (Option.value ~default:"" unsuccessful_requests_report) )
           |> Lwt.return_some
       | RequestSuggested, [], None ->
           ( match possible_jobs_to_minimize with
           | [] ->
-              f "No CI jobs are available to be minimized for commit %s." head
+              f "No CI jobs are available to be minimized for commit %s.%s" head
+                try_again_msg
           | _ :: _ ->
               f
                 "You requested minimization of suggested failing CI jobs, but \
                  no jobs were suggested at commit %s. You can trigger \
                  minimization of %s with `ci minimize all` or by requesting \
-                 some targets by name."
+                 some targets by name.%s"
                 head
                 ( possible_jobs_to_minimize
                 |> List.map ~f:(fun (_, {target}) -> target)
-                |> String.concat ~sep:", " ) )
+                |> String.concat ~sep:", " )
+                may_wish_to_wait_msg )
           |> Lwt.return_some
       | RequestSuggested, [], Some failed_minimization_description ->
           f
             "I attempted to minimize suggested failing CI jobs at commit %s, \
-             but was unable to succeed on any jobs.\n\
+             but was unable to succeed on any jobs.%s\n\
              %s"
-            head failed_minimization_description
+            head try_again_msg failed_minimization_description
           |> Lwt.return_some
       | RequestSuggested, _ :: _, _ ->
           f
             "I have initiated minimization at commit %s for the suggested %s \
-             %s as requested.\n\n\
+             %s as requested.%s\n\n\
              %s"
             head
             (pluralize "target" jobs_minimized)
             (jobs_minimized |> String.concat ~sep:", ")
+            try_again_msg
             (Option.value ~default:"" failed_minimization_description)
           |> Lwt.return_some
       | Auto, jobs_minimized, failed_minimization_description -> (
@@ -1219,9 +1310,9 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             | None, None ->
                 None
             | Some msg, None | None, Some msg ->
-                Some msg
+                Some (msg ^ may_wish_to_wait_msg)
             | Some msg1, Some msg2 ->
-                Some (msg1 ^ msg2)
+                Some (msg1 ^ msg2 ^ may_wish_to_wait_msg)
           in
           match
             ( jobs_minimized

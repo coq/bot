@@ -74,10 +74,12 @@ val get_status_check :
   -> context:string
   -> (bool, string) result Lwt.t
 
+(* N.B. the [bool option] is [None] for in progress and [Some success_status] for finished *)
+(* TODO: Should we use a type for this instead of [bool option]? *)
 type base_and_head_checks_info =
   { pr_id: string
-  ; base_checks: (check_tab_info * bool, string * string) result list
-  ; head_checks: (check_tab_info * bool, string * string) result list
+  ; base_checks: (check_tab_info * bool option, string * string) result list
+  ; head_checks: (check_tab_info * bool option, string * string) result list
   ; draft: bool
   ; labels: string list }
 

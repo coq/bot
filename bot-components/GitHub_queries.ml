@@ -499,8 +499,8 @@ let get_check_tab_info checkRun =
 
 type base_and_head_checks_info =
   { pr_id: string
-  ; base_checks: (check_tab_info * bool, string * string) Result.t list
-  ; head_checks: (check_tab_info * bool, string * string) Result.t list
+  ; base_checks: (check_tab_info * bool option, string * string) Result.t list
+  ; head_checks: (check_tab_info * bool option, string * string) Result.t list
   ; draft: bool
   ; labels: string list }
 
@@ -565,68 +565,65 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                       let completed_runs checkRuns description commit =
                         checkRuns
                         |> List.map ~f:(fun checkRun ->
-                               checkRun#conclusion
-                               |> Result.of_option
-                                    ~error:
-                                      ( checkRun#name
-                                      , f
-                                          "A check run (%s) has not completed \
-                                           for %s commit %s/%s@%s."
-                                          checkRun#name description owner repo
-                                          commit )
-                               |> Result.bind ~f:(function
-                                    | `ACTION_REQUIRED ->
-                                        Error
-                                          ( checkRun#name
-                                          , f
-                                              "A check run (%s) requires an \
-                                               action for %s commit %s/%s@%s."
-                                              checkRun#name description owner
-                                              repo commit )
-                                    | `CANCELLED ->
-                                        Error
-                                          ( checkRun#name
-                                          , f
-                                              "A check run (%s) was cancelled \
-                                               for %s commit %s/%s@%s."
-                                              checkRun#name description owner
-                                              repo commit )
-                                    | `SKIPPED ->
-                                        Error
-                                          ( checkRun#name
-                                          , f
-                                              "A check run (%s) was skipped \
-                                               for %s commit %s/%s@%s."
-                                              checkRun#name description owner
-                                              repo commit )
-                                    | `STALE ->
-                                        Error
-                                          ( checkRun#name
-                                          , f
-                                              "A check run (%s) is stale for \
-                                               %s commit %s/%s@%s."
-                                              checkRun#name description owner
-                                              repo commit )
-                                    | `TIMED_OUT ->
-                                        Error
-                                          ( checkRun#name
-                                          , f
-                                              "A check run (%s) timed out for \
-                                               %s commit %s/%s@%s."
-                                              checkRun#name description owner
-                                              repo commit )
-                                    | `STARTUP_FAILURE ->
-                                        Error
-                                          ( checkRun#name
-                                          , f
-                                              "A check run (%s) failed at \
-                                               startup for %s commit %s/%s@%s."
-                                              checkRun#name description owner
-                                              repo commit )
-                                    | `FAILURE | `NEUTRAL ->
-                                        Ok (get_check_tab_info checkRun, false)
-                                    | `SUCCESS ->
-                                        Ok (get_check_tab_info checkRun, true)))
+                               match checkRun#conclusion with
+                               | None ->
+                                   (* In progress *)
+                                   Ok (get_check_tab_info checkRun, None)
+                               | Some conclusion -> (
+                                 match conclusion with
+                                 | `ACTION_REQUIRED ->
+                                     Error
+                                       ( checkRun#name
+                                       , f
+                                           "A check run (%s) requires an \
+                                            action for %s commit %s/%s@%s."
+                                           checkRun#name description owner repo
+                                           commit )
+                                 | `CANCELLED ->
+                                     Error
+                                       ( checkRun#name
+                                       , f
+                                           "A check run (%s) was cancelled for \
+                                            %s commit %s/%s@%s."
+                                           checkRun#name description owner repo
+                                           commit )
+                                 | `SKIPPED ->
+                                     Error
+                                       ( checkRun#name
+                                       , f
+                                           "A check run (%s) was skipped for \
+                                            %s commit %s/%s@%s."
+                                           checkRun#name description owner repo
+                                           commit )
+                                 | `STALE ->
+                                     Error
+                                       ( checkRun#name
+                                       , f
+                                           "A check run (%s) is stale for %s \
+                                            commit %s/%s@%s."
+                                           checkRun#name description owner repo
+                                           commit )
+                                 | `TIMED_OUT ->
+                                     Error
+                                       ( checkRun#name
+                                       , f
+                                           "A check run (%s) timed out for %s \
+                                            commit %s/%s@%s."
+                                           checkRun#name description owner repo
+                                           commit )
+                                 | `STARTUP_FAILURE ->
+                                     Error
+                                       ( checkRun#name
+                                       , f
+                                           "A check run (%s) failed at startup \
+                                            for %s commit %s/%s@%s."
+                                           checkRun#name description owner repo
+                                           commit )
+                                 | `FAILURE | `NEUTRAL ->
+                                     Ok (get_check_tab_info checkRun, Some false)
+                                 | `SUCCESS ->
+                                     Ok (get_check_tab_info checkRun, Some true)
+                                 ))
                       in
                       let labels : string list option =
                         let open Option in
