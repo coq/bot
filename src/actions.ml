@@ -655,10 +655,12 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
       | Ok {pr_id; base_checks; head_checks; draft; labels} -> (
           let partition_errors =
             List.partition_map ~f:(function
-              | Error error ->
-                  Either.First error
-              | Ok result ->
-                  Either.Second result)
+              | Error (name, error) ->
+                  Either.First (shorten_ci_check_name name, error)
+              | Ok (result, status) ->
+                  Either.Second
+                    ( {result with name= shorten_ci_check_name result.name}
+                    , status ))
           in
           let base_checks_errors, base_checks = partition_errors base_checks in
           let head_checks_errors, head_checks = partition_errors head_checks in
@@ -771,7 +773,6 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                     head
                     ( head_checks
                     |> List.map ~f:(fun ({name}, _) -> name)
-                    |> List.map ~f:shorten_ci_check_name
                     |> String.concat ~sep:", " ) )
           | (_, _, _), ((None, _), ((_ :: _ :: _ as pipeline_head_checks), _, _))
             ->
@@ -798,7 +799,6 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                     base
                     ( base_checks
                     |> List.map ~f:(fun ({name}, _) -> name)
-                    |> List.map ~f:shorten_ci_check_name
                     |> String.concat ~sep:", " ) )
           | ((_ :: _ :: _ as pipeline_base_checks), _, _), ((_, _), (_, _, _))
             ->
@@ -1177,7 +1177,6 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 jobs_that_could_not_be_minimized
               @ List.map ~f:(fun (target, _) -> target) unminimizable_jobs
               @ List.map ~f:(fun (_, {target}) -> target) bad_jobs_to_minimize
-              |> List.map ~f:shorten_ci_check_name
               |> List.sort ~compare:String.compare
             in
             match unfound_requests with
