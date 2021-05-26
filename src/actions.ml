@@ -620,6 +620,12 @@ type ci_minimization_pr_info =
   ; labels: string list
   ; failed_test_suite_jobs: string list }
 
+let shorten_ci_check_name target =
+  target
+  |> Str.global_replace (Str.regexp "GitLab CI job") ""
+  |> Str.global_replace (Str.regexp "(pull request)") ""
+  |> Stdlib.String.trim
+
 let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary =
   Lwt_io.printlf "I'm going to look for failed tests to minimize on PR #%d."
@@ -736,6 +742,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                     head
                     ( head_checks
                     |> List.map ~f:(fun ({name}, _) -> name)
+                    |> List.map ~f:shorten_ci_check_name
                     |> String.concat ~sep:", " ) )
           | (_, _), (None, ((_ :: _ :: _ as pipeline_head_checks), _)) ->
               Lwt.return_error
@@ -761,6 +768,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                     base
                     ( base_checks
                     |> List.map ~f:(fun ({name}, _) -> name)
+                    |> List.map ~f:shorten_ci_check_name
                     |> String.concat ~sep:", " ) )
           | ((_ :: _ :: _ as pipeline_base_checks), _), (_, _) ->
               Lwt.return_error
@@ -871,12 +879,6 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       |> fun ( suggested_jobs_to_minimize
              , possible_jobs_to_minimize
              , bad_jobs_to_minimize ) ->
-      let shorten_target_name target =
-        target
-        |> Str.global_replace (Str.regexp "GitLab CI job") ""
-        |> Str.global_replace (Str.regexp "(pull request)") ""
-        |> Stdlib.String.trim
-      in
       let suggested_and_possible_jobs_to_minimize =
         suggested_jobs_to_minimize
         @ List.map
@@ -1092,7 +1094,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 jobs_that_could_not_be_minimized
               @ List.map ~f:(fun (target, _) -> target) unminimizable_jobs
               @ List.map ~f:(fun (_, {target}) -> target) bad_jobs_to_minimize
-              |> List.map ~f:shorten_target_name
+              |> List.map ~f:shorten_ci_check_name
               |> List.sort ~compare:String.compare
             in
             match unfound_requests with
