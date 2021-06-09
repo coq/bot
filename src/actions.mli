@@ -13,7 +13,7 @@ val pipeline_action :
   -> unit Lwt.t
 
 val run_coq_minimizer :
-     bot_info:Bot_components.Bot_info.t
+     bot_info:Bot_info.t
   -> script:string
   -> comment_thread_id:string
   -> comment_author:string
@@ -23,6 +23,7 @@ val run_coq_minimizer :
 
 val coq_bug_minimizer_results_action :
      bot_info:Bot_info.t
+  -> ci:bool
   -> key:Mirage_crypto_pk.Rsa.priv
   -> app_id:int
   -> string
@@ -68,4 +69,11 @@ val push_action :
      bot_info:Bot_info.t
   -> base_ref:string
   -> commits_msg:string list
+  -> unit Lwt.t
+
+val ci_minimize :
+     bot_info:Bot_info.t
+  -> comment_info:GitHub_types.comment_info
+  -> requests:string list
+  -> comment_on_error:bool
   -> unit Lwt.t

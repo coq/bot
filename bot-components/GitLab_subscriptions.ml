@@ -9,19 +9,20 @@ let extract_commit json =
   let commit_json = json |> member "commit" in
   let message = commit_json |> member "message" |> to_string in
   if
-    string_match ~regexp:"Bot merge [a-zA-Z0-9]* [a-z]* \\([a-zA-Z0-9]*\\)"
-      message
-  then Str.matched_group 1 message
+    string_match
+      ~regexp:"Bot merge \\([a-zA-Z0-9]*\\) [a-z]* \\([a-zA-Z0-9]*\\)" message
+  then (Some (Str.matched_group 1 message), Str.matched_group 2 message)
   else
     (* In the case of build webhooks, the id is a number and the sha is the
        reference of the commit, while in the case of pipeline hooks only id
        is present and represents the sha. *)
-    ( match commit_json |> member "sha" with
-    | `Null ->
-        commit_json |> member "id"
-    | sha ->
-        sha )
-    |> to_string
+    ( None
+    , ( match commit_json |> member "sha" with
+      | `Null ->
+          commit_json |> member "id"
+      | sha ->
+          sha )
+      |> to_string )
 
 let job_info_of_json json =
   let open Yojson.Basic.Util in
@@ -29,7 +30,7 @@ let job_info_of_json json =
   let build_id = json |> member "build_id" |> to_int in
   let build_name = json |> member "build_name" |> to_string in
   let project_id = json |> member "project_id" |> to_int in
-  let commit = json |> extract_commit in
+  let base_commit, head_commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
   let repo_url = json |> member "repository" |> member "url" |> to_string in
   let stage = json |> member "build_stage" |> to_string in
@@ -43,7 +44,7 @@ let job_info_of_json json =
   ; stage
   ; failure_reason
   ; allow_fail
-  ; common_info= {commit; branch; repo_url; project_id} }
+  ; common_info= {base_commit; head_commit; branch; repo_url; project_id} }
 
 (* For use to decode builds inside a pipeline webhook *)
 let build_info_of_json json =
@@ -66,7 +67,7 @@ let pipeline_info_of_json json =
   let pipeline_json = json |> member "object_attributes" in
   let state = pipeline_json |> member "status" |> to_string in
   let pipeline_id = pipeline_json |> member "id" |> to_int in
-  let commit = json |> extract_commit in
+  let base_commit, head_commit = json |> extract_commit in
   let branch = pipeline_json |> member "ref" |> to_string in
   let project = json |> member "project" in
   let repo_url = project |> member "web_url" |> to_string in
@@ -81,7 +82,7 @@ let pipeline_info_of_json json =
   { state
   ; pipeline_id
   ; project_path
-  ; common_info= {commit; branch; repo_url; project_id}
+  ; common_info= {head_commit; base_commit; branch; repo_url; project_id}
   ; stages
   ; builds }
 

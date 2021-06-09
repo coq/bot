@@ -63,10 +63,8 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
 let execute_cmd command =
-  (*
   Lwt_io.printf "Executing command: %s\n" command
   >>= fun () ->
-   *)
   Lwt_unix.system command
   >|= fun status ->
   match status with
@@ -119,17 +117,19 @@ let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
      not coqbot the GitHub App *)
   f "./coq_bug_minimizer.sh '%s' %s %s %s %s %s %s %s" script comment_thread_id
     comment_author bot_info.github_pat bot_info.name bot_info.domain owner repo
-  |> Lwt_unix.system
-  >|= fun status ->
-  match status with
-  | Unix.WEXITED 0 ->
-      Ok true (* push successful *)
-  | Unix.WEXITED code ->
-      Error (f "coq_bug_minimizer script exited with status %d." code)
-  | Unix.WSIGNALED signal ->
-      Error (f "coq_bug_minimizer script killed by signal %d." signal)
-  | Unix.WSTOPPED signal ->
-      Error (f "coq_bug_minimizer script stopped by signal %d." signal)
+  |> execute_cmd
+
+let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
+    ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base ~head =
+  (* To push a new branch we need to identify as coqbot the GitHub
+     user, who is a collaborator on the run-coq-bug-minimizer repo,
+     not coqbot the GitHub App *)
+  f
+    "./run_ci_minimization.sh '%s' '%s' '%s' '%s' '%s' '%s' '%s' '%s' '%s' \
+     '%s' '%s' '%s' '%s'"
+    comment_thread_id bot_info.github_pat bot_info.name bot_info.domain owner
+    repo docker_image target opam_switch failing_urls passing_urls base head
+  |> execute_cmd
 
 let init_git_bare_repository ~bot_info =
   Stdio.printf "Initializing repository...\n" ;

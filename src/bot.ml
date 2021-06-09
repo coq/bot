@@ -193,6 +193,28 @@ let callback _conn req body =
             Server.respond_string ~status:`OK ~body:"Handling minimization." ()
             )
           else if
+            string_match
+              ~regexp:(f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)" bot_name)
+              body
+          then (
+            let requests =
+              Str.matched_group 1 body
+              |> Str.global_replace (Str.regexp "[ ,]+") " "
+              |> String.split ~on:' '
+              |> List.map ~f:Stdlib.String.trim
+              |> List.filter ~f:(fun r -> not (String.is_empty r))
+            in
+            (fun () ->
+              init_git_bare_repository ~bot_info
+              >>= fun () ->
+              action_as_github_app ~bot_info ~key ~app_id
+                ~owner:comment_info.issue.issue.owner
+                ~repo:comment_info.issue.issue.repo
+                (ci_minimize ~comment_info ~requests ~comment_on_error:true))
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK ~body:"Handling CI minimization."
+              () )
+          else if
             string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
             && comment_info.issue.pull_request
           then
@@ -256,7 +278,11 @@ let callback _conn req body =
   | "/coq-bug-minimizer" ->
       body
       >>= fun body ->
-      coq_bug_minimizer_results_action body ~bot_info ~key ~app_id
+      coq_bug_minimizer_results_action ~ci:false body ~bot_info ~key ~app_id
+  | "/ci-minimization" ->
+      body
+      >>= fun body ->
+      coq_bug_minimizer_results_action ~ci:true body ~bot_info ~key ~app_id
   | _ ->
       Server.respond_not_found ()
 
