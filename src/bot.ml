@@ -46,7 +46,6 @@ let string_of_installation_tokens =
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   let coqbot_minimize_text_of_body body =
-    let body = Helpers.trim_comments body in
     if
       string_match
         ~regexp:(f "@%s:? [Mm]inimize[^`]*```[^\n]*\n\\(.+\\)" bot_name)
@@ -167,93 +166,97 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) -> (
-        match coqbot_minimize_text_of_body body with
-        | Some script ->
-            (fun () ->
-              init_git_bare_repository ~bot_info
-              >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id
-                ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
-                (run_coq_minimizer ~script ~comment_thread_id:issue_info.id
-                   ~comment_author:issue_info.user ~owner:issue_info.issue.owner
-                   ~repo:issue_info.issue.repo))
-            |> Lwt.async ;
-            Server.respond_string ~status:`OK ~body:"Handling minimization." ()
-        | None ->
-            Server.respond_string ~status:`OK
-              ~body:(f "Unhandled new issue: %s" body)
-              () )
+          let body = Helpers.trim_comments body in
+          match coqbot_minimize_text_of_body body with
+          | Some script ->
+              (fun () ->
+                init_git_bare_repository ~bot_info
+                >>= fun () ->
+                action_as_github_app ~bot_info ~key ~app_id
+                  ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
+                  (run_coq_minimizer ~script ~comment_thread_id:issue_info.id
+                     ~comment_author:issue_info.user
+                     ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo))
+              |> Lwt.async ;
+              Server.respond_string ~status:`OK ~body:"Handling minimization."
+                ()
+          | None ->
+              Server.respond_string ~status:`OK
+                ~body:(f "Unhandled new issue: %s" body)
+                () )
       | Ok (signed, CommentCreated comment_info) -> (
-        match coqbot_minimize_text_of_body body with
-        | Some script ->
-            (fun () ->
-              init_git_bare_repository ~bot_info
-              >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id
-                ~owner:comment_info.issue.issue.owner
-                ~repo:comment_info.issue.issue.repo
-                (run_coq_minimizer ~script
-                   ~comment_thread_id:comment_info.issue.id
-                   ~comment_author:comment_info.author
-                   ~owner:comment_info.issue.issue.owner
-                   ~repo:comment_info.issue.issue.repo))
-            |> Lwt.async ;
-            Server.respond_string ~status:`OK ~body:"Handling minimization." ()
-        | None ->
-            if
-              string_match
-                ~regexp:
-                  (f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)" bot_name)
-                body
-            then (
-              let requests =
-                Str.matched_group 1 body
-                |> Str.global_replace (Str.regexp "[ ,]+") " "
-                |> String.split ~on:' '
-                |> List.map ~f:Stdlib.String.trim
-                |> List.filter ~f:(fun r -> not (String.is_empty r))
-              in
+          let body = Helpers.trim_comments comment_info.body in
+          match coqbot_minimize_text_of_body body with
+          | Some script ->
               (fun () ->
                 init_git_bare_repository ~bot_info
                 >>= fun () ->
                 action_as_github_app ~bot_info ~key ~app_id
                   ~owner:comment_info.issue.issue.owner
                   ~repo:comment_info.issue.issue.repo
-                  (ci_minimize ~comment_info ~requests ~comment_on_error:true))
+                  (run_coq_minimizer ~script
+                     ~comment_thread_id:comment_info.issue.id
+                     ~comment_author:comment_info.author
+                     ~owner:comment_info.issue.issue.owner
+                     ~repo:comment_info.issue.issue.repo))
               |> Lwt.async ;
-              Server.respond_string ~status:`OK
-                ~body:"Handling CI minimization." () )
-            else if
-              string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
-              && comment_info.issue.pull_request
-            then
-              init_git_bare_repository ~bot_info
-              >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id
-                ~owner:comment_info.issue.issue.owner
-                ~repo:comment_info.issue.issue.repo
-                (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
-                   ~signed)
-            else if
-              string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
-              && comment_info.issue.pull_request
-              && String.equal comment_info.issue.issue.owner "coq"
-              && String.equal comment_info.issue.issue.repo "coq"
-              && signed
-            then (
-              (fun () ->
+              Server.respond_string ~status:`OK ~body:"Handling minimization."
+                ()
+          | None ->
+              if
+                string_match
+                  ~regexp:
+                    (f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)" bot_name)
+                  body
+              then (
+                let requests =
+                  Str.matched_group 1 body
+                  |> Str.global_replace (Str.regexp "[ ,]+") " "
+                  |> String.split ~on:' '
+                  |> List.map ~f:Stdlib.String.trim
+                  |> List.filter ~f:(fun r -> not (String.is_empty r))
+                in
+                (fun () ->
+                  init_git_bare_repository ~bot_info
+                  >>= fun () ->
+                  action_as_github_app ~bot_info ~key ~app_id
+                    ~owner:comment_info.issue.issue.owner
+                    ~repo:comment_info.issue.issue.repo
+                    (ci_minimize ~comment_info ~requests ~comment_on_error:true))
+                |> Lwt.async ;
+                Server.respond_string ~status:`OK
+                  ~body:"Handling CI minimization." () )
+              else if
+                string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
+                && comment_info.issue.pull_request
+              then
+                init_git_bare_repository ~bot_info
+                >>= fun () ->
                 action_as_github_app ~bot_info ~key ~app_id
                   ~owner:comment_info.issue.issue.owner
                   ~repo:comment_info.issue.issue.repo
-                  (merge_pull_request_action comment_info))
-              |> Lwt.async ;
-              Server.respond_string ~status:`OK
-                ~body:(f "Received a request to merge the PR.")
-                () )
-            else
-              Server.respond_string ~status:`OK
-                ~body:(f "Unhandled comment: %s" body)
-                () )
+                  (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
+                     ~signed)
+              else if
+                string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
+                && comment_info.issue.pull_request
+                && String.equal comment_info.issue.issue.owner "coq"
+                && String.equal comment_info.issue.issue.repo "coq"
+                && signed
+              then (
+                (fun () ->
+                  action_as_github_app ~bot_info ~key ~app_id
+                    ~owner:comment_info.issue.issue.owner
+                    ~repo:comment_info.issue.issue.repo
+                    (merge_pull_request_action comment_info))
+                |> Lwt.async ;
+                Server.respond_string ~status:`OK
+                  ~body:(f "Received a request to merge the PR.")
+                  () )
+              else
+                Server.respond_string ~status:`OK
+                  ~body:(f "Unhandled comment: %s" body)
+                  () )
       | Ok (signed, CheckRunReRequested {external_id}) ->
           if not signed then
             Server.respond_string ~status:(Code.status_of_code 401)
