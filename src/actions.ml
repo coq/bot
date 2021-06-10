@@ -993,7 +993,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 |> List.map ~f:(fun (name, err) ->
                        Printf.sprintf "- %s (%s)" name err)
                 |> String.concat ~sep:"\n" )
-              ^ "\n" )
+              ^ "\n\n" )
       in
       let bad_jobs_description ~f =
         match
@@ -1014,7 +1014,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 |> List.map ~f:(fun (reason, {target}) ->
                        Printf.sprintf "- %s because %s" target reason)
                 |> String.concat ~sep:"\n" )
-              ^ "\n" )
+              ^ "\n\n" )
       in
       let bad_and_unminimizable_jobs_description ~f =
         match (bad_jobs_description ~f, unminimizable_jobs_description ~f) with
@@ -1036,7 +1036,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 |> List.map ~f:(fun (name, err) ->
                        Printf.sprintf "- %s (%s)" name err)
                 |> String.concat ~sep:"\n" )
-              ^ "\n" )
+              ^ "\n\n" )
       in
       let unfinished_pipelines_description =
         (if base_pipeline_finished then [] else [f "base commit (%s)" base])
@@ -1168,7 +1168,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                   ( "The following requests were not fulfilled:\n"
                   ^ ( unsuccessful_requests
                     |> List.map ~f:(fun msg -> "- " ^ msg)
-                    |> String.concat ~sep:"\n" ) )
+                    |> String.concat ~sep:"\n" )
+                  ^ "\n\n" )
           in
           let unfound_requests_report =
             let all_jobs =
@@ -1299,10 +1300,11 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                       suggest minimizing):\n\
                       %s\n"
                      (pluralize "target" possible_jobs_to_minimize)
-                     ( possible_jobs_to_minimize
-                     |> List.map ~f:(fun (reason, {target}) ->
-                            f "- %s (because %s)" target reason)
-                     |> String.concat ~sep:"\n" ))
+                     ( ( possible_jobs_to_minimize
+                       |> List.map ~f:(fun (reason, {target}) ->
+                              f "- %s (because %s)" target reason)
+                       |> String.concat ~sep:"\n" )
+                     ^ "\n\n" ))
           in
           let suggest_all_jobs =
             match (suggest_jobs, suggest_only_all_jobs) with
