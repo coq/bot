@@ -45,16 +45,17 @@ let string_of_installation_tokens =
 
 let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
+  let extract_minimize_file body =
+    body
+    |> Str.split (Str.regexp_string "```")
+    |> List.hd |> Option.value ~default:""
+  in
   let coqbot_minimize_text_of_body body =
     if
       string_match
         ~regexp:(f "@%s:? [Mm]inimize[^`]*```[^\n]*\n\\(.+\\)" bot_name)
         body
-    then
-      Some
-        ( Str.matched_group 1 body
-        |> Str.split (Str.regexp_string "```")
-        |> List.hd |> Option.value ~default:"" )
+    then Some (Str.matched_group 1 body |> extract_minimize_file)
     else None
   in
   (* print_endline "Request received."; *)
@@ -203,6 +204,15 @@ let callback _conn req body =
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
           | None ->
+              let parse_minimiation_requests requests =
+                requests
+                |> Str.global_replace (Str.regexp "[ ,]+") " "
+                |> String.split ~on:' '
+                |> List.map ~f:Stdlib.String.trim
+                (* remove trailing : in case the user stuck a : at the end of the line *)
+                |> List.map ~f:(Str.global_replace (Str.regexp ":$") "")
+                |> List.filter ~f:(fun r -> not (String.is_empty r))
+              in
               if
                 string_match
                   ~regexp:
@@ -210,11 +220,7 @@ let callback _conn req body =
                   body
               then (
                 let requests =
-                  Str.matched_group 1 body
-                  |> Str.global_replace (Str.regexp "[ ,]+") " "
-                  |> String.split ~on:' '
-                  |> List.map ~f:Stdlib.String.trim
-                  |> List.filter ~f:(fun r -> not (String.is_empty r))
+                  Str.matched_group 1 body |> parse_minimiation_requests
                 in
                 (fun () ->
                   init_git_bare_repository ~bot_info
@@ -222,10 +228,40 @@ let callback _conn req body =
                   action_as_github_app ~bot_info ~key ~app_id
                     ~owner:comment_info.issue.issue.owner
                     ~repo:comment_info.issue.issue.repo
-                    (ci_minimize ~comment_info ~requests ~comment_on_error:true))
+                    (ci_minimize ~comment_info ~requests ~comment_on_error:true
+                       ~bug_file_contents:None))
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:"Handling CI minimization." () )
+              else if
+                string_match
+                  ~regexp:
+                    (f
+                       "@%s:? resume [Cc][Ii][- \
+                        ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
+                        ]*\\)\n\
+                        \\(.+\\)"
+                       bot_name)
+                  body
+              then (
+                let requests, bug_file_contents =
+                  (Str.matched_group 2 body, Str.matched_group 3 body)
+                in
+                let requests, bug_file_contents =
+                  ( parse_minimiation_requests requests
+                  , extract_minimize_file bug_file_contents )
+                in
+                (fun () ->
+                  init_git_bare_repository ~bot_info
+                  >>= fun () ->
+                  action_as_github_app ~bot_info ~key ~app_id
+                    ~owner:comment_info.issue.issue.owner
+                    ~repo:comment_info.issue.issue.repo
+                    (ci_minimize ~comment_info ~requests ~comment_on_error:true
+                       ~bug_file_contents:(Some bug_file_contents)))
+                |> Lwt.async ;
+                Server.respond_string ~status:`OK
+                  ~body:"Handling CI minimization resumption." () )
               else if
                 string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
                 && comment_info.issue.pull_request
@@ -295,6 +331,11 @@ let callback _conn req body =
       body
       >>= fun body ->
       coq_bug_minimizer_results_action ~ci:true body ~bot_info ~key ~app_id
+  | "/resume-ci-minimization" ->
+      body
+      >>= fun body ->
+      coq_bug_minimizer_resume_ci_minimization_action body ~bot_info ~key
+        ~app_id
   | _ ->
       Server.respond_not_found ()
 

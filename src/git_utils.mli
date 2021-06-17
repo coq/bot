@@ -51,4 +51,5 @@ val git_run_ci_minimization :
   -> passing_urls:string
   -> base:string
   -> head:string
+  -> bug_file_name:string option
   -> (unit, string) result Lwt.t
