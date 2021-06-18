@@ -1125,8 +1125,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 head try_again_msg
           | _ :: _ ->
               f
-                "I am now running minimization at commit %s on %s. I'll come \
-                 back to you with the results once it's done.%s"
+                "I am now %s minimization at commit %s on %s. I'll come back \
+                 to you with the results once it's done.%s"
+                ( if Option.is_none bug_file_contents then "running"
+                else "resuming" )
                 head
                 (jobs_minimized |> String.concat ~sep:", ")
                 note_some_head_unfinished_msg )
@@ -1230,9 +1232,11 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                requested." ^ try_again_msg ^ "\n" ^ msg
           | _ :: _, _ ->
               f
-                "I am now running minimization at commit %s on requested %s \
-                 %s. I'll come back to you with the results once it's done.%s\n\n\
+                "I am now %s minimization at commit %s on requested %s %s. \
+                 I'll come back to you with the results once it's done.%s\n\n\
                  %s"
+                ( if Option.is_none bug_file_contents then "running"
+                else "resuming" )
                 head
                 (pluralize "target" successful_requests)
                 (successful_requests |> String.concat ~sep:", ")
