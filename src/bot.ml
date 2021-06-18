@@ -47,7 +47,7 @@ let callback _conn req body =
   let body = Cohttp_lwt.Body.to_string body in
   let extract_minimize_file body =
     body
-    |> Str.split (Str.regexp_string "```")
+    |> Str.split (Str.regexp_string "\n```")
     |> List.hd |> Option.value ~default:""
   in
   let coqbot_minimize_text_of_body body =
@@ -240,6 +240,8 @@ let callback _conn req body =
                        "@%s:? resume [Cc][Ii][- \
                         ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
                         ]*\\)\n\
+                        +```[^\n\
+                        ]*\n\
                         \\(.+\\)"
                        bot_name)
                   body
