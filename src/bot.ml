@@ -53,7 +53,8 @@ let callback _conn req body =
   let coqbot_minimize_text_of_body body =
     if
       string_match
-        ~regexp:(f "@%s:? [Mm]inimize[^`]*```[^\n]*\n\\(.+\\)" bot_name)
+        ~regexp:
+          (f "@%s:? [Mm]inimize[^`]*```[^\n]*\n\\(\\(.\\|\n\\)+\\)" bot_name)
         body
     then Some (Str.matched_group 1 body |> extract_minimize_file)
     else None
@@ -242,7 +243,8 @@ let callback _conn req body =
                         ]*\\)\n\
                         +```[^\n\
                         ]*\n\
-                        \\(.+\\)"
+                        \\(\\(.\\|\n\
+                        \\)+\\)"
                        bot_name)
                   body
               then (
