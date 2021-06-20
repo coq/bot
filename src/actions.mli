@@ -76,4 +76,12 @@ val ci_minimize :
   -> comment_info:GitHub_types.comment_info
   -> requests:string list
   -> comment_on_error:bool
+  -> bug_file_contents:string option
   -> unit Lwt.t
+
+val coq_bug_minimizer_resume_ci_minimization_action :
+     bot_info:Bot_info.t
+  -> key:Mirage_crypto_pk.Rsa.priv
+  -> app_id:int
+  -> string
+  -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t

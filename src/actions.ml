@@ -472,14 +472,25 @@ type ci_minimization_info =
   ; passing_urls: string }
 
 let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
-    ~ci_minimization_infos =
-  Lwt_list.map_s
-    (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
-      git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
-        ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base
-        ~head
-      >>= fun result -> Lwt.return (target, result))
-    ci_minimization_infos
+    ~ci_minimization_infos ~bug_file_contents =
+  (* for convenience of control flow, we always create the temporary
+     file, but we only pass in the file name if the bug file contents
+     is non-None *)
+  Lwt_io.with_temp_file (fun (bug_file_name, bug_file_ch) ->
+      Lwt_io.write bug_file_ch (Option.value ~default:"" bug_file_contents)
+      >>= fun () ->
+      Lwt_io.flush bug_file_ch
+      >>= fun () ->
+      let bug_file_name =
+        Option.map ~f:(fun _ -> bug_file_name) bug_file_contents
+      in
+      Lwt_list.map_s
+        (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
+          git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
+            ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base
+            ~head ~bug_file_name
+          >>= fun result -> Lwt.return (target, result))
+        ci_minimization_infos)
   >>= fun results ->
   results
   |> List.partition_map ~f:(function
@@ -879,7 +890,7 @@ let suggest_ci_minimization_for_pr = function
       Suggest
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
-    ~head_pipeline_summary ~request ~comment_on_error =
+    ~head_pipeline_summary ~request ~comment_on_error ~bug_file_contents =
   fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary
   >>= function
@@ -964,7 +975,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             |> String.concat ~sep:", " ) )
       >>= fun () ->
       run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
-        ~ci_minimization_infos:jobs_to_minimize
+        ~ci_minimization_infos:jobs_to_minimize ~bug_file_contents
       >>= fun (jobs_minimized, jobs_that_could_not_be_minimized) ->
       let pluralize word ?plural ls =
         match (ls, plural) with
@@ -1114,8 +1125,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 head try_again_msg
           | _ :: _ ->
               f
-                "I am now running minimization at commit %s on %s. I'll come \
-                 back to you with the results once it's done.%s"
+                "I am now %s minimization at commit %s on %s. I'll come back \
+                 to you with the results once it's done.%s"
+                ( if Option.is_none bug_file_contents then "running"
+                else "resuming" )
                 head
                 (jobs_minimized |> String.concat ~sep:", ")
                 note_some_head_unfinished_msg )
@@ -1219,9 +1232,11 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                requested." ^ try_again_msg ^ "\n" ^ msg
           | _ :: _, _ ->
               f
-                "I am now running minimization at commit %s on requested %s \
-                 %s. I'll come back to you with the results once it's done.%s\n\n\
+                "I am now %s minimization at commit %s on requested %s %s. \
+                 I'll come back to you with the results once it's done.%s\n\n\
                  %s"
+                ( if Option.is_none bug_file_contents then "running"
+                else "resuming" )
                 head
                 (pluralize "target" successful_requests)
                 (successful_requests |> String.concat ~sep:", ")
@@ -1388,7 +1403,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         "Error while attempting to find jobs to minimize from PR #%d:\n%s"
         pr_number err
 
-let ci_minimize ~bot_info ~comment_info ~requests =
+let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error
+    ~bug_file_contents =
   minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
     ~repo:comment_info.issue.issue.repo ~pr_number:comment_info.issue.number
     ~head_pipeline_summary:None
@@ -1400,6 +1416,7 @@ let ci_minimize ~bot_info ~comment_info ~requests =
           RequestAll
       | requests ->
           RequestExplicit requests )
+    ~comment_on_error ~bug_file_contents
 
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
@@ -1499,7 +1516,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
               | "coq", "coq", "failed", Some pr_number ->
                   minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                     ~head_pipeline_summary:(Some summary) ~request:Auto
-                    ~comment_on_error:false
+                    ~comment_on_error:false ~bug_file_contents:None
               | _ ->
                   Lwt.return_unit ) ) )
 
@@ -1546,6 +1563,77 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
                   Lwt_io.printf "Error: %s\n" f ))
         |> Lwt.async ;
         Server.respond_string ~status:`OK ~body:"" ()
+    | _ ->
+        Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
+  else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
+
+let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
+    =
+  if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
+    let stamp = Str.matched_group 1 body in
+    let message = Str.matched_group 2 body in
+    match Str.split (Str.regexp " ") stamp with
+    | [comment_thread_id; _author; _repo_name; _branch_name; owner; repo] -> (
+        message |> String.split ~on:'\n'
+        |> function
+        | docker_image
+          :: target
+             :: opam_switch
+                :: failing_urls
+                   :: passing_urls :: base :: head :: bug_file_lines ->
+            (let bug_file_contents = String.concat ~sep:"\n" bug_file_lines in
+             fun () ->
+               init_git_bare_repository ~bot_info
+               >>= fun () ->
+               Github_installations.action_as_github_app ~bot_info ~key ~app_id
+                 ~owner ~repo
+                 (run_ci_minimization ~comment_thread_id ~owner ~repo ~base
+                    ~head
+                    ~ci_minimization_infos:
+                      [ { target
+                        ; opam_switch
+                        ; failing_urls
+                        ; passing_urls
+                        ; docker_image
+                        ; full_target= target (* dummy value *) } ]
+                    ~bug_file_contents:(Some bug_file_contents))
+               >>= function
+               | [], [] ->
+                   Lwt_io.printlf
+                     "Somehow no jobs were returned from minimization \
+                      resumption?\n\
+                      %s"
+                     message
+               | jobs_minimized, jobs_that_could_not_be_minimized -> (
+                   ( match jobs_minimized with
+                   | [] ->
+                       Lwt.return_unit
+                   | _ ->
+                       Lwt_io.printlf "Resuming minimization of %s"
+                         (jobs_minimized |> String.concat ~sep:", ") )
+                   >>= fun () ->
+                   match
+                     jobs_that_could_not_be_minimized
+                     |> List.map ~f:(fun (job, reason) ->
+                            f "%s because %s" job reason)
+                   with
+                   | [] ->
+                       Lwt.return_unit
+                   | msgs ->
+                       Lwt_io.printlf "Could not resume minimization of %s"
+                         (msgs |> String.concat ~sep:", ") ))
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:"Handling CI minimization resumption." ()
+        | _ ->
+            Server.respond_string ~status:(Code.status_of_code 400)
+              ~body:
+                (f
+                   "Error: resume-ci-minimization called without enough \
+                    arguments:\n\
+                    %s"
+                   message)
+              () )
     | _ ->
         Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
   else Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
