@@ -1305,22 +1305,25 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                      |> String.concat ~sep:", " ))
           in
           let suggest_only_all_jobs =
+            let pre_message =
+              f
+                "If you tag me saying @`coqbot ci minimize all`, I will \
+                 additionally minimize the following %s (which I do not \
+                 suggest minimizing):"
+                (pluralize "target" possible_jobs_to_minimize)
+            in
             match possible_jobs_to_minimize with
             | [] ->
                 None
+            | [(reason, {target})] ->
+                Some (f "%s %s (because %s)\n\n\n" pre_message target reason)
             | _ ->
                 Some
-                  (f
-                     "If you tag me saying @`coqbot ci minimize all`, I will \
-                      additionally minimize the following %s (which I do not \
-                      suggest minimizing):\n\
-                      %s\n"
-                     (pluralize "target" possible_jobs_to_minimize)
-                     ( ( possible_jobs_to_minimize
-                       |> List.map ~f:(fun (reason, {target}) ->
-                              f "- %s (because %s)" target reason)
-                       |> String.concat ~sep:"\n" )
-                     ^ "\n\n" ))
+                  (f "%s\n%s\n\n\n" pre_message
+                     ( possible_jobs_to_minimize
+                     |> List.map ~f:(fun (reason, {target}) ->
+                            f "- %s (because %s)" target reason)
+                     |> String.concat ~sep:"\n" ))
           in
           let suggest_all_jobs =
             match (suggest_jobs, suggest_only_all_jobs) with
