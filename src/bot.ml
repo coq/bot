@@ -59,6 +59,15 @@ let callback _conn req body =
     then Some (Str.matched_group 1 body |> extract_minimize_file)
     else None
   in
+  let strip_quoted_bot_name body =
+    (* If someone says "`@coqbot minimize foo`", (with backticks), we
+       don't want to treat that as them tagging coqbot, so we adjust
+       the tagging to "@`coqbot minimize foo`" so that the matching
+       below doesn't pick up the name *)
+    Str.global_replace
+      (Str.regexp_string (f "`@%s " bot_name))
+      (f "@`%s " bot_name) body
+  in
   (* print_endline "Request received."; *)
   match Uri.path (Request.uri req) with
   | "/job" | "/pipeline" (* legacy endpoints *) | "/gitlab" -> (
@@ -168,7 +177,7 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) -> (
-          let body = Helpers.trim_comments body in
+          let body = body |> Helpers.trim_comments |> strip_quoted_bot_name in
           match coqbot_minimize_text_of_body body with
           | Some script ->
               (fun () ->
@@ -187,7 +196,9 @@ let callback _conn req body =
                 ~body:(f "Unhandled new issue: %s" body)
                 () )
       | Ok (signed, CommentCreated comment_info) -> (
-          let body = Helpers.trim_comments comment_info.body in
+          let body =
+            comment_info.body |> Helpers.trim_comments |> strip_quoted_bot_name
+          in
           match coqbot_minimize_text_of_body body with
           | Some script ->
               (fun () ->

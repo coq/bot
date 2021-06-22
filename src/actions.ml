@@ -1297,8 +1297,9 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             | _ ->
                 Some
                   (f
-                     "If you tag me saying @`coqbot ci minimize`, I will \
-                      minimize the following %s: %s.\n"
+                     "If you tag me saying `@%s ci minimize`, I will minimize \
+                      the following %s: %s.\n"
+                     bot_info.name
                      (pluralize "target" suggested_jobs_to_minimize)
                      ( suggested_jobs_to_minimize
                      |> List.map ~f:(fun {target} -> target)
@@ -1307,9 +1308,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
           let suggest_only_all_jobs =
             let pre_message =
               f
-                "If you tag me saying @`coqbot ci minimize all`, I will \
+                "If you tag me saying `@%s ci minimize all`, I will \
                  additionally minimize the following %s (which I do not \
                  suggest minimizing):"
+                bot_info.name
                 (pluralize "target" possible_jobs_to_minimize)
             in
             match possible_jobs_to_minimize with
