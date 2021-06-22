@@ -637,6 +637,7 @@ let shorten_ci_check_name target =
   target
   |> Str.global_replace (Str.regexp "GitLab CI job") ""
   |> Str.global_replace (Str.regexp "(pull request)") ""
+  |> Str.global_replace (Str.regexp "(branch)") ""
   |> Stdlib.String.trim
 
 let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
