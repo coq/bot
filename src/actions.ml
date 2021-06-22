@@ -1311,7 +1311,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             | _ ->
                 Some
                   (f
-                     "If you tag me and say `ci minimize all`, I will \
+                     "If you tag me saying @`coqbot ci minimize all`, I will \
                       additionally minimize the following %s (which I do not \
                       suggest minimizing):\n\
                       %s\n"
