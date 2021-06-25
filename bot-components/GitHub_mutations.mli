@@ -11,6 +11,11 @@ val post_comment :
 
 val report_on_posting_comment : (string, string) result -> unit Lwt.t
 
+val close_pull_request :
+     bot_info:Bot_info.t
+  -> pr_id:id
+  -> unit Lwt.t
+
 val merge_pull_request :
      bot_info:Bot_info.t
   -> ?merge_method:merge_method
