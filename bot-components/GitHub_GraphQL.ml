@@ -261,6 +261,19 @@ module MergePullRequest =
   }
 |}]
 
+module ClosePullRequest =
+[%graphql
+{|
+  mutation closePullRequest($pr_id: ID!) {
+    closePullRequest(
+      input: {pullRequestId: $pr_id}) {
+      pullRequest {
+        state
+      }
+    }
+  }
+|}]
+
 module NewCheckRun =
 [%graphql
 {|
@@ -335,6 +348,58 @@ module GetCheckRuns =
       }
     }
   }
+|}]
+
+module GetOpenPullRequestWithLabel =
+[%graphql
+{|
+
+query getOpenPullRequestWithLabel($owner: String!, $repo:String!, $label:String!, $cursor: String, $len: Int!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequests(first: $len, labels: [$label], states: [OPEN], after: $cursor) {
+      nodes {
+        id
+        number
+      }
+      pageInfo {
+        endCursor
+      }
+    }
+  }
+}
+
+|}]
+
+module GetPullRequestLabelTimeline =
+[%graphql
+{|
+
+query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequest(number: $prNumber) {
+      timelineItems(itemTypes: [LABELED_EVENT, UNLABELED_EVENT], after: $cursor, first: $len) {
+        nodes {
+          ... on LabeledEvent {
+            createdAt
+            label {
+              name
+            }
+          }
+          ... on UnlabeledEvent {
+            createdAt
+            label {
+              name
+            }
+          }
+        }
+        pageInfo {
+          endCursor
+        }
+      }
+    }
+  }
+}
+
 |}]
 
 module GetBaseAndHeadChecks =

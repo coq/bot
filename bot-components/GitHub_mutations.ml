@@ -47,6 +47,15 @@ let update_milestone ~bot_info ~issue ~milestone =
   | Error err ->
       Stdio.print_endline (f "Error while updating milestone: %s" err)
 
+let close_pull_request ~bot_info ~pr_id =
+  GitHub_GraphQL.ClosePullRequest.make ~pr_id ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+  >|= function
+  | Ok _ ->
+      ()
+  | Error err ->
+      Stdio.print_endline (f "Error while closing PR: %s" err)
+
 let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
     ~pr_id =
   let merge_method =

@@ -2080,3 +2080,51 @@ let push_action ~bot_info ~base_ref ~commits_msg =
     else Lwt.return ()
   in
   Lwt_list.iter_s commit_action commits_msg
+
+let days_elapsed ts =
+  (* Yes, I know this is wrong because of DST and black holes but it should
+     still be correct enough *)
+  Float.to_int ((Unix.time () -. ts) /. (3600. *. 24.))
+
+let coq_check_stale_pr ~bot_info ~owner ~repo ~warn_after ~close_after =
+  let label = "needs: rebase" in
+  GitHub_queries.get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label
+  >>= function
+  | Ok prs ->
+    let iter (pr_id, pr_number) =
+      GitHub_queries.get_pull_request_label_timeline ~bot_info ~owner ~repo ~pr_number >>= function
+      | Ok timeline ->
+        let find (set, name, ts) =
+          if set && String.equal name label then Some ts else None
+        in
+        (* Look for most recent label setting *)
+        let timeline = List.rev timeline in
+        let days = match List.find_map ~f:find timeline with
+        | None ->
+          (* even with a race condition it cannot happen *)
+          failwith (f "Anomaly: Label \"%s\" absent from timeline of PR #%i" label pr_number)
+        | Some ts -> days_elapsed ts
+        in
+        if days >= warn_after + close_after then
+          GitHub_mutations.post_comment ~id:pr_id
+            ~message:
+              (f "This PR was not rebased after %i days despite the warning, it is now closed." close_after)
+            ~bot_info
+          >>= GitHub_mutations.report_on_posting_comment
+          >>= fun () ->
+          GitHub_mutations.close_pull_request ~bot_info ~pr_id
+        else if days >= warn_after then
+          GitHub_mutations.post_comment ~id:pr_id
+            ~message:
+              (f "The \"%s\" label was set more than %i days ago. If \
+              the PR is not rebased in %i days, it will be automatically closed." label warn_after close_after)
+            ~bot_info
+          >>= GitHub_mutations.report_on_posting_comment
+        else
+          Lwt.return ()
+      | Error e ->
+        Lwt_io.print (f "Error: %s\n" e)
+    in
+    Lwt_list.iter_p iter prs
+  | Error err ->
+    Lwt_io.print (f "Error: %s\n" err)
