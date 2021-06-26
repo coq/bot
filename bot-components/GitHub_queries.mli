@@ -115,3 +115,10 @@ val get_pull_request_label_timeline :
   -> repo:string
   -> pr_number:int
   -> ((bool * string * float) list, string) result Lwt.t
+
+val get_pull_request_labels :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> pr_number:int
+  -> (string list, string) result Lwt.t
