@@ -1803,12 +1803,20 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
   let label = "needs: rebase" in
   let issue = pr_info.issue.issue in
   GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo ~label >>= fun label_id ->
+  GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo ~label:"stale" >>= fun stale_id ->
   if ok then (
-    (* Remove rebase label *)
-    if pr_info.issue.labels |> List.exists ~f:(String.equal label)
+    (* Remove rebase / stale label *)
+    let map (label, id) =
+      if pr_info.issue.labels |> List.exists ~f:(String.equal label) then Some id else None
+    in
+    let labels = List.filter_map ~f:map [
+      "stale", stale_id;
+      label, label_id;
+    ] in
+    if not (List.is_empty labels)
     then
       (fun () ->
-        GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels:[label_id] ~bot_info)
+        GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels ~bot_info)
       |> Lwt.async ;
     (* Force push *)
     let open Lwt.Infix in
@@ -2089,8 +2097,7 @@ let days_elapsed ts =
      still be correct enough *)
   Float.to_int ((Unix.time () -. ts) /. (3600. *. 24.))
 
-let coq_check_stale_pr ~bot_info ~owner ~repo ~warn_after ~close_after =
-  let label = "needs: rebase" in
+let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action () =
   GitHub_queries.get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label
   >>= function
   | Ok prs ->
@@ -2108,26 +2115,48 @@ let coq_check_stale_pr ~bot_info ~owner ~repo ~warn_after ~close_after =
           failwith (f "Anomaly: Label \"%s\" absent from timeline of PR #%i" label pr_number)
         | Some ts -> days_elapsed ts
         in
-        if days >= warn_after + close_after then
-          GitHub_mutations.post_comment ~id:pr_id
-            ~message:
-              (f "This PR was not rebased after %i days despite the warning, it is now closed." close_after)
-            ~bot_info
-          >>= GitHub_mutations.report_on_posting_comment
-          >>= fun () ->
-          GitHub_mutations.close_pull_request ~bot_info ~pr_id
-        else if days >= warn_after then
-          GitHub_mutations.post_comment ~id:pr_id
-            ~message:
-              (f "The \"%s\" label was set more than %i days ago. If \
-              the PR is not rebased in %i days, it will be automatically closed." label warn_after close_after)
-            ~bot_info
-          >>= GitHub_mutations.report_on_posting_comment
-        else
-          Lwt.return ()
+        if days >= after then action pr_id pr_number
+        else Lwt.return ()
       | Error e ->
         Lwt_io.print (f "Error: %s\n" e)
     in
     Lwt_list.iter_p iter prs
   | Error err ->
     Lwt_io.print (f "Error: %s\n" err)
+
+let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after =
+  let label = "needs: rebase" in
+  GitHub_queries.get_label ~bot_info ~owner ~repo ~label:"stale" >>= function
+  | Ok stale_id ->
+    let action pr_id pr_number =
+      GitHub_queries.get_pull_request_labels ~bot_info ~owner ~repo ~pr_number >>= function
+      | Ok labels ->
+        if not (List.mem labels ~equal:String.equal "stale") then
+          GitHub_mutations.post_comment ~id:pr_id
+            ~message:
+              (f "The \"%s\" label was set more than %i days ago. If \
+              the PR is not rebased in %i days, it will be automatically closed." label warn_after close_after)
+            ~bot_info
+          >>= GitHub_mutations.report_on_posting_comment
+          >>= fun () ->
+          GitHub_mutations.add_labels ~bot_info ~labels:[stale_id] ~pr_id
+        else Lwt.return ()
+      | Error err ->
+        Lwt_io.print (f "Error: %s\n" err)
+    in
+    apply_after_label ~bot_info ~owner ~repo ~after:warn_after ~label ~action ()
+  | Error err ->
+    Lwt_io.print (f "Error: %s\n" err)
+
+let coq_check_stale_pr ~bot_info ~owner ~repo ~after =
+  let label = "stale" in
+  let action pr_id _pr_number =
+    GitHub_mutations.post_comment ~id:pr_id
+      ~message:
+        (f "This PR was not rebased after %i days despite the warning, it is now closed." after)
+      ~bot_info
+    >>= GitHub_mutations.report_on_posting_comment
+    >>= fun () ->
+    GitHub_mutations.close_pull_request ~bot_info ~pr_id
+  in
+  apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ()

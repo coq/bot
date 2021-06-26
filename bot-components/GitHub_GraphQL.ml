@@ -436,6 +436,27 @@ query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int
 
 |}]
 
+module GetPullRequestLabels =
+[%graphql
+{|
+
+query getPullRequestLabels($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequest(number: $prNumber) {
+      labels (after: $cursor, first: $len) {
+        nodes {
+          name
+        }
+        pageInfo {
+          endCursor
+        }
+      }
+    }
+  }
+}
+
+|}]
+
 module GetBaseAndHeadChecks =
 [%graphql
 {|

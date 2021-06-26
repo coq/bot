@@ -86,10 +86,17 @@ val coq_bug_minimizer_resume_ci_minimization_action :
   -> string
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 
-val coq_check_stale_pr :
+val coq_check_needs_rebase_pr :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> warn_after:int
   -> close_after:int
+  -> unit Lwt.t
+
+val coq_check_stale_pr :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> after:int
   -> unit Lwt.t
