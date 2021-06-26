@@ -102,6 +102,13 @@ val get_open_pull_requests_with_label :
   -> label:string
   -> ((id * int) list, string) result Lwt.t
 
+val get_label :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> label:string
+  -> (id, string) result Lwt.t
+
 val get_pull_request_label_timeline :
      bot_info:Bot_info.t
   -> owner:string

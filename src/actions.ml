@@ -1800,12 +1800,15 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
           ~pr_number:pr_info.issue.number ~base:local_base_branch
           local_head_branch)
   >>= fun ok ->
+  let label = "needs: rebase" in
+  let issue = pr_info.issue.issue in
+  GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo ~label >>= fun label_id ->
   if ok then (
     (* Remove rebase label *)
-    if pr_info.issue.labels |> List.exists ~f:(String.equal "needs: rebase")
+    if pr_info.issue.labels |> List.exists ~f:(String.equal label)
     then
       (fun () ->
-        GitHub_mutations.remove_rebase_label pr_info.issue.issue ~bot_info)
+        GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels:[label_id] ~bot_info)
       |> Lwt.async ;
     (* Force push *)
     let open Lwt.Infix in
@@ -1816,7 +1819,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
     >>= execute_cmd )
   else (
     (* Add rebase label *)
-    (fun () -> GitHub_mutations.add_rebase_label pr_info.issue.issue ~bot_info)
+    (fun () -> GitHub_mutations.add_labels ~pr_id:pr_info.issue.id ~labels:[label_id] ~bot_info)
     |> Lwt.async ;
     (* Add fail status check *)
     match bot_info.github_install_token with
