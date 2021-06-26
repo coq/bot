@@ -54,9 +54,9 @@ val update_check_run :
 val reflect_pull_request_milestone :
   bot_info:Bot_info.t -> issue_closer_info -> unit Lwt.t
 
-val add_rebase_label : bot_info:Bot_info.t -> issue -> unit Lwt.t
+val add_labels : bot_info:Bot_info.t -> labels:id list -> pr_id:id -> unit Lwt.t
 
-val remove_rebase_label : bot_info:Bot_info.t -> issue -> unit Lwt.t
+val remove_labels : bot_info:Bot_info.t -> labels:id list -> pr_id:id -> unit Lwt.t
 
 val update_milestone : bot_info:Bot_info.t -> string -> issue -> unit Lwt.t
 

@@ -274,6 +274,28 @@ module ClosePullRequest =
   }
 |}]
 
+module LabelPullRequest =
+[%graphql
+{|
+  mutation labelPullRequest($pr_id: ID!, $label_ids: [ID!]!) {
+    addLabelsToLabelable(
+      input: {labelableId: $pr_id, labelIds:$label_ids}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module UnlabelPullRequest =
+[%graphql
+{|
+  mutation unlabelPullRequest($pr_id: ID!, $label_ids: [ID!]!) {
+    removeLabelsFromLabelable(
+      input: {labelableId: $pr_id, labelIds:$label_ids}) {
+      clientMutationId
+    }
+  }
+|}]
+
 module NewCheckRun =
 [%graphql
 {|
@@ -345,6 +367,18 @@ module GetCheckRuns =
             }
           }
         }
+      }
+    }
+  }
+|}]
+
+module GetLabel =
+[%graphql
+{|
+  query getLabels($owner: String!, $repo: String!, $label: String!) {
+    repository(owner:$owner, name:$repo) {
+      label(name: $label) {
+        id
       }
     }
   }
