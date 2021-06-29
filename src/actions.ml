@@ -2097,7 +2097,15 @@ let days_elapsed ts =
      still be correct enough *)
   Float.to_int ((Unix.time () -. ts) /. (3600. *. 24.))
 
-let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action () =
+let rec apply_throttle len action args =
+  if List.is_empty args || len <= 0 then Lwt.return ()
+  else
+    let args, rem = List.split_n args len in
+    Lwt_list.map_p action args >>= fun ans ->
+    let n = List.count ~f:(fun b -> b) ans in
+    apply_throttle (len - n) action rem
+
+let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ?throttle () =
   GitHub_queries.get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label
   >>= function
   | Ok prs ->
@@ -2115,16 +2123,21 @@ let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action () =
           failwith (f "Anomaly: Label \"%s\" absent from timeline of PR #%i" label pr_number)
         | Some ts -> days_elapsed ts
         in
-        if days >= after then action pr_id pr_number
-        else Lwt.return ()
+        if days >= after then
+          action pr_id pr_number
+        else Lwt.return false
       | Error e ->
-        Lwt_io.print (f "Error: %s\n" e)
+        Lwt_io.print (f "Error: %s\n" e) >>= fun () -> Lwt.return false
     in
-    Lwt_list.iter_p iter prs
+    begin match throttle with
+    | None -> Lwt_list.iter_p (fun v -> iter v >>= fun _ -> Lwt.return ()) prs
+    | Some throttle ->
+      apply_throttle throttle iter prs
+    end
   | Error err ->
     Lwt_io.print (f "Error: %s\n" err)
 
-let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after =
+let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after ~throttle =
   let label = "needs: rebase" in
   GitHub_queries.get_label ~bot_info ~owner ~repo ~label:"stale" >>= function
   | Ok stale_id ->
@@ -2139,12 +2152,13 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after =
             ~bot_info
           >>= GitHub_mutations.report_on_posting_comment
           >>= fun () ->
-          GitHub_mutations.add_labels ~bot_info ~labels:[stale_id] ~pr_id
-        else Lwt.return ()
+          GitHub_mutations.add_labels ~bot_info ~labels:[stale_id] ~pr_id >>= fun () ->
+          Lwt.return true
+        else Lwt.return false
       | Error err ->
-        Lwt_io.print (f "Error: %s\n" err)
+        Lwt_io.print (f "Error: %s\n" err) >>= fun () -> Lwt.return false
     in
-    apply_after_label ~bot_info ~owner ~repo ~after:warn_after ~label ~action ()
+    apply_after_label ~bot_info ~owner ~repo ~after:warn_after ~label ~action ~throttle ()
   | Error err ->
     Lwt_io.print (f "Error: %s\n" err)
 
@@ -2157,6 +2171,7 @@ let coq_check_stale_pr ~bot_info ~owner ~repo ~after =
       ~bot_info
     >>= GitHub_mutations.report_on_posting_comment
     >>= fun () ->
-    GitHub_mutations.close_pull_request ~bot_info ~pr_id
+    GitHub_mutations.close_pull_request ~bot_info ~pr_id >>= fun () ->
+    Lwt.return true
   in
   apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ()
