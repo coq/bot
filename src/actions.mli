@@ -92,6 +92,7 @@ val coq_check_needs_rebase_pr :
   -> repo:string
   -> warn_after:int
   -> close_after:int
+  -> throttle:int
   -> unit Lwt.t
 
 val coq_check_stale_pr :
