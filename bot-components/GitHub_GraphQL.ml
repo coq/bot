@@ -397,6 +397,7 @@ query getOpenPullRequestWithLabel($owner: String!, $repo:String!, $label:String!
       }
       pageInfo {
         endCursor
+        hasNextPage
       }
     }
   }
@@ -428,6 +429,7 @@ query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int
         }
         pageInfo {
           endCursor
+          hasNextPage
         }
       }
     }
@@ -449,6 +451,7 @@ query getPullRequestLabels($owner: String!, $repo:String!, $prNumber: Int!, $cur
         }
         pageInfo {
           endCursor
+          hasNextPage
         }
       }
     }
