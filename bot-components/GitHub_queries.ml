@@ -688,7 +688,10 @@ let get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label =
       match result#repository with
       | Some result -> (
         let result = result#pullRequests in
-        let next = result#pageInfo#endCursor in
+        let next =
+          if result#pageInfo#hasNextPage then result#pageInfo#endCursor
+          else None
+        in
         let data = match result#nodes with
         | None -> []
         | Some data ->
@@ -716,7 +719,10 @@ let get_pull_request_label_timeline ~bot_info ~owner ~repo ~pr_number =
         match result#pullRequest with
         | Some result -> (
           let result = result#timelineItems in
-          let next = result#pageInfo#endCursor in
+          let next =
+            if result#pageInfo#hasNextPage then result#pageInfo#endCursor
+            else None
+          in
           let data = match result#nodes with
           | None -> []
           | Some data ->
@@ -769,7 +775,10 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
         | Some result -> (
           match result#labels with
           | Some result ->
-            let next = result#pageInfo#endCursor in
+            let next =
+              if result#pageInfo#hasNextPage then result#pageInfo#endCursor
+              else None
+            in
             let data = match result#nodes with
             | None -> []
             | Some data ->
