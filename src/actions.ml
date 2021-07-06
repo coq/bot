@@ -1807,7 +1807,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
   if ok then (
     (* Remove rebase / stale label *)
     let map (label, id) =
-      if pr_info.issue.labels |> List.exists ~f:(String.equal label) then Some id else None
+      if pr_info.issue.labels |> List.exists ~f:(String.equal label) then id else None
     in
     let labels = List.filter_map ~f:map [
       "stale", stale_id;
@@ -1826,8 +1826,9 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
           git_push ~force:true ~remote_ref ~local_ref:local_head_branch)
     >>= execute_cmd )
   else (
-    (* Add rebase label *)
-    (fun () -> GitHub_mutations.add_labels ~pr_id:pr_info.issue.id ~labels:[label_id] ~bot_info)
+    (* Add rebase label if it exists *)
+    let labels = List.filter_opt [label_id] in
+    (fun () -> GitHub_mutations.add_labels ~pr_id:pr_info.issue.id ~labels ~bot_info)
     |> Lwt.async ;
     (* Add fail status check *)
     match bot_info.github_install_token with
@@ -2140,7 +2141,8 @@ let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ?throttle () 
 let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after ~throttle =
   let label = "needs: rebase" in
   GitHub_queries.get_label ~bot_info ~owner ~repo ~label:"stale" >>= function
-  | Ok stale_id ->
+  | Ok None -> Lwt.return ()
+  | Ok (Some stale_id) ->
     let action pr_id pr_number =
       GitHub_queries.get_pull_request_labels ~bot_info ~owner ~repo ~pr_number >>= function
       | Ok labels ->
