@@ -756,9 +756,8 @@ let get_label ~bot_info ~owner ~repo ~label =
     match result#repository with
     | Some result -> (
       match result#label with
-      | Some label -> Ok label#id
-      | None ->
-        Error (f "Label %s does not exist." label)
+      | Some label -> Ok (Some label#id)
+      | None -> Ok None
       )
     | None ->
       Error (f "Repository %s/%s does not exist." owner repo)

@@ -107,7 +107,7 @@ val get_label :
   -> owner:string
   -> repo:string
   -> label:string
-  -> (id, string) result Lwt.t
+  -> (id option, string) result Lwt.t
 
 val get_pull_request_label_timeline :
      bot_info:Bot_info.t
