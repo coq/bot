@@ -2146,7 +2146,8 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after ~t
     let action pr_id pr_number =
       GitHub_queries.get_pull_request_labels ~bot_info ~owner ~repo ~pr_number >>= function
       | Ok labels ->
-        if not (List.mem labels ~equal:String.equal "stale") then
+        let has_label l = List.mem labels ~equal:String.equal l in
+        if not (has_label "stale" || has_label "needs: independent fix") then
           GitHub_mutations.post_comment ~id:pr_id
             ~message:
               (f "The \"%s\" label was set more than %i days ago. If \
