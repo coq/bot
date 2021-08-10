@@ -668,83 +668,96 @@ let get_cards_in_column column_id =
 
 let get_list getter =
   let rec get_list_aux cursor accu =
-  getter cursor >>= function
-  | Ok (ans, cursor) ->
-    let accu = List.rev_append ans accu in
-    (match cursor with
-    | None -> Lwt.return (Ok (List.rev accu))
-    | Some cursor -> get_list_aux (Some cursor) accu
-    )
-  | Error err -> Lwt.return @@ Error err
+    getter cursor
+    >>= function
+    | Ok (ans, cursor) -> (
+        let accu = List.rev_append ans accu in
+        match cursor with
+        | None ->
+            Lwt.return (Ok (List.rev accu))
+        | Some cursor ->
+            get_list_aux (Some cursor) accu )
+    | Error err ->
+        Lwt.return @@ Error err
   in
   get_list_aux None []
 
 let get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label =
   let getter cursor =
-    GitHub_GraphQL.GetOpenPullRequestWithLabel.make ~owner ~repo ~label ~len:100 ?cursor ()
+    GitHub_GraphQL.GetOpenPullRequestWithLabel.make ~owner ~repo ~label ~len:100
+      ?cursor ()
     |> GraphQL_query.send_graphql_query ~bot_info
     >>= function
     | Ok result -> (
       match result#repository with
-      | Some result -> (
-        let result = result#pullRequests in
-        let next =
-          if result#pageInfo#hasNextPage then result#pageInfo#endCursor
-          else None
-        in
-        let data = match result#nodes with
-        | None -> []
-        | Some data ->
-          let map o = Option.map ~f:(fun o -> (o#id, o#number)) o in
-          List.filter_map ~f:map (Array.to_list data)
-        in
-        Lwt.return (Ok (data, next))
-        )
+      | Some result ->
+          let result = result#pullRequests in
+          let next =
+            if result#pageInfo#hasNextPage then result#pageInfo#endCursor
+            else None
+          in
+          let data =
+            match result#nodes with
+            | None ->
+                []
+            | Some data ->
+                let map o = Option.map ~f:(fun o -> (o#id, o#number)) o in
+                List.filter_map ~f:map (Array.to_list data)
+          in
+          Lwt.return (Ok (data, next))
       | None ->
-        Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
+          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
       )
     | Error err ->
-      Lwt.return @@ Error err
+        Lwt.return @@ Error err
   in
   get_list getter
 
 let get_pull_request_label_timeline ~bot_info ~owner ~repo ~pr_number =
   let getter cursor =
-    GitHub_GraphQL.GetPullRequestLabelTimeline.make ~owner ~repo ~prNumber:pr_number ~len:100 ?cursor ()
+    GitHub_GraphQL.GetPullRequestLabelTimeline.make ~owner ~repo
+      ~prNumber:pr_number ~len:100 ?cursor ()
     |> GraphQL_query.send_graphql_query ~bot_info
     >>= function
     | Ok result -> (
       match result#repository with
       | Some result -> (
         match result#pullRequest with
-        | Some result -> (
-          let result = result#timelineItems in
-          let next =
-            if result#pageInfo#hasNextPage then result#pageInfo#endCursor
-            else None
-          in
-          let data = match result#nodes with
-          | None -> []
-          | Some data ->
-            let cast s = ISO8601.Permissive.date @@ Yojson.Basic.Util.to_string s in
-            let map = function
-            | None -> None
-            | Some (`LabeledEvent e) -> Some (true, e#label#name, cast e#createdAt)
-            | Some (`UnlabeledEvent e) -> Some (false, e#label#name, cast e#createdAt)
-            | Some `Nonexhaustive -> None
+        | Some result ->
+            let result = result#timelineItems in
+            let next =
+              if result#pageInfo#hasNextPage then result#pageInfo#endCursor
+              else None
             in
-            List.filter_map ~f:map (Array.to_list data)
-          in
-          Lwt.return (Ok (data, next))
-          )
+            let data =
+              match result#nodes with
+              | None ->
+                  []
+              | Some data ->
+                  let cast s =
+                    ISO8601.Permissive.date @@ Yojson.Basic.Util.to_string s
+                  in
+                  let map = function
+                    | None ->
+                        None
+                    | Some (`LabeledEvent e) ->
+                        Some (true, e#label#name, cast e#createdAt)
+                    | Some (`UnlabeledEvent e) ->
+                        Some (false, e#label#name, cast e#createdAt)
+                    | Some `Nonexhaustive ->
+                        None
+                  in
+                  List.filter_map ~f:map (Array.to_list data)
+            in
+            Lwt.return (Ok (data, next))
         | None ->
-          Lwt.return @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number)
-      )
+            Lwt.return
+            @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
       | None ->
-        Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
+          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
       )
     | Error err ->
-      Lwt.return @@ Error err
+        Lwt.return @@ Error err
   in
   get_list getter
 
@@ -753,20 +766,22 @@ let get_label ~bot_info ~owner ~repo ~label =
   |> GraphQL_query.send_graphql_query ~bot_info
   >|= Result.map_error ~f:(fun err -> f "Query label failed with %s" err)
   >|= Result.bind ~f:(fun result ->
-    match result#repository with
-    | Some result -> (
-      match result#label with
-      | Some label -> Ok (Some label#id)
-      | None -> Ok None
-      )
-    | None ->
-      Error (f "Repository %s/%s does not exist." owner repo)
-  )
+          match result#repository with
+          | Some result -> (
+            match result#label with
+            | Some label ->
+                Ok (Some label#id)
+            | None ->
+                Ok None )
+          | None ->
+              Error (f "Repository %s/%s does not exist." owner repo))
 
 let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
   let getter cursor =
-    GitHub_GraphQL.GetPullRequestLabels.make ~owner ~repo ~prNumber:pr_number ?cursor ~len:100 ()
-    |> GraphQL_query.send_graphql_query ~bot_info >>= function
+    GitHub_GraphQL.GetPullRequestLabels.make ~owner ~repo ~prNumber:pr_number
+      ?cursor ~len:100 ()
+    |> GraphQL_query.send_graphql_query ~bot_info
+    >>= function
     | Ok result -> (
       match result#repository with
       | Some result -> (
@@ -774,26 +789,28 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
         | Some result -> (
           match result#labels with
           | Some result ->
-            let next =
-              if result#pageInfo#hasNextPage then result#pageInfo#endCursor
-              else None
-            in
-            let data = match result#nodes with
-            | None -> []
-            | Some data ->
-              let map o = Option.map ~f:(fun o -> o#name) o in
-              List.filter_map ~f:map (Array.to_list data)
-            in
-            Lwt.return (Ok (data, next))
+              let next =
+                if result#pageInfo#hasNextPage then result#pageInfo#endCursor
+                else None
+              in
+              let data =
+                match result#nodes with
+                | None ->
+                    []
+                | Some data ->
+                    let map o = Option.map ~f:(fun o -> o#name) o in
+                    List.filter_map ~f:map (Array.to_list data)
+              in
+              Lwt.return (Ok (data, next))
           | None ->
-            Lwt.return @@ Error (f "Error querying labels")
-          )
+              Lwt.return @@ Error (f "Error querying labels") )
         | None ->
-          Lwt.return @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number)
-        )
+            Lwt.return
+            @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
       | None ->
-       Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
+          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
       )
-    | Error err -> Lwt.return @@ Error err
+    | Error err ->
+        Lwt.return @@ Error err
   in
   get_list getter

@@ -96,8 +96,4 @@ val coq_check_needs_rebase_pr :
   -> unit Lwt.t
 
 val coq_check_stale_pr :
-     bot_info:Bot_info.t
-  -> owner:string
-  -> repo:string
-  -> after:int
-  -> unit Lwt.t
+  bot_info:Bot_info.t -> owner:string -> repo:string -> after:int -> unit Lwt.t

@@ -11,10 +11,7 @@ val post_comment :
 
 val report_on_posting_comment : (string, string) result -> unit Lwt.t
 
-val close_pull_request :
-     bot_info:Bot_info.t
-  -> pr_id:id
-  -> unit Lwt.t
+val close_pull_request : bot_info:Bot_info.t -> pr_id:id -> unit Lwt.t
 
 val merge_pull_request :
      bot_info:Bot_info.t
@@ -56,7 +53,8 @@ val reflect_pull_request_milestone :
 
 val add_labels : bot_info:Bot_info.t -> labels:id list -> pr_id:id -> unit Lwt.t
 
-val remove_labels : bot_info:Bot_info.t -> labels:id list -> pr_id:id -> unit Lwt.t
+val remove_labels :
+  bot_info:Bot_info.t -> labels:id list -> pr_id:id -> unit Lwt.t
 
 val update_milestone : bot_info:Bot_info.t -> string -> issue -> unit Lwt.t
 
