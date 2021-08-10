@@ -1800,21 +1800,24 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
           ~pr_number:pr_info.issue.number ~base:local_base_branch
           local_head_branch)
   >>= fun ok ->
-  let label = "needs: rebase" in
+  let rebase_label = "needs: rebase" in
+  let stale_label = "stale" in
   let issue = pr_info.issue.issue in
-  GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo ~label
-  >>= fun label_id ->
   GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
-    ~label:"stale"
-  >>= fun stale_id ->
+    ~label:rebase_label
+  >>= fun rebase_label_id ->
   if ok then (
     (* Remove rebase / stale label *)
+    GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
+      ~label:stale_label
+    >>= fun stale_label_id ->
     let map (label, id) =
       if pr_info.issue.labels |> List.exists ~f:(String.equal label) then id
       else None
     in
     let labels =
-      List.filter_map ~f:map [("stale", stale_id); (label, label_id)]
+      List.filter_map ~f:map
+        [(stale_label, stale_label_id); (rebase_label, rebase_label_id)]
     in
     if not (List.is_empty labels) then
       (fun () ->
@@ -1827,12 +1830,16 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
     >|= (fun remote_ref ->
           git_push ~force:true ~remote_ref ~local_ref:local_head_branch)
     >>= execute_cmd )
-  else
+  else (
     (* Add rebase label if it exists *)
-    let labels = List.filter_opt [label_id] in
-    (fun () ->
-      GitHub_mutations.add_labels ~pr_id:pr_info.issue.id ~labels ~bot_info)
-    |> Lwt.async ;
+    ( match rebase_label_id with
+    | None ->
+        ()
+    | Some label_id ->
+        (fun () ->
+          GitHub_mutations.add_labels ~pr_id:pr_info.issue.id ~labels:[label_id]
+            ~bot_info)
+        |> Lwt.async ) ;
     (* Add fail status check *)
     match bot_info.github_install_token with
     | None ->
@@ -1861,7 +1868,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
               ~details_url:"" ~summary:"" ()
             |> Lwt_result.ok
         | Error e ->
-            Lwt.return (Error e) )
+            Lwt.return (Error e) ) )
 
 let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
     ~signed =
@@ -2149,8 +2156,9 @@ let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ?throttle ()
 
 let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
     ~throttle =
-  let label = "needs: rebase" in
-  GitHub_queries.get_label ~bot_info ~owner ~repo ~label:"stale"
+  let rebase_label = "needs: rebase" in
+  let stale_label = "stale" in
+  GitHub_queries.get_label ~bot_info ~owner ~repo ~label:stale_label
   >>= function
   | Ok None ->
       Lwt.return ()
@@ -2160,7 +2168,7 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
         >>= function
         | Ok labels ->
             let has_label l = List.mem labels ~equal:String.equal l in
-            if not (has_label "stale" || has_label "needs: independent fix")
+            if not (has_label stale_label || has_label "needs: independent fix")
             then
               GitHub_mutations.post_comment ~id:pr_id
                 ~message:
@@ -2168,7 +2176,7 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
                      "The \"%s\" label was set more than %i days ago. If the \
                       PR is not rebased in %i days, it will be automatically \
                       closed."
-                     label warn_after close_after)
+                     rebase_label warn_after close_after)
                 ~bot_info
               >>= GitHub_mutations.report_on_posting_comment
               >>= fun () ->
@@ -2178,8 +2186,8 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
         | Error err ->
             Lwt_io.print (f "Error: %s\n" err) >>= fun () -> Lwt.return false
       in
-      apply_after_label ~bot_info ~owner ~repo ~after:warn_after ~label ~action
-        ~throttle ()
+      apply_after_label ~bot_info ~owner ~repo ~after:warn_after
+        ~label:rebase_label ~action ~throttle ()
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 

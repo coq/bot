@@ -148,8 +148,6 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
   | Error err ->
       Stdio.print_endline (f "Error while updating check run: %s" err)
 
-(* TODO: use GraphQL API *)
-
 let add_labels ~bot_info ~labels ~pr_id =
   let label_ids = Array.of_list labels in
   GitHub_GraphQL.LabelPullRequest.make ~pr_id ~label_ids ()
@@ -161,6 +159,8 @@ let remove_labels ~bot_info ~labels ~pr_id =
   GitHub_GraphQL.UnlabelPullRequest.make ~pr_id ~label_ids ()
   |> GraphQL_query.send_graphql_query ~bot_info
   >>= fun _ -> Lwt.return ()
+
+(* TODO: use GraphQL API *)
 
 let update_milestone ~bot_info new_milestone (issue : issue) =
   let headers = headers (github_header bot_info) ~bot_info in
