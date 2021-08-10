@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors: 
+- affiliation: Inria
+  family-names: Zimmermann
+  given-names: "Théo"
+  orcid: "https://orcid.org/0000-0002-3580-8806"
+- family-names: Coolen
+  given-names: Julien
+- affiliation: MIT
+  family-names: Gross
+  given-names: Jason
+title: "Coqbot"
+version: "0.2.0"
+date-released: 2020-09-09
+url: "https://github.com/coq/bot"
+license: MIT
