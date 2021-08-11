@@ -1729,7 +1729,14 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                 GitHub_queries.get_team_membership ~bot_info ~org:"coq"
                   ~team:"pushers" ~user:comment_info.author
                 >>= function
-                | Ok _ -> (
+                | Ok false ->
+                    (* User not found in the team *)
+                    Lwt.return_error
+                      (f
+                         "@%s: You can't merge this PR because you're not a \
+                          member of the `@coq/pushers` team."
+                         comment_info.author)
+                | Ok true -> (
                     GitHub_mutations.merge_pull_request ~bot_info ~pr_id:pr.id
                       ~commit_headline:
                         (f "Merge PR #%d: %s" pr.issue.number
@@ -1765,12 +1772,11 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                                     s ^ f "- %s\n" o)))
                         >>= GitHub_mutations.report_on_posting_comment
                         >>= fun () -> Lwt.return_ok () )
-                | Error _ ->
+                | Error e ->
                     Lwt.return_error
                       (f
-                         "@%s: You can't merge this PR because you're not a \
-                          member of the `@coq/pushers` team."
-                         comment_info.author) ) )
+                         "Something unexpected happened: %s\n\
+                          cc @coq/coqbot-maintainers" e) ) )
       | Error e ->
           Lwt.return_error
             (f "Something unexpected happened: %s\ncc @coq/coqbot-maintainers"
