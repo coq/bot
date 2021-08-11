@@ -351,6 +351,28 @@ let callback _conn req body =
       >>= fun body ->
       coq_bug_minimizer_resume_ci_minimization_action body ~bot_info ~key
         ~app_id
+  | "/check-stale-pr" -> (
+      body
+      >>= fun body ->
+      match String.split ~on:':' body with
+      | [owner; repo] ->
+          let warn_after = 30 in
+          let close_after = 30 in
+          let throttle = 10 in
+          (fun () ->
+            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              (coq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
+                 ~throttle)
+            >>= fun () ->
+            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              (coq_check_stale_pr ~owner ~repo ~after:close_after))
+          |> Lwt.async ;
+          Server.respond_string ~status:`OK ~body:"Stale pull requests updated"
+            ()
+      | _ ->
+          Server.respond_string ~status:(Code.status_of_code 400)
+            ~body:(f "Error: ill-formed request")
+            () )
   | _ ->
       Server.respond_not_found ()
 

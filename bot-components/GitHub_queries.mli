@@ -94,3 +94,31 @@ val get_base_and_head_checks :
 
 val get_cards_in_column :
   int -> bot_info:Bot_info.t -> ((string * int) list, string) result Lwt.t
+
+val get_open_pull_requests_with_label :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> label:string
+  -> ((id * int) list, string) result Lwt.t
+
+val get_label :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> label:string
+  -> (id option, string) result Lwt.t
+
+val get_pull_request_label_timeline :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> pr_number:int
+  -> ((bool * string * float) list, string) result Lwt.t
+
+val get_pull_request_labels :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> pr_number:int
+  -> (string list, string) result Lwt.t

@@ -57,8 +57,9 @@ Like Travis, the bot always create a merge commit of the pull request
 head with the head of the base branch, which is very convenient when
 the pull request is not up-to-date with the base branch.  If the
 automatic merge fails, then the bot will push a failed status check on
-the PR and set a "needs: rebase" label (it also removes the label when
-an updated version without conflicts is pushed).
+the PR and set a "needs: rebase" label (if this labels exists).  It
+also removes the label when an updated version without conflicts is
+pushed.
 
 ![needs rebase label screenshot](screenshots/needs-rebase.png)
 
@@ -122,6 +123,39 @@ remove any milestone that had been set.
 
 Please open an issue if you would like this behavior to be
 configurable.
+
+### Mark pull request as stale and automatically close them ###
+
+If this feature is used, the bot will mark pull requests as stale when
+they have not been rebased for more than 30 days, with a comment
+giving another 30 days to rebase the pull request before it is
+automatically closed.
+
+![stale pull request](screenshots/stale-pull-request.png)
+
+To use the feature, create the `needs: rebase` and the `stale` labels
+and set up a cron job (e.g. a scheduled GitHub Action) to call the
+`/check-stale-pr` endpoint every day with `owner:repo` in the body.
+
+This feature is best used in combination with a GitHub Action to
+automatically add the `needs: rebase` label when a conflict appears
+after the base branch has been updated.  Example:
+
+```yml
+name: "Check conflicts"
+on: [push]
+# Only on push because @coqbot already takes care of checking for
+# conflicts when PRs are opened or synchronized
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: eps1lon/actions-label-merge-conflict@b8bf8341285ec9a4567d4318ba474fee998a6919
+        with:
+          dirtyLabel: "needs: rebase"
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+```
 
 ### Synchronize closed issue's milestone with the one of the pull request that closed it ###
 

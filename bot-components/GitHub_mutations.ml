@@ -47,6 +47,15 @@ let update_milestone ~bot_info ~issue ~milestone =
   | Error err ->
       Stdio.print_endline (f "Error while updating milestone: %s" err)
 
+let close_pull_request ~bot_info ~pr_id =
+  GitHub_GraphQL.ClosePullRequest.make ~pr_id ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+  >|= function
+  | Ok _ ->
+      ()
+  | Error err ->
+      Stdio.print_endline (f "Error while closing PR: %s" err)
+
 let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
     ~pr_id =
   let merge_method =
@@ -139,32 +148,19 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
   | Error err ->
       Stdio.print_endline (f "Error while updating check run: %s" err)
 
+let add_labels ~bot_info ~labels ~pr_id =
+  let label_ids = Array.of_list labels in
+  GitHub_GraphQL.LabelPullRequest.make ~pr_id ~label_ids ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+  >>= fun _ -> Lwt.return ()
+
+let remove_labels ~bot_info ~labels ~pr_id =
+  let label_ids = Array.of_list labels in
+  GitHub_GraphQL.UnlabelPullRequest.make ~pr_id ~label_ids ()
+  |> GraphQL_query.send_graphql_query ~bot_info
+  >>= fun _ -> Lwt.return ()
+
 (* TODO: use GraphQL API *)
-
-let add_rebase_label ~bot_info (issue : issue) =
-  let body = Cohttp_lwt.Body.of_string "[ \"needs: rebase\" ]" in
-  let uri =
-    f "https://api.github.com/repos/%s/%s/issues/%d/labels" issue.owner
-      issue.repo issue.number
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url)
-    |> Uri.of_string
-  in
-  send_request ~body ~uri (github_header bot_info) ~bot_info
-
-let remove_rebase_label ~bot_info (issue : issue) =
-  let headers = headers (github_header bot_info) ~bot_info in
-  let uri =
-    f "https://api.github.com/repos/%s/%s/issues/%d/labels/needs%%3A rebase"
-      issue.owner issue.repo issue.number
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url)
-    |> Uri.of_string
-  in
-  Lwt_io.printf "Sending delete request.\n"
-  >>= fun () -> Client.delete ~headers uri >>= print_response
 
 let update_milestone ~bot_info new_milestone (issue : issue) =
   let headers = headers (github_header bot_info) ~bot_info in

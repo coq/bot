@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for automatically closing stale pull requests.
+
+### Changed
+- The bot no longer creates the `needs: rebase` label if it doesn't exist.
+
 ## [0.2.0] - 2020-09-09
 
 ### Added

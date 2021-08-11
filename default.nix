@@ -25,6 +25,7 @@ in stdenv.mkDerivation rec {
     cohttp
     cohttp-lwt-unix
     hex
+    iso8601
     mirage-crypto
     yojson
     graphql_ppx
