@@ -358,14 +358,13 @@ let callback _conn req body =
       | [owner; repo] ->
           let warn_after = 30 in
           let close_after = 30 in
-          let throttle = 10 in
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
               (coq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
-                 ~throttle)
+                 ~throttle:6)
             >>= fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (coq_check_stale_pr ~owner ~repo ~after:close_after))
+              (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4))
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Stale pull requests updated"
             ()

@@ -2123,11 +2123,11 @@ let rec apply_throttle len action args =
     let n = List.count ~f:(fun b -> b) ans in
     apply_throttle (len - n) action rem
 
-let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ?throttle ()
+let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
     =
   GitHub_queries.get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label
   >>= function
-  | Ok prs -> (
+  | Ok prs ->
       let iter (pr_id, pr_number) =
         GitHub_queries.get_pull_request_label_timeline ~bot_info ~owner ~repo
           ~pr_number
@@ -2152,11 +2152,7 @@ let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ?throttle ()
         | Error e ->
             Lwt_io.print (f "Error: %s\n" e) >>= fun () -> Lwt.return false
       in
-      match throttle with
-      | None ->
-          Lwt_list.iter_p (fun v -> iter v >>= fun _ -> Lwt.return ()) prs
-      | Some throttle ->
-          apply_throttle throttle iter prs )
+      apply_throttle throttle iter prs
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
@@ -2197,7 +2193,7 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
-let coq_check_stale_pr ~bot_info ~owner ~repo ~after =
+let coq_check_stale_pr ~bot_info ~owner ~repo ~after ~throttle =
   let label = "stale" in
   let action pr_id _pr_number =
     GitHub_mutations.post_comment ~id:pr_id
@@ -2212,4 +2208,4 @@ let coq_check_stale_pr ~bot_info ~owner ~repo ~after =
     GitHub_mutations.close_pull_request ~bot_info ~pr_id
     >>= fun () -> Lwt.return true
   in
-  apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ()
+  apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
