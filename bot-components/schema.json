@@ -19705,22 +19705,6 @@
             "deprecationReason": null
           },
           {
-            "name": "id",
-            "description": null,
-            "args": [],
-            "type": {
-              "kind": "NON_NULL",
-              "name": null,
-              "ofType": {
-                "kind": "SCALAR",
-                "name": "ID",
-                "ofType": null
-              }
-            },
-            "isDeprecated": false,
-            "deprecationReason": null
-          },
-          {
             "name": "reviewers",
             "description": "The teams or users that can review the deployment",
             "args": [
@@ -19811,13 +19795,7 @@
           }
         ],
         "inputFields": null,
-        "interfaces": [
-          {
-            "kind": "INTERFACE",
-            "name": "Node",
-            "ofType": null
-          }
-        ],
+        "interfaces": [],
         "enumValues": null,
         "possibleTypes": null
       },
@@ -48550,11 +48528,6 @@
           },
           {
             "kind": "OBJECT",
-            "name": "DeploymentProtectionRule",
-            "ofType": null
-          },
-          {
-            "kind": "OBJECT",
             "name": "DeploymentReview",
             "ofType": null
           },
@@ -70408,12 +70381,12 @@
         "interfaces": [
           {
             "kind": "INTERFACE",
-            "name": "Node",
+            "name": "RepositoryNode",
             "ofType": null
           },
           {
             "kind": "INTERFACE",
-            "name": "RepositoryNode",
+            "name": "Node",
             "ofType": null
           }
         ],
@@ -115063,6 +115036,22 @@
             "deprecationReason": null
           },
           {
+            "name": "isFollowingViewer",
+            "description": "Whether or not this user is following the viewer. Inverse of viewer_is_following",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "isGitHubStar",
             "description": "Whether or not this user is a member of the GitHub Stars Program.",
             "args": [],
@@ -117391,7 +117380,7 @@
           },
           {
             "name": "viewerIsFollowing",
-            "description": "Whether or not this user is followed by the viewer.",
+            "description": "Whether or not this user is followed by the viewer. Inverse of is_following_viewer.",
             "args": [],
             "type": {
               "kind": "NON_NULL",
