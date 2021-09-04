@@ -16,6 +16,8 @@ val github_webhook_secret : TomlTypes.table -> string
 
 val gitlab_webhook_secret : TomlTypes.table -> string
 
+val daily_schedule_secret : TomlTypes.table -> string
+
 val bot_name : TomlTypes.table -> string
 
 val bot_domain : TomlTypes.table -> string

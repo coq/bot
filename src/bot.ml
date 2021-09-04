@@ -20,6 +20,8 @@ let github_webhook_secret = Config.github_webhook_secret toml_data
 
 let gitlab_webhook_secret = Config.gitlab_webhook_secret toml_data
 
+let daily_schedule_secret = Config.daily_schedule_secret toml_data
+
 let bot_name = Config.bot_name toml_data
 
 let key = Config.github_private_key
@@ -355,19 +357,23 @@ let callback _conn req body =
       body
       >>= fun body ->
       match String.split ~on:':' body with
-      | [owner; repo] ->
-          let warn_after = 30 in
-          let close_after = 30 in
-          (fun () ->
-            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (coq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
-                 ~throttle:6)
-            >>= fun () ->
-            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4))
-          |> Lwt.async ;
-          Server.respond_string ~status:`OK ~body:"Stale pull requests updated"
-            ()
+      | [owner; repo; secret] ->
+          if String.equal secret daily_schedule_secret then (
+            let warn_after = 30 in
+            let close_after = 30 in
+            (fun () ->
+              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+                (coq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
+                   ~throttle:6)
+              >>= fun () ->
+              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+                (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4))
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:"Stale pull requests updated" () )
+          else
+            Server.respond_error ~status:`Unauthorized ~body:"Incorrect secret"
+              ()
       | _ ->
           Server.respond_string ~status:(Code.status_of_code 400)
             ~body:(f "Error: ill-formed request")
