@@ -6,8 +6,11 @@ open Utils
 
 let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     =
-  GitHub_GraphQL.MoveCardToColumn.make ~card_id ~column_id ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.MoveCardToColumn in
+  makeVariables ~card_id ~column_id ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
       ()
@@ -15,22 +18,16 @@ let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
       Stdio.print_endline (f "Error while moving project card: %s" err)
 
 let post_comment ~bot_info ~id ~message =
-  GitHub_GraphQL.PostComment.make ~id ~message ()
-  |> GraphQL_query.send_graphql_query ~bot_info
-  >|= Result.bind ~f:(fun result ->
-          match result#payload with
-          | None ->
-              Error "No payload"
-          | Some result -> (
-            match result#commentEdge with
-            | None ->
-                Error "No comment edge"
-            | Some result -> (
-              match result#node with
-              | None ->
-                  Error "No comment node"
-              | Some result ->
-                  Ok result#url ) ))
+  let open GitHub_GraphQL.PostComment in
+  makeVariables ~id ~message ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(function
+        | {payload= Some {commentEdge= Some {node= Some {url}}}} ->
+            Ok url
+        | _ ->
+            Error "Error while retrieving URL of posted comment." )
 
 let report_on_posting_comment = function
   | Ok url ->
@@ -39,8 +36,11 @@ let report_on_posting_comment = function
       Lwt_io.printf "Error while posting a comment: %s\n" f
 
 let update_milestone ~bot_info ~issue ~milestone =
-  GitHub_GraphQL.UpdateMilestone.make ~issue ~milestone ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.UpdateMilestone in
+  makeVariables ~issue ~milestone ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
       ()
@@ -48,8 +48,10 @@ let update_milestone ~bot_info ~issue ~milestone =
       Stdio.print_endline (f "Error while updating milestone: %s" err)
 
 let close_pull_request ~bot_info ~pr_id =
-  GitHub_GraphQL.ClosePullRequest.make ~pr_id ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.ClosePullRequest in
+  makeVariables ~pr_id () |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
       ()
@@ -65,11 +67,13 @@ let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
       | REBASE ->
           `REBASE
       | SQUASH ->
-          `SQUASH)
+          `SQUASH )
   in
-  GitHub_GraphQL.MergePullRequest.make ~pr_id ?commit_headline ?commit_body
-    ?merge_method ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.MergePullRequest in
+  makeVariables ~pr_id ?commit_headline ?commit_body ?merge_method ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
       ()
@@ -126,10 +130,12 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
     | QUEUED ->
         `QUEUED
   in
-  GitHub_GraphQL.NewCheckRun.make ~name ~repoId:repo_id ~headSha:head_sha
-    ~status ~title ?text ~summary ~url:details_url ?conclusion
-    ?externalId:external_id ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.NewCheckRun in
+  makeVariables ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ?text
+    ~summary ~url:details_url ?conclusion ?externalId:external_id ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
       ()
@@ -139,9 +145,12 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
 let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
     ~title ?text ~summary () =
   let conclusion = string_of_conclusion conclusion in
-  GitHub_GraphQL.UpdateCheckRun.make ~checkRunId:check_run_id ~repoId:repo_id
-    ~conclusion ?url:details_url ~title ?text ~summary ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.UpdateCheckRun in
+  makeVariables ~checkRunId:check_run_id ~repoId:repo_id ~conclusion
+    ?url:details_url ~title ?text ~summary ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
       ()
@@ -150,14 +159,20 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
 
 let add_labels ~bot_info ~labels ~pr_id =
   let label_ids = Array.of_list labels in
-  GitHub_GraphQL.LabelPullRequest.make ~pr_id ~label_ids ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.LabelPullRequest in
+  makeVariables ~pr_id ~label_ids ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >>= fun _ -> Lwt.return_unit
 
 let remove_labels ~bot_info ~labels ~pr_id =
   let label_ids = Array.of_list labels in
-  GitHub_GraphQL.UnlabelPullRequest.make ~pr_id ~label_ids ()
-  |> GraphQL_query.send_graphql_query ~bot_info
+  let open GitHub_GraphQL.UnlabelPullRequest in
+  makeVariables ~pr_id ~label_ids ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
   >>= fun _ -> Lwt.return_unit
 
 (* TODO: use GraphQL API *)
@@ -169,7 +184,7 @@ let update_milestone ~bot_info new_milestone (issue : issue) =
       issue.number
     |> (fun url ->
          Stdio.printf "URL: %s\n" url ;
-         url)
+         url )
     |> Uri.of_string
   in
   let body =
@@ -203,7 +218,7 @@ let add_pr_to_column ~bot_info ~pr_id ~column_id =
     ^ ", \"content_type\": \"PullRequest\"}"
     |> (fun body ->
          Stdio.printf "Body:\n%s\n" body ;
-         body)
+         body )
     |> Cohttp_lwt.Body.of_string
   in
   let uri =
@@ -211,7 +226,7 @@ let add_pr_to_column ~bot_info ~pr_id ~column_id =
     ^ "/cards"
     |> (fun url ->
          Stdio.printf "URL: %s\n" url ;
-         url)
+         url )
     |> Uri.of_string
   in
   send_request ~body ~uri

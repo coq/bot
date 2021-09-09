@@ -6,7 +6,7 @@
  (private_modules GraphQL_query GitHub_GraphQL Utils)
  (modules_without_implementation GitHub_types GitLab_types)
  (preprocess
-  (pps graphql_ppx -- -schema bot-components/schema.json))
+  (pps graphql_ppx -- -native -schema bot-components/schema.json))
  (preprocessor_deps
   (file schema.json)))
 

@@ -2,7 +2,7 @@ type id = string
 
 type repository_info = {id: int; node_id: string; owner: string; name: string}
 
-type milestone = {title: string; description: string option}
+type milestone = {milestone_title: string; description: string option}
 
 type project_column = {id: string; databaseId: int option}
 

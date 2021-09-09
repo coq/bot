@@ -3,7 +3,7 @@ open Bot_info
 open Lwt.Infix
 open Utils
 
-let send_graphql_query ~bot_info ?(extra_headers = []) query =
+let send_graphql_query ~bot_info ?(extra_headers = []) ~query ~parse variables =
   let uri = Uri.of_string "https://api.github.com/graphql" in
   let headers =
     Cohttp.Header.of_list
@@ -11,9 +11,7 @@ let send_graphql_query ~bot_info ?(extra_headers = []) query =
         ; ("User-Agent", bot_info.name) ]
       @ extra_headers )
   in
-  let body =
-    `Assoc [("query", `String query#query); ("variables", query#variables)]
-  in
+  let body = `Assoc [("query", `String query); ("variables", variables)] in
   let serialized_body = Yojson.Basic.to_string body in
   Cohttp_lwt_unix.Client.post ~headers ~body:(`String serialized_body) uri
   >>= fun (rsp, body) ->
@@ -26,7 +24,7 @@ let send_graphql_query ~bot_info ?(extra_headers = []) query =
     try
       let json = Yojson.Basic.from_string body in
       let open Yojson.Basic.Util in
-      let data = json |> member "data" |> query#parse in
+      let data = json |> member "data" |> parse in
       match member "errors" json with
       | `Null ->
           Ok data

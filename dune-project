@@ -42,7 +42,7 @@
   (mirage-crypto (>= 0.8.7))
   (eqaf (>= 0.7))
   (yojson (>= 1.7.0))
-  (graphql_ppx (= 1.0.1))
+  (graphql_ppx (>= 1.2.0))
   (x509 (>= 0.11.2))
   (cstruct (>= 5.0.0))
   (ISO8601 (>= 0.2.0))

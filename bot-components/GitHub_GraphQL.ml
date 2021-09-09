@@ -1,30 +1,29 @@
-open GitHub_types
+(*open GitHub_types*)
 
 (* Queries *)
 
 module PullRequest_Milestone_and_Cards =
 [%graphql
 {|
+  fragment Column on ProjectColumn {
+    id
+    databaseId
+  }
+
   query backportInfo($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) {
-        milestone @bsRecord {
+        milestone {
           title
           description
         }
         projectCards(first:100) {
           nodes {
             id
-            column @bsRecord {
-              id
-              databaseId
-            }
+            column { ... Column }
             project {
               columns(first:100) {
-                nodes @bsRecord {
-                  id
-                  databaseId
-                }
+                nodes { ... Column }
               }
             }
           }
@@ -100,25 +99,28 @@ module PullRequest_Refs =
 module Issue_Milestone =
 [%graphql
 {|
+  fragment Milestone on Milestone {
+    id
+  }
+
+  fragment PullRequest on PullRequest {
+    id
+    milestone { ... Milestone }
+  }
+
   query issueMilestone($owner: String!, $repo: String!, $number: Int!) {
     repository(owner:$owner, name:$repo) {
       issue(number:$number) {
         id
-        milestone { id }
+        milestone { ... Milestone }
         timelineItems(itemTypes:[CLOSED_EVENT],last:1) {
           nodes {
             ... on ClosedEvent {
               closer {
-                ... on PullRequest {
-                  id
-                  milestone { id }
-                }
+                ... on PullRequest { ... PullRequest }
                 ... on Commit {
                   associatedPullRequests(first: 2) {
-                    nodes {
-                      id
-                      milestone { id }
-                    }
+                    nodes { ... PullRequest }
                   }
                 }
               }
@@ -133,6 +135,13 @@ module Issue_Milestone =
 module PullRequestReviewsInfo =
 [%graphql
 {|
+  fragment Reviews on PullRequestReviewConnection {
+    nodes {
+      author { login }
+      state
+    }
+  }
+
   query mergePullRequestInfo($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
@@ -154,18 +163,8 @@ module PullRequestReviewsInfo =
           }
         }
         reviewDecision
-        latestReviews(first: 100) {
-          nodes {
-            author { login }
-            state
-          }
-        }
-        latestOpinionatedReviews(first: 100) {
-          nodes {
-            author { login }
-            state
-          }
-        }
+        latestReviews(first: 100) { ... Reviews }
+        latestOpinionatedReviews(first: 100) { ... Reviews }
       }
     }
   }
@@ -408,6 +407,9 @@ query getOpenPullRequestWithLabel($owner: String!, $repo:String!, $label:String!
 module GetPullRequestLabelTimeline =
 [%graphql
 {|
+fragment Label on Label {
+  name
+}
 
 query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
   repository(name: $repo,owner:$owner) {
@@ -415,16 +417,12 @@ query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int
       timelineItems(itemTypes: [LABELED_EVENT, UNLABELED_EVENT], after: $cursor, first: $len) {
         nodes {
           ... on LabeledEvent {
-            createdAt
-            label {
-              name
-            }
+            labeledAt: createdAt
+            labelAdded: label { ... Label }
           }
           ... on UnlabeledEvent {
-            createdAt
-            label {
-              name
-            }
+            unlabeledAt: createdAt
+            labelRemoved: label { ... Label }
           }
         }
         pageInfo {
@@ -463,16 +461,18 @@ query getPullRequestLabels($owner: String!, $repo:String!, $prNumber: Int!, $cur
 module GetBaseAndHeadChecks =
 [%graphql
 {|
-fragment Checks on CheckSuiteConnection {
+fragment CheckRuns on CheckRunConnection {
   nodes {
-    checkRuns(first: 100) {
-      nodes {
-        name
-        conclusion
-        summary
-        text
-      }
-    }
+    name
+    conclusion
+    summary
+    text
+  }
+}
+
+fragment CheckSuites on CheckSuiteConnection {
+  nodes {
+    checkRuns(first: 100) { ... CheckRuns }
   }
 }
 
@@ -490,14 +490,14 @@ query getChecks($appId: Int!, $owner: String!, $repo:String!, $prNumber: Int!, $
     base: object(expression: $base) {
       ... on Commit {
         checkSuites(first: 1,filterBy:{appId: $appId}) {
-           ... Checks
+           ... CheckSuites
         }
       }
     }
     head: object(expression: $head) {
       ... on Commit {
         checkSuites(first: 1,filterBy:{appId: $appId}) {
-           ... Checks
+           ... CheckSuites
         }
       }
     }
