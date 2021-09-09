@@ -138,7 +138,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     <&> ( match bot_info.github_install_token with
         | None ->
             (* Allow failure messages are reported with the Checks API only. *)
-            Lwt.return ()
+            Lwt.return_unit
         | Some _ -> (
             GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
               ~repo:gh_repo
@@ -183,7 +183,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
                 gitlab_repo_full_name number err )
       | None ->
           Lwt_io.printf "We are not on a PR branch. Doing nothing.\n"
-    else Lwt.return ()
+    else Lwt.return_unit
   else
     Lwt_io.printf "Pushing a status check...\n"
     <&>
@@ -254,7 +254,7 @@ let send_doc_url ~bot_info ~github_repo_full_name job_info =
       in
       ("ml-api", url_base) |> send_doc_url_aux ~bot_info job_info
   | _ ->
-      Lwt.return ()
+      Lwt.return_unit
 
 type build_failure = Warn of string | Retry | Ignore
 
@@ -340,7 +340,7 @@ let job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
         | Retry ->
             GitLab_mutations.retry_job ~bot_info ~project_id ~build_id
         | Ignore ->
-            Lwt.return () )
+            Lwt.return_unit )
 
 let job_success_or_pending ~bot_info (gh_owner, gh_repo)
     ({build_id} as job_info) ~github_repo_full_name ~gitlab_repo_full_name
@@ -396,7 +396,7 @@ let job_success_or_pending ~bot_info (gh_owner, gh_repo)
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e ) )
   | Ok _ ->
-      Lwt.return ()
+      Lwt.return_unit
   | Error e ->
       Lwt_io.printf "%s\n" e
 
@@ -1440,7 +1440,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let pr_number, _ = pr_from_branch pipeline_info.common_info.branch in
   match pipeline_info.state with
   | "skipped" ->
-      Lwt.return ()
+      Lwt.return_unit
   | _ -> (
       let pipeline_url =
         f "%s/pipelines/%d" pipeline_info.common_info.repo_url
@@ -1565,7 +1565,7 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
                      bot_info.name bot_info.github_pat repo_name branch_name)
               >>= function
               | Ok () ->
-                  Lwt.return ()
+                  Lwt.return_unit
               | Error f ->
                   Lwt_io.printf "Error: %s\n" f ))
         |> Lwt.async ;
@@ -1904,7 +1904,7 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
                 |> Lwt_result.ok)
         |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
                Lwt_io.printf "Error: %s\n" err))
-        >>= fun _ -> Lwt.return ())
+        >>= fun _ -> Lwt.return_unit)
       |> Lwt.async ;
       Server.respond_string ~status:`OK
         ~body:
@@ -1942,7 +1942,7 @@ let pull_request_closed_action ~bot_info
     GitHub_mutations.remove_milestone pr_info.issue.issue ~bot_info
   else
     (* TODO: if PR was merged in master without a milestone, post an alert *)
-    Lwt.return ()
+    Lwt.return_unit
 
 let pull_request_updated_action ~bot_info
     ~(action : GitHub_types.pull_request_action)
@@ -1980,7 +1980,7 @@ let pull_request_updated_action ~bot_info
                 |> Lwt_result.ok)
         |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
                Lwt_io.printf "Error: %s\n" err))
-        >>= fun _ -> Lwt.return ())
+        >>= fun _ -> Lwt.return_unit)
       |> Lwt.async ;
       Server.respond_string ~status:`OK
         ~body:
@@ -1995,7 +1995,7 @@ let pull_request_updated_action ~bot_info
   | None ->
       (fun () ->
         update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-        >>= fun _ -> Lwt.return ())
+        >>= fun _ -> Lwt.return_unit)
       |> Lwt.async ;
       Server.respond_string ~status:`OK
         ~body:
@@ -2106,7 +2106,7 @@ let push_action ~bot_info ~base_ref ~commits_msg =
           Lwt_io.printf "Could not find backporting info for backported PR.\n"
       | Error e ->
           Lwt_io.printf "%s\n" e
-    else Lwt.return ()
+    else Lwt.return_unit
   in
   Lwt_list.iter_s commit_action commits_msg
 
@@ -2116,7 +2116,7 @@ let days_elapsed ts =
   Float.to_int ((Unix.time () -. ts) /. (3600. *. 24.))
 
 let rec apply_throttle len action args =
-  if List.is_empty args || len <= 0 then Lwt.return ()
+  if List.is_empty args || len <= 0 then Lwt.return_unit
   else
     let args, rem = List.split_n args len in
     Lwt_list.map_p action args
@@ -2164,7 +2164,7 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
   GitHub_queries.get_label ~bot_info ~owner ~repo ~label:stale_label
   >>= function
   | Ok None ->
-      Lwt.return ()
+      Lwt.return_unit
   | Ok (Some stale_id) ->
       let action pr_id pr_number =
         GitHub_queries.get_pull_request_labels ~bot_info ~owner ~repo ~pr_number

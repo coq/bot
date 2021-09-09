@@ -152,13 +152,13 @@ let add_labels ~bot_info ~labels ~pr_id =
   let label_ids = Array.of_list labels in
   GitHub_GraphQL.LabelPullRequest.make ~pr_id ~label_ids ()
   |> GraphQL_query.send_graphql_query ~bot_info
-  >>= fun _ -> Lwt.return ()
+  >>= fun _ -> Lwt.return_unit
 
 let remove_labels ~bot_info ~labels ~pr_id =
   let label_ids = Array.of_list labels in
   GitHub_GraphQL.UnlabelPullRequest.make ~pr_id ~label_ids ()
   |> GraphQL_query.send_graphql_query ~bot_info
-  >>= fun _ -> Lwt.return ()
+  >>= fun _ -> Lwt.return_unit
 
 (* TODO: use GraphQL API *)
 

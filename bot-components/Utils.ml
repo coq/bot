@@ -26,7 +26,7 @@ let print_response (resp, body) =
     |> Lwt_io.printf "Headers: %s\n"
     >>= fun () ->
     body |> Cohttp_lwt.Body.to_string >>= Lwt_io.printf "Body:\n%s\n"
-  else Lwt.return ()
+  else Lwt.return_unit
 
 let send_request ~bot_info ~body ~uri header_list =
   let headers = headers header_list ~bot_info in
