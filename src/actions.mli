@@ -71,6 +71,14 @@ val push_action :
   -> commits_msg:string list
   -> unit Lwt.t
 
+val milestone_edited_action :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> number:int
+  -> request_inclusion_column:int
+  -> unit Lwt.t
+
 val ci_minimize :
      bot_info:Bot_info.t
   -> comment_info:GitHub_types.comment_info

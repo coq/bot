@@ -8,6 +8,9 @@ val get_pull_request_milestone_and_cards :
   -> number:int
   -> (project_card list * milestone option, string) result Lwt.t
 
+val extract_backport_info :
+  bot_info:Bot_info.t -> string -> full_backport_info option
+
 val get_backported_pr_info :
      bot_info:Bot_info.t
   -> int
