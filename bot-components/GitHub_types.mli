@@ -20,6 +20,8 @@ type project_card =
 
 type mv_card_to_column_input = {card_id: ID.t; column_id: ID.t}
 
+type pr_id_and_cards = {pr_id: ID.t; pr_number: int; cards: project_card list}
+
 type closer_info = {pull_request_id: ID.t; milestone_id: ID.t option}
 
 type 'a closed_by =

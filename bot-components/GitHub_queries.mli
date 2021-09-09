@@ -21,6 +21,13 @@ val get_pull_request_id_and_milestone :
   -> number:int
   -> ((ID.t * int * full_backport_info) option, string) result Lwt.t
 
+val get_milestone_merged_prs :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> number:int
+  -> (pr_id_and_cards list, string) result Lwt.t
+
 val get_team_membership :
      bot_info:Bot_info.t
   -> org:string

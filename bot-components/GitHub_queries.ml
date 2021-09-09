@@ -60,6 +60,24 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
       Str.matched_group 1 description |> aux
     else None
 
+let cards pr =
+  let open PullRequestWithMilestoneAndCards in
+  match pr.projectCards.nodes with
+  | None ->
+      []
+  | Some cards ->
+      let open ProjectCards in
+      cards |> Array.to_list |> List.filter_opt
+      |> List.map ~f:(fun card ->
+             { id= card.id
+             ; column= card.column
+             ; columns=
+                 ( match card.project.columns.nodes with
+                 | None ->
+                     []
+                 | Some columns ->
+                     columns |> Array.to_list |> List.filter_opt ) } )
+
 let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   let open GetPullRequestMilestoneAndCards in
   makeVariables ~owner ~repo ~number ()
@@ -71,25 +89,8 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
     match result.repository with
     | Some result -> (
       match result.pullRequest with
-      | Some result ->
-          let cards =
-            match result.projectCards.nodes with
-            | None ->
-                []
-            | Some cards ->
-                let open ProjectCards in
-                cards |> Array.to_list |> List.filter_opt
-                |> List.map ~f:(fun card ->
-                       { id= card.id
-                       ; column= card.column
-                       ; columns=
-                           ( match card.project.columns.nodes with
-                           | None ->
-                               []
-                           | Some columns ->
-                               columns |> Array.to_list |> List.filter_opt ) } )
-          in
-          Ok (cards, result.milestone)
+      | Some pr ->
+          Ok (cards pr, pr.milestone)
       | None ->
           Error (f "Pull request %s/%s#%d does not exist." owner repo number) )
     | None ->
@@ -165,6 +166,33 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                           None )
                     | _ ->
                         None ) ) ) )
+
+let pr_id_and_cards pr : pr_id_and_cards =
+  let open PullRequestWithMilestoneAndCards in
+  {pr_id= pr.id; pr_number= pr.number; cards= cards pr}
+
+let get_milestone_merged_prs ~bot_info ~owner ~repo ~number =
+  let open GetMilestoneMergedPullRequests in
+  makeVariables ~owner ~repo ~number ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(fun result ->
+          match result.repository with
+          | None ->
+              Error (f "Repository %s/%s does not exist." owner repo)
+          | Some repository -> (
+            match repository.milestone with
+            | None ->
+                Error (f "Milestone %d does not exist." number)
+            | Some milestone -> (
+              match milestone.pullRequests.nodes with
+              | None ->
+                  Ok []
+              | Some prs ->
+                  Ok
+                    ( prs |> Array.to_list |> List.filter_opt
+                    |> List.map ~f:pr_id_and_cards ) ) ) )
 
 let team_membership_of_resp ~org ~team ~user resp =
   let open CheckTeamMembership in

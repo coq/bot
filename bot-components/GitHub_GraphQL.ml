@@ -33,7 +33,7 @@ module Queries =
   }
 
   fragment Project on Project {
-    columns(first:100) {
+    columns(first:50) {
       nodes { ... Column }
     }
   }
@@ -56,14 +56,16 @@ module Queries =
   fragment PullRequestWithMilestone on PullRequest {
     id @ppxCustom(module: "ID")
     databaseId
+    number
     milestone { ... Milestone }
   }
 
   fragment PullRequestWithMilestoneAndCards on PullRequest {
     id @ppxCustom(module: "ID")
     databaseId
+    number
     milestone { ... Milestone }
-    projectCards(first:100) { ... ProjectCards }
+    projectCards(first:20) { ... ProjectCards }
   }
 
   fragment Reviews on PullRequestReviewConnection {
@@ -87,6 +89,18 @@ module Queries =
   query GetPullRequestMilestoneAndCards($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) { ... PullRequestWithMilestoneAndCards }
+    }
+  }
+
+  query GetMilestoneMergedPullRequests($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner, name: $repo) {
+      milestone(number: $number) {
+        pullRequests(first: 100, states:[MERGED]) {
+          nodes {
+            ... PullRequestWithMilestoneAndCards
+          }
+        }
+      }
     }
   }
 
