@@ -34,8 +34,6 @@ in stdenv.mkDerivation rec {
     x509
     cstruct
     odoc
-    # Publishing
-    heroku
   ];
 
   shellHook = ''
