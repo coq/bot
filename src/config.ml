@@ -103,8 +103,10 @@ let github_private_key =
       Stdio.printf "Private key bit size: %d\n"
         (Mirage_crypto_pk.Rsa.priv_bits priv) ;
       priv
+  | Ok _ ->
+      failwith "Not an RSA key"
   | Error (`Msg e) ->
-      raise (Failure (f "%s" e))
+      failwith (f "Error while decoding RSA key: %s" e)
 
 let parse_mappings mappings =
   let keys = list_table_keys mappings in
@@ -113,13 +115,13 @@ let parse_mappings mappings =
       fold_left
         ~f:(fun assoc_table k ->
           (subkey_value mappings k "github", subkey_value mappings k "gitlab")
-          :: assoc_table)
+          :: assoc_table )
         ~init:[] keys
       |> filter_map ~f:(function
            | Some gh, Some gl ->
                Some (gh, gl)
            | _, _ ->
-               None))
+               None ))
   in
   let assoc_rev = List.map assoc ~f:(fun (gh, gl) -> (gl, gh)) in
   let get_table t =
