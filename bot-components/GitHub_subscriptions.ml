@@ -1,5 +1,6 @@
 open Base
 open Cohttp
+open GitHub_GraphQL
 open GitHub_types
 open Utils
 open Yojson.Basic.Util
@@ -19,7 +20,7 @@ let issue_info_of_json ?issue_json json =
       ; number= issue_json |> member "number" |> to_int }
   ; title= issue_json |> member "title" |> to_string
   ; number= issue_json |> member "number" |> to_int
-  ; id= issue_json |> member "node_id" |> to_string
+  ; id= issue_json |> member "node_id" |> to_string |> ID.parse
   ; user= issue_json |> member "user" |> member "login" |> to_string
   ; labels=
       issue_json |> member "labels" |> to_list
@@ -92,12 +93,12 @@ let comment_info_of_json ?(review_comment = false) json =
       | None ->
           issue_info_of_json json )
   ; review_comment
-  ; id= comment_json |> member "node_id" |> to_string }
+  ; id= comment_json |> member "node_id" |> to_string |> ID.parse }
 
 let repository_info_of_json json =
   let repo = json |> member "repository" in
-  { id= repo |> member "id" |> to_int
-  ; node_id= repo |> member "node_id" |> to_string
+  { databaseId= repo |> member "id" |> to_int
+  ; id= repo |> member "node_id" |> to_string |> ID.parse
   ; owner= repo |> member "owner" |> member "login" |> to_string
   ; name= repo |> member "name" |> to_string }
 
@@ -112,8 +113,8 @@ let check_suite_info_of_json json =
     | "queued" | _ ->
         QUEUED
   in
-  { id= check_suite |> member "id" |> to_int
-  ; node_id= check_suite |> member "node_id" |> to_string
+  { databaseId= check_suite |> member "id" |> to_int
+  ; id= check_suite |> member "node_id" |> to_string |> ID.parse
   ; head_sha= check_suite |> member "head_sha" |> to_string
   ; status }
 
@@ -128,8 +129,8 @@ let check_run_info_of_json json =
     | "queued" | _ ->
         QUEUED
   in
-  { id= check_run |> member "id" |> to_int
-  ; node_id= check_run |> member "node_id" |> to_string
+  { databaseId= check_run |> member "id" |> to_int
+  ; id= check_run |> member "node_id" |> to_string |> ID.parse
   ; head_sha= check_run |> member "head_sha" |> to_string
   ; status
   ; check_suite_info= check_suite_info_of_json check_run

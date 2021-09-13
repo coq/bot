@@ -1,59 +1,96 @@
-(*open GitHub_types*)
+module ParseAsString = struct
+  type t = string
 
-(* Queries *)
+  let parse = Yojson.Basic.to_string
 
-module PullRequest_Milestone_and_Cards =
+  let serialize = Yojson.Basic.from_string
+end
+
+module ID : sig
+  type t
+
+  val parse : string -> t
+
+  val serialize : t -> string
+
+  val equal : t -> t -> bool
+end = struct
+  type t = string
+
+  let parse x = x
+
+  let serialize x = x
+
+  let equal = String.equal
+end
+
+module Queries =
 [%graphql
 {|
   fragment Column on ProjectColumn {
-    id
+    id @ppxCustom(module: "ID")
     databaseId
   }
 
-  query backportInfo($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner,name: $repo) {
-      pullRequest(number: $number) {
-        milestone {
-          title
-          description
-        }
-        projectCards(first:100) {
-          nodes {
-            id
-            column { ... Column }
-            project {
-              columns(first:100) {
-                nodes { ... Column }
-              }
-            }
-          }
-        }
-      }
+  fragment Project on Project {
+    columns(first:100) {
+      nodes { ... Column }
     }
   }
-|}]
 
-module PullRequest_ID_and_Milestone =
-[%graphql
-{|
-  query prInfo($owner: String!, $repo: String!, $number: Int!) {
-    repository(owner: $owner,name: $repo) {
-      pullRequest(number: $number) {
-        id
-        databaseId
-        milestone {
-          title
-          description
-        }
-      }
+  fragment ProjectCards on ProjectCardConnection {
+    nodes {
+      id @ppxCustom(module: "ID")
+      column { ... Column }
+      project { ... Project }
     }
   }
-|}]
 
-module TeamMembership =
-[%graphql
-{|
-  query teamMember($org: String!, $team: String!, $user: String!) {
+  fragment Milestone on Milestone {
+    id @ppxCustom(module: "ID")
+    number
+    title
+    description
+  }
+
+  fragment PullRequestWithMilestone on PullRequest {
+    id @ppxCustom(module: "ID")
+    databaseId
+    milestone { ... Milestone }
+  }
+
+  fragment PullRequestWithMilestoneAndCards on PullRequest {
+    id @ppxCustom(module: "ID")
+    databaseId
+    milestone { ... Milestone }
+    projectCards(first:100) { ... ProjectCards }
+  }
+
+  fragment Reviews on PullRequestReviewConnection {
+    nodes {
+      author { login }
+      state
+    }
+  }
+
+  fragment RepositoryInfo on Repository {
+    id @ppxCustom(module: "ID")
+    defaultBranchRef { name }
+  }
+
+  query GetPullRequestMilestone($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner,name: $repo) {
+      pullRequest(number: $number) { ... PullRequestWithMilestone }
+    }
+  }
+
+  query GetPullRequestMilestoneAndCards($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner,name: $repo) {
+      pullRequest(number: $number) { ... PullRequestWithMilestoneAndCards }
+    }
+  }
+
+  query CheckTeamMembership($org: String!, $team: String!, $user: String!) {
     organization(login:$org) {
       team(slug:$team) {
         members(query:$user, first:1) {
@@ -62,23 +99,11 @@ module TeamMembership =
       }
     }
   }
-|}]
 
-module ParseAsString = struct
-  let parse = Yojson.Basic.to_string
-
-  let serialize = Yojson.Basic.from_string
-
-  type t = string
-end
-
-module PullRequest_Refs =
-[%graphql
-{|
-  query prRefs($owner: String!, $repo: String!, $number: Int!) {
+  query GetPullRequestRefs($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name:$repo) {
       pullRequest(number: $number) {
-        id
+        id @ppxCustom(module: "ID")
         baseRefName
         baseRefOid @ppxCustom(module: "ParseAsString")
         headRefName
@@ -94,33 +119,20 @@ module PullRequest_Refs =
       }
     }
   }
-|}]
 
-module Issue_Milestone =
-[%graphql
-{|
-  fragment Milestone on Milestone {
-    id
-  }
-
-  fragment PullRequest on PullRequest {
-    id
-    milestone { ... Milestone }
-  }
-
-  query issueMilestone($owner: String!, $repo: String!, $number: Int!) {
+  query GetIssueMilestoneAndCloseEvent($owner: String!, $repo: String!, $number: Int!) {
     repository(owner:$owner, name:$repo) {
       issue(number:$number) {
-        id
+        id @ppxCustom(module: "ID")
         milestone { ... Milestone }
         timelineItems(itemTypes:[CLOSED_EVENT],last:1) {
           nodes {
             ... on ClosedEvent {
               closer {
-                ... on PullRequest { ... PullRequest }
+                ... on PullRequest { ... PullRequestWithMilestone }
                 ... on Commit {
                   associatedPullRequests(first: 2) {
-                    nodes { ... PullRequest }
+                    nodes { ... PullRequestWithMilestone }
                   }
                 }
               }
@@ -130,19 +142,8 @@ module Issue_Milestone =
       }
     }
   }
-|}]
 
-module PullRequestReviewsInfo =
-[%graphql
-{|
-  fragment Reviews on PullRequestReviewConnection {
-    nodes {
-      author { login }
-      state
-    }
-  }
-
-  query mergePullRequestInfo($owner: String!, $repo: String!, $number: Int!) {
+  query GetPreMergeInfo($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name: $repo) {
       pullRequest(number: $number) {
         baseRef {
@@ -155,7 +156,7 @@ module PullRequestReviewsInfo =
         }
         comments(last:10) {
           nodes {
-            id
+            id @ppxCustom(module: "ID")
             author {
               login
             }
@@ -168,24 +169,12 @@ module PullRequestReviewsInfo =
       }
     }
   }
-|}]
 
-module DefaultBranch =
-[%graphql
-{|
-  query defaultBranch($owner: String!, $repo: String!) {
-    repository(owner: $owner, name: $repo) {
-      defaultBranchRef {
-        name
-      }
-    }
+  query GetRepositoryInfo($owner: String!, $repo: String!) {
+    repository(owner: $owner, name: $repo) { ... RepositoryInfo }
   }
-|}]
 
-module FileContent =
-[%graphql
-{|
-  query fileContent($owner: String!, $repo: String!, $file: String!) {
+  query GetFileContent($owner: String!, $repo: String!, $file: String!) {
     repository(owner: $owner, name: $repo) {
       file:object(expression: $file) {
         ... on Blob {
@@ -194,16 +183,159 @@ module FileContent =
       }
     }
   }
-|}]
 
-module RepoId =
-[%graphql
-{|
-  query repoId($owner: String!, $repo: String!) {
-    repository(owner: $owner, name: $repo) {
-      id
+  query GetCheckRuns($appId: Int!, $owner: String!, $repo: String!, $commit: String!, $context: String!) {
+    repository(owner:$owner, name:$repo) {
+      obj: object(expression: $commit) {
+        ... on Commit {
+          checkSuites(first: 1, filterBy: { appId: $appId }) {
+            nodes {
+              checkRuns(first: 1, filterBy: { checkName: $context }) {
+                nodes {
+                  databaseId
+                }
+              }
+            }
+          }
+          status {
+            context(name: $context) {
+              id @ppxCustom(module: "ID")
+            }
+          }
+        }
+      }
     }
   }
+
+  query GetLabels($owner: String!, $repo: String!, $label: String!) {
+    repository(owner:$owner, name:$repo) {
+      label(name: $label) {
+        id @ppxCustom(module: "ID")
+      }
+    }
+  }
+|}]
+
+module GetOpenPullRequestWithLabel =
+[%graphql
+{|
+
+query getOpenPullRequestWithLabel($owner: String!, $repo:String!, $label:String!, $cursor: String, $len: Int!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequests(first: $len, labels: [$label], states: [OPEN], after: $cursor) {
+      nodes {
+        id @ppxCustom(module: "ID")
+        number
+      }
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+    }
+  }
+}
+
+|}]
+
+module GetPullRequestLabelTimeline =
+[%graphql
+{|
+fragment Label on Label {
+  name
+}
+
+query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequest(number: $prNumber) {
+      timelineItems(itemTypes: [LABELED_EVENT, UNLABELED_EVENT], after: $cursor, first: $len) {
+        nodes {
+          ... on LabeledEvent {
+            labeledAt: createdAt
+            labelAdded: label { ... Label }
+          }
+          ... on UnlabeledEvent {
+            unlabeledAt: createdAt
+            labelRemoved: label { ... Label }
+          }
+        }
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+      }
+    }
+  }
+}
+
+|}]
+
+module GetPullRequestLabels =
+[%graphql
+{|
+
+query getPullRequestLabels($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequest(number: $prNumber) {
+      labels (after: $cursor, first: $len) {
+        nodes {
+          name
+        }
+        pageInfo {
+          endCursor
+          hasNextPage
+        }
+      }
+    }
+  }
+}
+
+|}]
+
+module GetBaseAndHeadChecks =
+[%graphql
+{|
+fragment CheckRuns on CheckRunConnection {
+  nodes {
+    name
+    conclusion
+    summary
+    text
+  }
+}
+
+fragment CheckSuites on CheckSuiteConnection {
+  nodes {
+    checkRuns(first: 100) { ... CheckRuns }
+  }
+}
+
+query getChecks($appId: Int!, $owner: String!, $repo:String!, $prNumber: Int!, $base: String!, $head: String!) {
+  repository(name: $repo,owner:$owner) {
+    pullRequest(number: $prNumber) {
+      id @ppxCustom(module: "ID")
+      labels(first: 100) {
+        nodes {
+          name
+        }
+      }
+      isDraft
+    }
+    base: object(expression: $base) {
+      ... on Commit {
+        checkSuites(first: 1,filterBy:{appId: $appId}) {
+           ... CheckSuites
+        }
+      }
+    }
+    head: object(expression: $head) {
+      ... on Commit {
+        checkSuites(first: 1,filterBy:{appId: $appId}) {
+           ... CheckSuites
+        }
+      }
+    }
+  }
+}
 |}]
 
 (* Mutations *)
@@ -342,165 +474,4 @@ module UpdateCheckRun =
       clientMutationId
     }
   }
-|}]
-
-module GetCheckRuns =
-[%graphql
-{|
-  query getCheckRuns($appId: Int!, $owner: String!, $repo: String!, $commit: String!, $context: String!) {
-    repository(owner:$owner, name:$repo) {
-      obj: object(expression: $commit) {
-        ... on Commit {
-          checkSuites(first: 1, filterBy: { appId: $appId }) {
-            nodes {
-              checkRuns(first: 1, filterBy: { checkName: $context }) {
-                nodes {
-                  databaseId
-                }
-              }
-            }
-          }
-          status {
-            context(name: $context) {
-              id
-            }
-          }
-        }
-      }
-    }
-  }
-|}]
-
-module GetLabel =
-[%graphql
-{|
-  query getLabels($owner: String!, $repo: String!, $label: String!) {
-    repository(owner:$owner, name:$repo) {
-      label(name: $label) {
-        id
-      }
-    }
-  }
-|}]
-
-module GetOpenPullRequestWithLabel =
-[%graphql
-{|
-
-query getOpenPullRequestWithLabel($owner: String!, $repo:String!, $label:String!, $cursor: String, $len: Int!) {
-  repository(name: $repo,owner:$owner) {
-    pullRequests(first: $len, labels: [$label], states: [OPEN], after: $cursor) {
-      nodes {
-        id
-        number
-      }
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
-    }
-  }
-}
-
-|}]
-
-module GetPullRequestLabelTimeline =
-[%graphql
-{|
-fragment Label on Label {
-  name
-}
-
-query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
-  repository(name: $repo,owner:$owner) {
-    pullRequest(number: $prNumber) {
-      timelineItems(itemTypes: [LABELED_EVENT, UNLABELED_EVENT], after: $cursor, first: $len) {
-        nodes {
-          ... on LabeledEvent {
-            labeledAt: createdAt
-            labelAdded: label { ... Label }
-          }
-          ... on UnlabeledEvent {
-            unlabeledAt: createdAt
-            labelRemoved: label { ... Label }
-          }
-        }
-        pageInfo {
-          endCursor
-          hasNextPage
-        }
-      }
-    }
-  }
-}
-
-|}]
-
-module GetPullRequestLabels =
-[%graphql
-{|
-
-query getPullRequestLabels($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
-  repository(name: $repo,owner:$owner) {
-    pullRequest(number: $prNumber) {
-      labels (after: $cursor, first: $len) {
-        nodes {
-          name
-        }
-        pageInfo {
-          endCursor
-          hasNextPage
-        }
-      }
-    }
-  }
-}
-
-|}]
-
-module GetBaseAndHeadChecks =
-[%graphql
-{|
-fragment CheckRuns on CheckRunConnection {
-  nodes {
-    name
-    conclusion
-    summary
-    text
-  }
-}
-
-fragment CheckSuites on CheckSuiteConnection {
-  nodes {
-    checkRuns(first: 100) { ... CheckRuns }
-  }
-}
-
-query getChecks($appId: Int!, $owner: String!, $repo:String!, $prNumber: Int!, $base: String!, $head: String!) {
-  repository(name: $repo,owner:$owner) {
-    pullRequest(number: $prNumber) {
-      id
-      labels(first: 100) {
-        nodes {
-          name
-        }
-      }
-      isDraft
-    }
-    base: object(expression: $base) {
-      ... on Commit {
-        checkSuites(first: 1,filterBy:{appId: $appId}) {
-           ... CheckSuites
-        }
-      }
-    }
-    head: object(expression: $head) {
-      ... on Commit {
-        checkSuites(first: 1,filterBy:{appId: $appId}) {
-           ... CheckSuites
-        }
-      }
-    }
-  }
-}
 |}]

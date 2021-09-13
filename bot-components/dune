@@ -3,7 +3,7 @@
  (public_name bot-components)
  (libraries base cohttp-lwt-unix cstruct eqaf hex mirage-crypto stdio str
    x509 yojson ISO8601)
- (private_modules GraphQL_query GitHub_GraphQL Utils)
+ (private_modules GraphQL_query Utils)
  (modules_without_implementation GitHub_types GitLab_types)
  (preprocess
   (pps graphql_ppx -- -native -schema bot-components/schema.json))

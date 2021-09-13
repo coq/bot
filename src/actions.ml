@@ -487,11 +487,12 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
       in
       Lwt_list.map_s
         (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
-          git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
-            ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base
-            ~head ~bug_file_name
-          >>= fun result -> Lwt.return (target, result))
-        ci_minimization_infos)
+          git_run_ci_minimization ~bot_info
+            ~comment_thread_id:(GitHub_GraphQL.ID.serialize comment_thread_id)
+            ~owner ~repo ~docker_image ~target ~opam_switch ~failing_urls
+            ~passing_urls ~base ~head ~bug_file_name
+          >>= fun result -> Lwt.return (target, result) )
+        ci_minimization_infos )
   >>= fun results ->
   results
   |> List.partition_map ~f:(function
@@ -624,7 +625,7 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
       Error (f "Could not find text for job %s." name)
 
 type ci_minimization_pr_info =
-  { comment_thread_id: string
+  { comment_thread_id: GitHub_GraphQL.ID.t
   ; base: string
   ; head: string
   ; pr_number: int
@@ -1529,8 +1530,9 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo =
-  git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo
+  git_coq_bug_minimizer ~bot_info ~script
+    ~comment_thread_id:(GitHub_GraphQL.ID.serialize comment_thread_id)
+    ~comment_author ~owner ~repo
   >>= function
   | Ok () ->
       GitHub_mutations.post_comment ~id:comment_thread_id
@@ -1553,8 +1555,9 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
         (fun () ->
           Github_installations.action_as_github_app ~bot_info ~key ~app_id
             ~owner ~repo
-            (GitHub_mutations.post_comment ~id
-               ~message:(if ci then message else f "@%s, %s" author message))
+            (GitHub_mutations.post_comment
+               ~id:(GitHub_GraphQL.ID.parse id)
+               ~message:(if ci then message else f "@%s, %s" author message) )
           >>= GitHub_mutations.report_on_posting_comment
           <&> ( execute_cmd
                   (* To delete the branch we need to identify as
@@ -1594,8 +1597,10 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                >>= fun () ->
                Github_installations.action_as_github_app ~bot_info ~key ~app_id
                  ~owner ~repo
-                 (run_ci_minimization ~comment_thread_id ~owner ~repo ~base
-                    ~head
+                 (run_ci_minimization
+                    ~comment_thread_id:
+                      (GitHub_GraphQL.ID.parse comment_thread_id)
+                    ~owner ~repo ~base ~head
                     ~ci_minimization_infos:
                       [ { target
                         ; opam_switch
@@ -1681,7 +1686,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       | Ok reviews_info -> (
           let comment =
             List.find reviews_info.last_comments ~f:(fun c ->
-                String.equal comment_info.id c.id)
+                GitHub_GraphQL.ID.equal comment_info.id c.id )
           in
           if (not comment_info.review_comment) && Option.is_none comment then
             if Float.(t > 5.) then
@@ -2100,7 +2105,9 @@ let push_action ~bot_info ~base_ref ~commits_msg =
       GitHub_queries.get_backported_pr_info ~bot_info pr_number base_ref
       >>= function
       | Ok (Some ({card_id; column_id} as input)) ->
-          Lwt_io.printf "Moving card %s to column %s.\n" card_id column_id
+          GitHub_GraphQL.ID.(
+            Lwt_io.printf "Moving card %s to column %s.\n" (serialize card_id)
+              (serialize column_id))
           >>= fun () -> GitHub_mutations.mv_card_to_column ~bot_info input
       | Ok None ->
           Lwt_io.printf "Could not find backporting info for backported PR.\n"

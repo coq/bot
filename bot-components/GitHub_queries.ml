@@ -1,5 +1,6 @@
 open Base
 open Bot_info
+open GitHub_GraphQL.Queries
 open GitHub_types
 open Lwt
 open Utils
@@ -59,13 +60,8 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
       Str.matched_group 1 description |> aux
     else None
 
-let convertMilestone milestone =
-  let open GitHub_GraphQL.PullRequest_Milestone_and_Cards.BackportInfo in
-  {milestone_title= milestone.title; description= milestone.description}
-
 let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
-  let open GitHub_GraphQL.PullRequest_Milestone_and_Cards in
-  let open BackportInfo in
+  let open GetPullRequestMilestoneAndCards in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -81,24 +77,19 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
             | None ->
                 []
             | Some cards ->
+                let open ProjectCards in
                 cards |> Array.to_list |> List.filter_opt
                 |> List.map ~f:(fun card ->
                        { id= card.id
-                       ; column=
-                           Option.map card.column ~f:(fun column ->
-                               { GitHub_types.id= column.id
-                               ; databaseId= column.databaseId } )
+                       ; column= card.column
                        ; columns=
                            ( match card.project.columns.nodes with
                            | None ->
                                []
                            | Some columns ->
-                               columns |> Array.to_list |> List.filter_opt
-                               |> List.map ~f:(fun column ->
-                                      { GitHub_types.id= column.Column.id
-                                      ; databaseId= column.databaseId } ) ) } )
+                               columns |> Array.to_list |> List.filter_opt ) } )
           in
-          Ok (cards, Option.map ~f:convertMilestone result.milestone)
+          Ok (cards, result.milestone)
       | None ->
           Error (f "Pull request %s/%s#%d does not exist." owner repo number) )
     | None ->
@@ -139,7 +130,7 @@ let get_backported_pr_info ~bot_info number base_ref =
       Error (f "Error in backported_pr_info: %s." err)
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
-  let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
+  let open GetPullRequestMilestone in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -176,7 +167,7 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                         None ) ) ) )
 
 let team_membership_of_resp ~org ~team ~user resp =
-  let open GitHub_GraphQL.TeamMembership in
+  let open CheckTeamMembership in
   match resp.organization with
   | None ->
       Error (f "Organization %s does not exist." org)
@@ -198,7 +189,7 @@ let team_membership_of_resp ~org ~team ~user resp =
           Ok false ) )
 
 let get_team_membership ~bot_info ~org ~team ~user =
-  let open GitHub_GraphQL.TeamMembership in
+  let open CheckTeamMembership in
   makeVariables ~org ~team ~user ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -207,9 +198,8 @@ let get_team_membership ~bot_info ~org ~team ~user =
           f "Query get_team_membership failed with %s" err )
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
 
-let pull_request_info_of_resp ~owner ~repo ~number resp :
-    (string pull_request_info, string) Result.t =
-  let open GitHub_GraphQL.PullRequest_Refs in
+let pull_request_info_of_resp ~owner ~repo ~number resp =
+  let open GetPullRequestRefs in
   let repo_url = f "https://github.com/%s/%s" owner repo in
   match resp.repository with
   | None ->
@@ -243,7 +233,7 @@ let pull_request_info_of_resp ~owner ~repo ~number resp :
                 ; last_commit_message= Some node.commit.message } ) ) )
 
 let get_pull_request_refs ~bot_info ~owner ~repo ~number =
-  let open GitHub_GraphQL.PullRequest_Refs in
+  let open GetPullRequestRefs in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -254,8 +244,7 @@ let get_pull_request_refs ~bot_info ~owner ~repo ~number =
 
 let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
     (pull_request_reviews_info, string) Result.t =
-  let open GitHub_GraphQL.PullRequestReviewsInfo in
-  let open MergePullRequestInfo in
+  let open GetPreMergeInfo in
   match resp.repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -351,7 +340,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                       REVIEW_REQUIRED ) } ) ) )
 
 let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
-  let open GitHub_GraphQL.PullRequestReviewsInfo.MergePullRequestInfo in
+  let open GetPreMergeInfo in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -361,7 +350,7 @@ let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   >|= Result.bind ~f:(pull_request_reviews_info_of_resp ~owner ~repo ~number)
 
 let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
-  let open GitHub_GraphQL.FileContent in
+  let open GetFileContent in
   match resp.repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -375,7 +364,7 @@ let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
         Ok None )
 
 let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
-  let open GitHub_GraphQL.FileContent in
+  let open GetFileContent in
   makeVariables ~owner ~repo ~file:(branch ^ ":" ^ file_name) ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -384,7 +373,7 @@ let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
   >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
 
 let default_branch_of_resp ~owner ~repo resp =
-  let open GitHub_GraphQL.DefaultBranch in
+  let open GetRepositoryInfo in
   match resp.repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -396,7 +385,7 @@ let default_branch_of_resp ~owner ~repo resp =
         Ok (default_branch.name : string) )
 
 let get_default_branch ~bot_info ~owner ~repo =
-  let open GitHub_GraphQL.DefaultBranch in
+  let open GetRepositoryInfo in
   makeVariables ~owner ~repo ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -406,15 +395,13 @@ let get_default_branch ~bot_info ~owner ~repo =
   >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
 
 let closer_info_of_pr pr =
-  let open GitHub_GraphQL.Issue_Milestone in
-  let open PullRequest in
+  let open PullRequestWithMilestone in
   { milestone_id=
       pr.milestone |> Option.map ~f:(fun milestone -> milestone.Milestone.id)
   ; pull_request_id= pr.id }
 
 let closer_info_option_of_closer closer =
-  let open GitHub_GraphQL.Issue_Milestone in
-  let open IssueMilestone in
+  let open GetIssueMilestoneAndCloseEvent in
   match closer with
   | None | Some (`FutureAddedValue _) ->
       Ok ClosedByOther
@@ -438,8 +425,7 @@ let closer_info_option_of_closer closer =
           Error "Closer query response is not well-formed." ) )
 
 let issue_closer_info_of_resp ~owner ~repo ~number resp =
-  let open GitHub_GraphQL.Issue_Milestone in
-  let open IssueMilestone in
+  let open GetIssueMilestoneAndCloseEvent in
   match resp.repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -466,7 +452,7 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
           Result.return NoCloseEvent ) )
 
 let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
-  let open GitHub_GraphQL.Issue_Milestone.IssueMilestone in
+  let open GetIssueMilestoneAndCloseEvent in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -476,7 +462,7 @@ let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
 
 let repo_id_of_resp ~owner ~repo resp =
-  let open GitHub_GraphQL.RepoId in
+  let open GetRepositoryInfo in
   match resp.repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -484,7 +470,7 @@ let repo_id_of_resp ~owner ~repo resp =
       Ok repository.id
 
 let get_repository_id ~bot_info ~owner ~repo =
-  let open GitHub_GraphQL.RepoId in
+  let open GetRepositoryInfo in
   makeVariables ~owner ~repo ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -494,7 +480,7 @@ let get_repository_id ~bot_info ~owner ~repo =
   >|= Result.bind ~f:(repo_id_of_resp ~owner ~repo)
 
 let get_status_check ~bot_info ~owner ~repo ~commit ~context =
-  let open GitHub_GraphQL.GetCheckRuns in
+  let open GetCheckRuns in
   makeVariables ~owner ~repo ~commit ~context ~appId:bot_info.app_id ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
@@ -555,7 +541,7 @@ let get_check_tab_info checkRun =
   {name= checkRun.name; summary= checkRun.summary; text= checkRun.text}
 
 type base_and_head_checks_info =
-  { pr_id: string
+  { pr_id: GitHub_GraphQL.ID.t
   ; base_checks: (check_tab_info * bool option, string * string) Result.t list
   ; head_checks: (check_tab_info * bool option, string * string) Result.t list
   ; draft: bool
@@ -839,7 +825,7 @@ let get_pull_request_label_timeline ~bot_info ~owner ~repo ~pr_number =
   get_list getter
 
 let get_label ~bot_info ~owner ~repo ~label =
-  let open GitHub_GraphQL.GetLabel in
+  let open GetLabels in
   makeVariables ~owner ~repo ~label ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
