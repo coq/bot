@@ -15,7 +15,7 @@ val pipeline_action :
 val run_coq_minimizer :
      bot_info:Bot_info.t
   -> script:string
-  -> comment_thread_id:string
+  -> comment_thread_id:GitHub_GraphQL.ID.t
   -> comment_author:string
   -> owner:string
   -> repo:string
@@ -69,6 +69,14 @@ val push_action :
      bot_info:Bot_info.t
   -> base_ref:string
   -> commits_msg:string list
+  -> unit Lwt.t
+
+val milestone_edited_action :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> number:int
+  -> request_inclusion_column:int
   -> unit Lwt.t
 
 val ci_minimize :

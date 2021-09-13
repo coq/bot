@@ -1,5 +1,6 @@
 open Base
 open Cohttp
+open GitHub_GraphQL
 open GitHub_types
 open Utils
 open Yojson.Basic.Util
@@ -19,7 +20,7 @@ let issue_info_of_json ?issue_json json =
       ; number= issue_json |> member "number" |> to_int }
   ; title= issue_json |> member "title" |> to_string
   ; number= issue_json |> member "number" |> to_int
-  ; id= issue_json |> member "node_id" |> to_string
+  ; id= issue_json |> member "node_id" |> to_string |> ID.parse
   ; user= issue_json |> member "user" |> member "login" |> to_string
   ; labels=
       issue_json |> member "labels" |> to_list
@@ -92,12 +93,12 @@ let comment_info_of_json ?(review_comment = false) json =
       | None ->
           issue_info_of_json json )
   ; review_comment
-  ; id= comment_json |> member "node_id" |> to_string }
+  ; id= comment_json |> member "node_id" |> to_string |> ID.parse }
 
 let repository_info_of_json json =
   let repo = json |> member "repository" in
-  { id= repo |> member "id" |> to_int
-  ; node_id= repo |> member "node_id" |> to_string
+  { databaseId= repo |> member "id" |> to_int
+  ; id= repo |> member "node_id" |> to_string |> ID.parse
   ; owner= repo |> member "owner" |> member "login" |> to_string
   ; name= repo |> member "name" |> to_string }
 
@@ -112,8 +113,8 @@ let check_suite_info_of_json json =
     | "queued" | _ ->
         QUEUED
   in
-  { id= check_suite |> member "id" |> to_int
-  ; node_id= check_suite |> member "node_id" |> to_string
+  { databaseId= check_suite |> member "id" |> to_int
+  ; id= check_suite |> member "node_id" |> to_string |> ID.parse
   ; head_sha= check_suite |> member "head_sha" |> to_string
   ; status }
 
@@ -128,8 +129,8 @@ let check_run_info_of_json json =
     | "queued" | _ ->
         QUEUED
   in
-  { id= check_run |> member "id" |> to_int
-  ; node_id= check_run |> member "node_id" |> to_string
+  { databaseId= check_run |> member "id" |> to_int
+  ; id= check_run |> member "node_id" |> to_string |> ID.parse
   ; head_sha= check_run |> member "head_sha" |> to_string
   ; status
   ; check_suite_info= check_suite_info_of_json check_run
@@ -149,67 +150,78 @@ let push_event_info_of_json json =
   in
   {owner; repo; base_ref; commits_msg}
 
+let milestone_of_json json =
+  let open Yojson.Basic.Util in
+  let milestone = json |> member "milestone" in
+  { Queries.Milestone.number= milestone |> member "number" |> to_int
+  ; id= milestone |> member "node_id" |> to_string |> ID.parse
+  ; title= milestone |> member "title" |> to_string
+  ; description= Some (milestone |> member "description" |> to_string) }
+
 type msg =
-  | IssueOpened of issue_info
-  | IssueClosed of issue_info
-  | RemovedFromProject of project_card_issue
-  | PullRequestUpdated of pull_request_action * issue_info pull_request_info
   | BranchCreated of remote_ref_info
-  | TagCreated of remote_ref_info
-  | CommentCreatedOrEdited of comment_info
   | CheckRunCreated of check_run_info
   | CheckRunUpdated of check_run_info
   | CheckRunReRequested of check_run_info
   | CheckSuiteCreated of check_suite_info
   | CheckSuiteRequested of check_suite_info
+  | CommentCreatedOrEdited of comment_info
+  | IssueOpened of issue_info
+  | IssueClosed of issue_info
+  | MilestoneEdited of repository_info * milestone
+  | PullRequestUpdated of pull_request_action * issue_info pull_request_info
   | PushEvent of push_info
+  | RemovedFromProject of project_card_issue
+  | TagCreated of remote_ref_info
   | UnsupportedEvent of string
 
 let github_action ~event ~action json =
   match (event, action) with
-  | "pull_request", "opened" ->
-      Ok
-        (PullRequestUpdated (PullRequestOpened, pull_request_info_of_json json))
-  | "pull_request", "reopened" ->
-      Ok
-        (PullRequestUpdated (PullRequestReopened, pull_request_info_of_json json))
-  | "pull_request", "synchronize" ->
-      Ok
-        (PullRequestUpdated
-           (PullRequestSynchronized, pull_request_info_of_json json))
-  | "pull_request", "closed" ->
-      Ok
-        (PullRequestUpdated (PullRequestClosed, pull_request_info_of_json json))
-  | "issues", "opened" ->
-      Ok (IssueOpened (issue_info_of_json json))
-  | "issues", "closed" ->
-      Ok (IssueClosed (issue_info_of_json json))
-  | "project_card", "deleted" ->
-      json |> project_card_of_json
-      |> Result.map ~f:(fun card -> RemovedFromProject card)
-  | "issue_comment", ("created" | "edited") ->
-      Ok (CommentCreatedOrEdited (comment_info_of_json json))
-  | "pull_request_review", "submitted" ->
-      Ok
-        (CommentCreatedOrEdited (comment_info_of_json json ~review_comment:true))
   | "check_run", "created" ->
       Ok (CheckRunCreated (check_run_info_of_json json))
   | "check_run", "rerequested" ->
       Ok (CheckRunReRequested (check_run_info_of_json json))
   | "check_suite", "requested" ->
       Ok (CheckSuiteRequested (check_suite_info_of_json json))
+  | "issues", "opened" ->
+      Ok (IssueOpened (issue_info_of_json json))
+  | "issues", "closed" ->
+      Ok (IssueClosed (issue_info_of_json json))
+  | "issue_comment", ("created" | "edited") ->
+      Ok (CommentCreatedOrEdited (comment_info_of_json json))
+  | "milestone", "edited" ->
+      Ok (MilestoneEdited (repository_info_of_json json, milestone_of_json json))
+  | "project_card", "deleted" ->
+      json |> project_card_of_json
+      |> Result.map ~f:(fun card -> RemovedFromProject card)
+  | "pull_request", "opened" ->
+      Ok (PullRequestUpdated (PullRequestOpened, pull_request_info_of_json json))
+  | "pull_request", "reopened" ->
+      Ok
+        (PullRequestUpdated (PullRequestReopened, pull_request_info_of_json json)
+        )
+  | "pull_request", "synchronize" ->
+      Ok
+        (PullRequestUpdated
+           (PullRequestSynchronized, pull_request_info_of_json json) )
+  | "pull_request", "closed" ->
+      Ok (PullRequestUpdated (PullRequestClosed, pull_request_info_of_json json))
+  | "pull_request_review", "submitted" ->
+      Ok
+        (CommentCreatedOrEdited (comment_info_of_json json ~review_comment:true))
   | _ ->
       Ok (UnsupportedEvent "Unsupported GitHub action.")
 
 let github_event ~event json =
   match event with
-  | "pull_request"
-  | "issues"
-  | "project_card"
-  | "issue_comment"
-  | "pull_request_review"
   | "check_run"
-  | "check_suite" ->
+  | "check_suite"
+  | "issue_comment"
+  | "issues"
+  | "milestone"
+  | "project_card"
+  | "pull_request"
+  | "pull_request_review" ->
       github_action ~event ~action:(json |> member "action" |> to_string) json
   | "push" ->
       Ok (PushEvent (push_event_info_of_json json))
