@@ -11,9 +11,11 @@ let send_graphql_query ~bot_info ?(extra_headers = []) ~query ~parse variables =
         ; ("User-Agent", bot_info.name) ]
       @ extra_headers )
   in
-  let body = `Assoc [("query", `String query); ("variables", variables)] in
-  let serialized_body = Yojson.Basic.to_string body in
-  Cohttp_lwt_unix.Client.post ~headers ~body:(`String serialized_body) uri
+  let request_json =
+    `Assoc [("query", `String query); ("variables", variables)]
+  in
+  let request = Yojson.Basic.to_string request_json in
+  Cohttp_lwt_unix.Client.post ~headers ~body:(`String request) uri
   >>= fun (rsp, body) ->
   Cohttp_lwt.Body.to_string body
   >|= fun body ->
@@ -40,6 +42,9 @@ let send_graphql_query ~bot_info ?(extra_headers = []) ~query ~parse variables =
     | Failure err ->
         Error (f "Exception: %s" err)
     | Yojson.Json_error err ->
-        Error (f "Json error: %s" err)
+        Error
+          (f "Json error: %s. Body was:\n%s\nRequest was:\n%s" err body request)
     | Yojson.Basic.Util.Type_error (err, _) ->
-        Error (f "Json type error: %s" err) )
+        Error
+          (f "Json type error: %s. Body was:\n%s. Request was:\n%s" err body
+             request ) )
