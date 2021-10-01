@@ -1830,12 +1830,37 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
       (fun () ->
         GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels ~bot_info)
       |> Lwt.async ;
-    (* Force push *)
     let open Lwt.Infix in
+    (* In Coq repo, if something has changed in
+       dev/ci/docker/, we rebuild the Docker image*)
+    let get_options =
+      if
+        String.equal pr_info.issue.issue.owner "coq"
+        && String.equal pr_info.issue.issue.repo "coq"
+      then
+        git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
+          "dev/ci/docker/.*Dockerfile.*"
+        >>= function
+        | Ok true ->
+            Lwt.return "-o ci.variable=\"SKIP_DOCKER=false\""
+        | Ok false ->
+            Lwt.return ""
+        | Error e ->
+            Lwt_io.printf
+              "Error while checking if something has changed in dev/ci/docker:\n\
+               %s\n"
+              e
+            >>= fun () -> Lwt.return ""
+      else Lwt.return ""
+    in
+    (* Force push *)
+    get_options
+    >>= fun options ->
     gitlab_ref ~issue:pr_info.issue.issue ~gitlab_mapping ~github_mapping
       ~bot_info
     >|= (fun remote_ref ->
-          git_push ~force:true ~remote_ref ~local_ref:local_head_branch)
+          git_push ~force:true ~options ~remote_ref ~local_ref:local_head_branch
+            () )
     >>= execute_cmd )
   else (
     (* Add rebase label if it exists *)

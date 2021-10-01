@@ -14,8 +14,10 @@ val git_fetch :
 
 val git_push :
      ?force:bool
+  -> ?options:string
   -> remote_ref:Bot_components.GitHub_types.remote_ref_info
   -> local_ref:string
+  -> unit
   -> string
 
 val git_delete :
@@ -27,6 +29,9 @@ val git_make_ancestor :
   -> base:string
   -> string
   -> (bool, string) result Lwt.t
+
+val git_test_modified :
+  base:string -> head:string -> string -> (bool, string) result Lwt.t
 
 val init_git_bare_repository : bot_info:Bot_components.Bot_info.t -> unit Lwt.t
 

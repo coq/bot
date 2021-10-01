@@ -82,13 +82,14 @@ let git_fetch ?(force = true) remote_ref local_branch_name =
     (Stdlib.Filename.quote remote_ref.name)
     (Stdlib.Filename.quote local_branch_name)
 
-let git_push ?(force = true) ~remote_ref ~local_ref =
-  f "git push %s %s%s:refs/heads/%s" remote_ref.repo_url
+let git_push ?(force = true) ?(options = "") ~remote_ref ~local_ref () =
+  f "git push %s %s%s:refs/heads/%s %s" remote_ref.repo_url
     (if force then " +" else " ")
     (Stdlib.Filename.quote local_ref)
     (Stdlib.Filename.quote remote_ref.name)
+    options
 
-let git_delete ~remote_ref = git_push ~force:false ~remote_ref ~local_ref:""
+let git_delete ~remote_ref = git_push ~force:false ~remote_ref ~local_ref:"" ()
 
 let git_make_ancestor ~pr_title ~pr_number ~base head =
   f "./make_ancestor.sh %s %s %s %d"
@@ -109,6 +110,24 @@ let git_make_ancestor ~pr_title ~pr_number ~base head =
       Error (f "git_make_ancestor script killed by signal %d." signal)
   | Unix.WSTOPPED signal ->
       Error (f "git_make_ancestor script stopped by signal %d." signal)
+
+let git_test_modified ~base ~head pattern =
+  let command =
+    f "git diff %s %s --name-only | grep \"%s\"" base head pattern
+  in
+  Lwt_unix.system command
+  >|= fun status ->
+  match status with
+  | Unix.WEXITED 0 ->
+      Ok true (* file was modified *)
+  | Unix.WEXITED 1 ->
+      Ok false (* file was not modified *)
+  | Unix.WEXITED code ->
+      Error (f "%s exited with status %d." command code)
+  | Unix.WSIGNALED signal ->
+      Error (f "%s killed by signal %d." command signal)
+  | Unix.WSTOPPED signal ->
+      Error (f "%s stopped by signal %d." command signal)
 
 let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo =
