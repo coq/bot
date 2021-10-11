@@ -472,8 +472,8 @@ type ci_minimization_info =
   ; failing_urls: string
   ; passing_urls: string }
 
-let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
-    ~ci_minimization_infos ~bug_file_contents =
+let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
+    ~base ~head ~ci_minimization_infos ~bug_file_contents =
   (* for convenience of control flow, we always create the temporary
      file, but we only pass in the file name if the bug file contents
      is non-None *)
@@ -488,10 +488,10 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
       Lwt_list.map_s
         (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
           git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
-            ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base
-            ~head ~bug_file_name
-          >>= fun result -> Lwt.return (target, result))
-        ci_minimization_infos)
+            ~pr_number ~docker_image ~target ~opam_switch ~failing_urls
+            ~passing_urls ~base ~head ~bug_file_name
+          >>= fun result -> Lwt.return (target, result) )
+        ci_minimization_infos )
   >>= fun results ->
   results
   |> List.partition_map ~f:(function
@@ -976,7 +976,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             |> List.map ~f:(fun {target} -> target)
             |> String.concat ~sep:", " ) )
       >>= fun () ->
-      run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~base ~head
+      run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
+        ~pr_number:(Int.to_string pr_number) ~base ~head
         ~ci_minimization_infos:jobs_to_minimize ~bug_file_contents
       >>= fun (jobs_minimized, jobs_that_could_not_be_minimized) ->
       let pluralize word ?plural ls =
@@ -1580,7 +1581,13 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
     match Str.split (Str.regexp " ") stamp with
-    | [comment_thread_id; _author; _repo_name; _branch_name; owner; repo] -> (
+    | [ comment_thread_id
+      ; _author
+      ; _repo_name
+      ; _branch_name
+      ; owner
+      ; repo
+      ; pr_number ] -> (
         message |> String.split ~on:'\n'
         |> function
         | docker_image
@@ -1595,7 +1602,7 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                Github_installations.action_as_github_app ~bot_info ~key ~app_id
                  ~owner ~repo
                  (run_ci_minimization ~comment_thread_id ~owner ~repo ~base
-                    ~head
+                    ~pr_number ~head
                     ~ci_minimization_infos:
                       [ { target
                         ; opam_switch

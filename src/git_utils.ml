@@ -145,7 +145,7 @@ let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ; repo ]
   |> execute_cmd
 
-let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
+let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
     ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base ~head
     ~bug_file_name =
   (* To push a new branch we need to identify as coqbot the GitHub
@@ -157,6 +157,7 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
     ; bot_info.domain
     ; owner
     ; repo
+    ; pr_number
     ; docker_image
     ; target
     ; opam_switch
