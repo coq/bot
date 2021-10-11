@@ -49,6 +49,7 @@ val git_run_ci_minimization :
   -> comment_thread_id:string
   -> owner:string
   -> repo:string
+  -> pr_number:string
   -> docker_image:string
   -> target:string
   -> opam_switch:string
