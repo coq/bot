@@ -47,7 +47,7 @@ git fetch "https://github.com/$repo_name.git" "refs/heads/master:$branch_name"
 git worktree add "$wtree" "$branch_name"
 pushd "$wtree"
 
-printf "%s %s %s %s %s %s" "$comment_thread_id" "<>" "$repo_name" "$branch_name" "$owner" "$repo $pr_number" > coqbot-request-stamp
+printf "%s %s %s %s %s %s %s" "$comment_thread_id" "<>" "$repo_name" "$branch_name" "$owner" "$repo" "$pr_number" > coqbot-request-stamp
 sed -i 's~^\(\s*\)[^:\s]*custom_image:.*$~\1custom_image: '"'${docker_image}'~" .github/workflows/main.yml
 echo "${target}" > coqbot.ci-target
 echo "${opam_switch}" > coqbot.compiler
