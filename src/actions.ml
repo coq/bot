@@ -1550,7 +1550,7 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
     match Str.split (Str.regexp " ") stamp with
-    | [id; author; repo_name; branch_name; owner; repo] ->
+    | [id; author; repo_name; branch_name; owner; repo; _pr_number] ->
         (fun () ->
           Github_installations.action_as_github_app ~bot_info ~key ~app_id
             ~owner ~repo
