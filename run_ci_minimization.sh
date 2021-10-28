@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo docker_image target opam_switch failing_urls passing_urls base head [bug_file]
+# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target opam_switch failing_urls passing_urls base head [bug_file]
 
 set -ex
 
-if [ $# != 13 ] && [ $# != 14 ]; then >&2 echo Bad argument count; exit 1; fi
+if [ $# != 14 ] && [ $# != 15 ]; then >&2 echo Bad argument count; exit 1; fi
 
 comment_thread_id=$1
 token=$2
