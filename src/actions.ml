@@ -44,7 +44,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
         ( "Test has failed on GitLab CI"
         , trace_lines
           |> List.filter_mapi ~f:(fun i line ->
-                 if String.is_prefix ~prefix:"Error" line then Some i else None)
+                 if String.is_prefix ~prefix:"Error" line then Some i else None )
           |> List.last )
     | "job_execution_timeout" ->
         ("Test has reached timeout on GitLab CI", None)
@@ -79,7 +79,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     let find regexp =
       List.find_map trace_lines ~f:(fun line ->
           if string_match ~regexp line then Some (Str.matched_group 1 line)
-          else None)
+          else None )
     in
     find "^Using Docker executor with image \\([^ ]+\\)"
     >>= fun docker_image ->
@@ -376,7 +376,7 @@ let job_success_or_pending ~bot_info (gh_owner, gh_repo)
         | _ ->
             failwith
               (f "Error: job_success_or_pending received unknown state %s."
-                 state)
+                 state )
       in
       match bot_info.github_install_token with
       | None ->
@@ -446,7 +446,7 @@ let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
   let sorted_builds =
     pipeline_info.builds
     |> List.sort ~compare:(fun build1 build2 ->
-           String.compare build1.build_name build2.build_name)
+           String.compare build1.build_name build2.build_name )
   in
   pipeline_info.stages
   |> List.concat_map ~f:(fun stage ->
@@ -455,12 +455,12 @@ let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
                 if String.equal build.stage stage then
                   Some
                     (f "  - [%s](%s/-/jobs/%d)" build.build_name
-                       pipeline_info.common_info.repo_url build.build_id)
-                else None)
-         |> List.cons ("- " ^ stage))
+                       pipeline_info.common_info.repo_url build.build_id )
+                else None )
+         |> List.cons ("- " ^ stage) )
   |> List.cons
        (f "This [GitLab pipeline](%s) contains the following stages and jobs:"
-          pipeline_url)
+          pipeline_url )
   |> (match summary_top with Some text -> List.cons text | None -> Fn.id)
   |> String.concat ~sep:"\n\n"
 
@@ -498,7 +498,7 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
        | target, Ok () ->
            Either.First target
        | target, Error f ->
-           Either.Second (target, f))
+           Either.Second (target, f) )
   |> Lwt.return
 
 type ci_minimization_job_suggestion_info =
@@ -516,13 +516,13 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
       let base_job_errored =
         List.find_map
           ~f:(fun (base_name, err) ->
-            if String.equal full_name base_name then Some err else None)
+            if String.equal full_name base_name then Some err else None )
           base_checks_errors
       in
       let base_job_failed =
         List.exists
           ~f:(fun ({name= base_name}, success_base) ->
-            String.equal full_name base_name && not success_base)
+            String.equal full_name base_name && not success_base )
           base_checks
       in
       if string_match ~regexp:"\\([^: ]*\\):\\(ci-[A-Za-z0-9_-]*\\)" full_name
@@ -595,27 +595,27 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
               Error
                 (f "Could not find base build job url for %s in:\n%s" build_job
                    (collapse_summary "Base Pipeline Summary"
-                      base_pipeline_summary))
+                      base_pipeline_summary ) )
           | _, None, _, _ ->
               Error
                 (f "Could not find head build job url for %s in:\n%s" build_job
                    (collapse_summary "Head Pipeline Summary"
-                      head_pipeline_summary))
+                      head_pipeline_summary ) )
           | _, _, None, _ ->
               Error
                 (f "Could not find base job url for %s in:\n%s" name
                    (collapse_summary "Base Pipeline Summary"
-                      base_pipeline_summary))
+                      base_pipeline_summary ) )
           | _, _, _, None ->
               Error
                 (f "Could not find head job url for %s in:\n%s" name
                    (collapse_summary "Head Pipeline Summary"
-                      head_pipeline_summary))
+                      head_pipeline_summary ) )
         else
           Error
             (f "Could not find needed parameters for job %s in summary:\n%s\n"
                name
-               (collapse_summary "Summary" summary))
+               (collapse_summary "Summary" summary) )
       else
         Error (f "Could not separate '%s' into job_kind:ci-target." full_name)
   | {name; summary= None}, _ ->
@@ -673,7 +673,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
               | Ok (result, status) ->
                   Either.Second
                     ( {result with name= shorten_ci_check_name result.name}
-                    , status ))
+                    , status ) )
           in
           let base_checks_errors, base_checks = partition_errors base_checks in
           let head_checks_errors, head_checks = partition_errors head_checks in
@@ -682,7 +682,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                  Lwt_io.printlf
                    "Non-fatal error while looking for failed tests of PR #%d \
                     to minimize: %s"
-                   pr_number error)
+                   pr_number error )
           >>= fun () ->
           let extract_pipeline_check =
             List.partition3_map ~f:(fun (check_tab_info, success) ->
@@ -695,7 +695,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                   | Some success ->
                       `Snd (check_tab_info, success)
                   | None ->
-                      `Trd check_tab_info)
+                      `Trd check_tab_info )
           in
           match
             ( extract_pipeline_check base_checks
@@ -734,10 +734,10 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                 List.filter_map head_checks ~f:(fun ({name}, success) ->
                     if string_match ~regexp:"test-suite" name && not success
                     then Some name
-                    else None)
+                    else None )
                 @ List.filter_map head_checks_errors ~f:(fun (name, _) ->
                       if string_match ~regexp:"test-suite" name then Some name
-                      else None)
+                      else None )
               in
               let possible_jobs_to_minimize, unminimizable_jobs =
                 head_checks
@@ -750,13 +750,13 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
                        | Error err ->
                            Either.Second (name, err)
                        | Ok result ->
-                           Either.First result)
+                           Either.First result )
               in
               let unminimizable_jobs =
                 unminimizable_jobs
                 @ ( unfinished_head_checks
                   |> List.map ~f:(fun {name} ->
-                         (name, f "Job %s is still in progress." name)) )
+                         (name, f "Job %s is still in progress." name) ) )
               in
               Lwt.return_ok
                 ( { comment_thread_id= pr_id
@@ -876,7 +876,7 @@ let suggest_ci_minimization_for_pr = function
   | {failed_test_suite_jobs= _ :: _ as failed_test_suite_jobs} ->
       Silent
         (f "the following test-suite jobs failed: %s"
-           (String.concat ~sep:", " failed_test_suite_jobs))
+           (String.concat ~sep:", " failed_test_suite_jobs) )
   (* This next case is a dummy case so OCaml doesn't complain about us
      never using RunAutomatically; we should probably remove it when
      we add a criterion for running minimization automatically *)
@@ -910,20 +910,20 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       let unminimizable_jobs =
         unminimizable_jobs
         |> List.sort ~compare:(fun (name1, _) (name2, _) ->
-               String.compare name1 name2)
+               String.compare name1 name2 )
       in
       possible_jobs_to_minimize
       |> List.sort ~compare:(fun (_, info1) (_, info2) ->
-             compare_minimization_info info1 info2)
+             compare_minimization_info info1 info2 )
       |> List.map ~f:(fun (suggestion_info, minimization_info) ->
-             (ci_minimization_suggest ~base suggestion_info, minimization_info))
+             (ci_minimization_suggest ~base suggestion_info, minimization_info) )
       |> List.partition3_map ~f:(function
            | Suggested, minimization_info ->
                `Fst minimization_info
            | Possible reason, minimization_info ->
                `Snd (reason, minimization_info)
            | Bad reason, minimization_info ->
-               `Trd (reason, minimization_info))
+               `Trd (reason, minimization_info) )
       |> fun ( suggested_jobs_to_minimize
              , possible_jobs_to_minimize
              , bad_jobs_to_minimize ) ->
@@ -961,8 +961,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                      List.exists
                        ~f:(fun request ->
                          String.equal target request
-                         (*|| String.equal full_target request*))
-                       requests)
+                         (*|| String.equal full_target request*) )
+                       requests )
             , Error "the user requested an explicit list of jobs" )
       in
       ( match jobs_to_minimize with
@@ -999,13 +999,13 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         | [(name, err)] ->
             Some
               (Printf.sprintf "The job %s could not be minimized because %s.\n"
-                 name err)
+                 name err )
         | unminimizable_jobs ->
             Some
               ( "The following jobs could not be minimized:\n"
               ^ ( unminimizable_jobs
                 |> List.map ~f:(fun (name, err) ->
-                       Printf.sprintf "- %s (%s)" name err)
+                       Printf.sprintf "- %s (%s)" name err )
                 |> String.concat ~sep:"\n" )
               ^ "\n\n" )
       in
@@ -1013,20 +1013,20 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         match
           bad_jobs_to_minimize
           |> List.filter ~f:(fun (_, {target (*; full_target*)}) ->
-                 f target (*|| f full_target*))
+                 f target (*|| f full_target*) )
         with
         | [] ->
             None
         | [(reason, {target})] ->
             Some
               (Printf.sprintf "The job %s was not minimized because %s.\n"
-                 target reason)
+                 target reason )
         | bad_jobs ->
             Some
               ( "The following jobs were not minimized:\n"
               ^ ( bad_jobs
                 |> List.map ~f:(fun (reason, {target}) ->
-                       Printf.sprintf "- %s because %s" target reason)
+                       Printf.sprintf "- %s because %s" target reason )
                 |> String.concat ~sep:"\n" )
               ^ "\n\n" )
       in
@@ -1048,7 +1048,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
               ( "I failed to trigger minimization on the following jobs:\n"
               ^ ( jobs_that_could_not_be_minimized
                 |> List.map ~f:(fun (name, err) ->
-                       Printf.sprintf "- %s (%s)" name err)
+                       Printf.sprintf "- %s (%s)" name err )
                 |> String.concat ~sep:"\n" )
               ^ "\n\n" )
       in
@@ -1150,15 +1150,15 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                        jobs_minimized
                    , List.find
                        ~f:(fun (target, _) ->
-                         string_match ~regexp:(Str.quote request) target)
+                         string_match ~regexp:(Str.quote request) target )
                        jobs_that_could_not_be_minimized
                    , List.find
                        ~f:(fun (target, _) ->
-                         string_match ~regexp:(Str.quote request) target)
+                         string_match ~regexp:(Str.quote request) target )
                        unminimizable_jobs
                    , List.find
                        ~f:(fun (_, {target}) ->
-                         string_match ~regexp:(Str.quote request) target)
+                         string_match ~regexp:(Str.quote request) target )
                        bad_jobs_to_minimize )
                  with
                  | true, _, _, _ ->
@@ -1171,7 +1171,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  | false, None, None, Some (reason, {target}) ->
                      `Snd (f "%s was not minimized because %s" target reason)
                  | false, None, None, None ->
-                     `Trd request)
+                     `Trd request )
           |> fun (successful_requests, unsuccessful_requests, unfound_requests) ->
           let unsuccessful_requests_report =
             match unsuccessful_requests with
@@ -1206,7 +1206,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                       %s.%s"
                      request
                      (all_jobs |> String.concat ~sep:", ")
-                     note_some_head_unfinished_msg)
+                     note_some_head_unfinished_msg )
             | _ :: _ :: _ ->
                 Some
                   (f
@@ -1214,7 +1214,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                       %s.%s"
                      (unfound_requests |> String.concat ~sep:", ")
                      (all_jobs |> String.concat ~sep:", ")
-                     note_some_head_unfinished_msg)
+                     note_some_head_unfinished_msg )
           in
           let unsuccessful_requests_report =
             match (unsuccessful_requests_report, unfound_requests_report) with
@@ -1305,7 +1305,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                      (pluralize "target" suggested_jobs_to_minimize)
                      ( suggested_jobs_to_minimize
                      |> List.map ~f:(fun {target} -> target)
-                     |> String.concat ~sep:", " ))
+                     |> String.concat ~sep:", " ) )
           in
           let suggest_only_all_jobs =
             let pre_message =
@@ -1326,8 +1326,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                   (f "%s\n%s\n\n\n" pre_message
                      ( possible_jobs_to_minimize
                      |> List.map ~f:(fun (reason, {target}) ->
-                            f "- %s (because %s)" target reason)
-                     |> String.concat ~sep:"\n" ))
+                            f "- %s (because %s)" target reason )
+                     |> String.concat ~sep:"\n" ) )
           in
           let suggest_all_jobs =
             match (suggest_jobs, suggest_only_all_jobs) with
@@ -1403,7 +1403,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       GitHub_mutations.post_comment ~id:comment_thread_id
         ~message:
           (f "Error while attempting to find job minimization information:\n%s"
-             err)
+             err )
         ~bot_info
       >>= GitHub_mutations.report_on_posting_comment
   | Error (_, err) ->
@@ -1496,7 +1496,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
             ~url:pipeline_url
             ~context:
               (f "GitLab CI pipeline (%s)"
-                 (pr_from_branch pipeline_info.common_info.branch |> snd))
+                 (pr_from_branch pipeline_info.common_info.branch |> snd) )
             ~description:title ~bot_info
       | Some _ -> (
           let owner, repo =
@@ -1513,7 +1513,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
               GitHub_mutations.create_check_run ~bot_info
                 ~name:
                   (f "GitLab CI pipeline (%s)"
-                     (pr_from_branch pipeline_info.common_info.branch |> snd))
+                     (pr_from_branch pipeline_info.common_info.branch |> snd) )
                 ~repo_id ~head_sha:pipeline_info.common_info.head_commit ~status
                 ?conclusion ~title ~details_url:pipeline_url ~summary
                 ~external_id ()
@@ -1539,7 +1539,7 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
           (f
              "Hey @%s, the coq bug minimizer is running your script, I'll come \
               back to you with the results once it's done."
-             comment_author)
+             comment_author )
         ~bot_info
       >>= GitHub_mutations.report_on_posting_comment
   | Error f ->
@@ -1555,7 +1555,7 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
           Github_installations.action_as_github_app ~bot_info ~key ~app_id
             ~owner ~repo
             (GitHub_mutations.post_comment ~id
-               ~message:(if ci then message else f "@%s, %s" author message))
+               ~message:(if ci then message else f "@%s, %s" author message) )
           >>= GitHub_mutations.report_on_posting_comment
           <&> ( execute_cmd
                   (* To delete the branch we need to identify as
@@ -1563,12 +1563,12 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
                      the run-coq-bug-minimizer repo, not coqbot the
                      GitHub App *)
                   (f "git push https://%s:%s@github.com/%s.git --delete '%s'"
-                     bot_info.name bot_info.github_pat repo_name branch_name)
+                     bot_info.name bot_info.github_pat repo_name branch_name )
               >>= function
               | Ok () ->
                   Lwt.return_unit
               | Error f ->
-                  Lwt_io.printf "Error: %s\n" f ))
+                  Lwt_io.printf "Error: %s\n" f ) )
         |> Lwt.async ;
         Server.respond_string ~status:`OK ~body:"" ()
     | _ ->
@@ -1610,7 +1610,7 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                         ; passing_urls
                         ; docker_image
                         ; full_target= target (* dummy value *) } ]
-                    ~bug_file_contents:(Some bug_file_contents))
+                    ~bug_file_contents:(Some bug_file_contents) )
                >>= function
                | [], [] ->
                    Lwt_io.printlf
@@ -1629,13 +1629,13 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                    match
                      jobs_that_could_not_be_minimized
                      |> List.map ~f:(fun (job, reason) ->
-                            f "%s because %s" job reason)
+                            f "%s because %s" job reason )
                    with
                    | [] ->
                        Lwt.return_unit
                    | msgs ->
                        Lwt_io.printlf "Could not resume minimization of %s"
-                         (msgs |> String.concat ~sep:", ") ))
+                         (msgs |> String.concat ~sep:", ") ) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:"Handling CI minimization resumption." ()
@@ -1646,7 +1646,7 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                    "Error: resume-ci-minimization called without enough \
                     arguments:\n\
                     %s"
-                   message)
+                   message )
               () )
     | _ ->
         Server.respond_string ~status:(`Code 400) ~body:"Bad request" ()
@@ -1679,8 +1679,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
   | _ :: _ ->
       let reasons = reasons_for_not_merging |> String.concat ~sep:" and " in
       Lwt.return_error
-        (f "@%s: You can't merge the PR because %s." comment_info.author
-           reasons)
+        (f "@%s: You can't merge the PR because %s." comment_info.author reasons)
   | [] -> (
       GitHub_queries.get_pull_request_reviews_refs ~bot_info
         ~owner:pr.issue.owner ~repo:pr.issue.repo ~number:pr.issue.number
@@ -1688,7 +1687,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       | Ok reviews_info -> (
           let comment =
             List.find reviews_info.last_comments ~f:(fun c ->
-                String.equal comment_info.id c.id)
+                String.equal comment_info.id c.id )
           in
           if (not comment_info.review_comment) && Option.is_none comment then
             if Float.(t > 5.) then
@@ -1711,14 +1710,14 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                  "@%s: Merge requests sent over e-mail are not accepted \
                   because this puts less guarantee on the authenticity of the \
                   author of the request."
-                 comment_info.author)
+                 comment_info.author )
           else if not (String.equal reviews_info.baseRef "master") then
             Lwt.return_error
               (f
                  "@%s: This PR targets branch `%s` instead of `master`. Only \
                   release managers can merge in release branches. Merging with \
                   the bot is not supported."
-                 comment_info.author reviews_info.baseRef)
+                 comment_info.author reviews_info.baseRef )
           else
             match reviews_info.review_decision with
             | NONE | REVIEW_REQUIRED ->
@@ -1726,13 +1725,13 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                   (f
                      "@%s: You can't merge the PR because it hasn't been \
                       approved yet."
-                     comment_info.author)
+                     comment_info.author )
             | CHANGES_REQUESTED ->
                 Lwt.return_error
                   (f
                      "@%s: You can't merge the PR because some changes are \
                       requested."
-                     comment_info.author)
+                     comment_info.author )
             | APPROVED -> (
                 GitHub_queries.get_team_membership ~bot_info ~org:"coq"
                   ~team:"pushers" ~user:comment_info.author
@@ -1743,12 +1742,12 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                       (f
                          "@%s: You can't merge this PR because you're not a \
                           member of the `@coq/pushers` team."
-                         comment_info.author)
+                         comment_info.author )
                 | Ok true -> (
                     GitHub_mutations.merge_pull_request ~bot_info ~pr_id:pr.id
                       ~commit_headline:
                         (f "Merge PR #%d: %s" pr.issue.number
-                           comment_info.issue.title)
+                           comment_info.issue.title )
                       ~commit_body:
                         ( List.fold_left reviews_info.approved_reviews ~init:""
                             ~f:(fun s r -> s ^ f "Reviewed-by: %s\n" r)
@@ -1765,7 +1764,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                             string_match ~regexp:"dev/ci/user-overlays/\\(.*\\)"
                               f
                           then Str.matched_group 1 f :: acc
-                          else acc)
+                          else acc )
                     with
                     | [] ->
                         Lwt.return_ok ()
@@ -1777,18 +1776,18 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                                 %s"
                                comment_info.author
                                (List.fold_left overlays ~init:"" ~f:(fun s o ->
-                                    s ^ f "- %s\n" o)))
+                                    s ^ f "- %s\n" o ) ) )
                         >>= GitHub_mutations.report_on_posting_comment
                         >>= fun () -> Lwt.return_ok () )
                 | Error e ->
                     Lwt.return_error
                       (f
                          "Something unexpected happened: %s\n\
-                          cc @coq/coqbot-maintainers" e) ) )
+                          cc @coq/coqbot-maintainers" e ) ) )
       | Error e ->
           Lwt.return_error
-            (f "Something unexpected happened: %s\ncc @coq/coqbot-maintainers"
-               e) ) )
+            (f "Something unexpected happened: %s\ncc @coq/coqbot-maintainers" e)
+      ) )
   >>= function
   | Ok () ->
       Lwt.return_unit
@@ -1812,7 +1811,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
   >>= (fun () ->
         git_make_ancestor ~pr_title:pr_info.issue.title
           ~pr_number:pr_info.issue.number ~base:local_base_branch
-          local_head_branch)
+          local_head_branch )
   >>= fun ok ->
   let rebase_label = "needs: rebase" in
   let stale_label = "stale" in
@@ -1835,7 +1834,8 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
     in
     if not (List.is_empty labels) then
       (fun () ->
-        GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels ~bot_info)
+        GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels ~bot_info
+        )
       |> Lwt.async ;
     let open Lwt.Infix in
     (* In Coq repo, if something has changed in
@@ -1877,7 +1877,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
     | Some label_id ->
         (fun () ->
           GitHub_mutations.add_labels ~pr_id:pr_info.issue.id ~labels:[label_id]
-            ~bot_info)
+            ~bot_info )
         |> Lwt.async ) ;
     (* Add fail status check *)
     match bot_info.github_install_token with
@@ -1933,17 +1933,17 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
                       ~bot_info ~gitlab_mapping ~github_mapping )
               else
                 Lwt_io.print "Unauthorized user: doing nothing.\n"
-                |> Lwt_result.ok)
+                |> Lwt_result.ok )
         |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-               Lwt_io.printf "Error: %s\n" err))
-        >>= fun _ -> Lwt.return_unit)
+               Lwt_io.printf "Error: %s\n" err ))
+        >>= fun _ -> Lwt.return_unit )
       |> Lwt.async ;
       Server.respond_string ~status:`OK
         ~body:
           (f
              "Received a request to run CI: checking that @%s is a member of \
               @%s/%s before doing so."
-             comment_info.issue.user comment_info.issue.issue.owner team)
+             comment_info.issue.user comment_info.issue.issue.owner team )
         ()
   | Some _ ->
       Server.respond_string ~status:(Code.status_of_code 403)
@@ -1955,7 +1955,7 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
           (f
              "Received a request to run CI but no team defined for \
               organization %s: nothing to do."
-             comment_info.issue.issue.owner)
+             comment_info.issue.issue.owner )
         ()
 
 let pull_request_closed_action ~bot_info
@@ -1992,8 +1992,8 @@ let pull_request_updated_action ~bot_info
                 as the name of your branch when submitting a pull request.\n\
                 By the way, you may be interested in reading [our contributing \
                 guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
-               pr_info.base.branch.name)
-        >>= GitHub_mutations.report_on_posting_comment)
+               pr_info.base.branch.name )
+        >>= GitHub_mutations.report_on_posting_comment )
       |> Lwt.async
   | _ ->
       () ) ;
@@ -2009,17 +2009,17 @@ let pull_request_updated_action ~bot_info
                 update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping )
               else
                 Lwt_io.print "Unauthorized user: doing nothing.\n"
-                |> Lwt_result.ok)
+                |> Lwt_result.ok )
         |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-               Lwt_io.printf "Error: %s\n" err))
-        >>= fun _ -> Lwt.return_unit)
+               Lwt_io.printf "Error: %s\n" err ))
+        >>= fun _ -> Lwt.return_unit )
       |> Lwt.async ;
       Server.respond_string ~status:`OK
         ~body:
           (f
              "Pull request was (re)opened / synchronized. Checking that user \
               %s is a member of @%s/%s before pushing to GitLab."
-             pr_info.issue.user pr_info.issue.issue.owner team)
+             pr_info.issue.user pr_info.issue.issue.owner team )
         ()
   | Some _ ->
       Server.respond_string ~status:(Code.status_of_code 403)
@@ -2027,7 +2027,7 @@ let pull_request_updated_action ~bot_info
   | None ->
       (fun () ->
         update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-        >>= fun _ -> Lwt.return_unit)
+        >>= fun _ -> Lwt.return_unit )
       |> Lwt.async ;
       Server.respond_string ~status:`OK
         ~body:
@@ -2035,7 +2035,7 @@ let pull_request_updated_action ~bot_info
              "Pull request %s/%s#%d was (re)opened / synchronized: \
               (force-)pushing to GitLab."
              pr_info.issue.issue.owner pr_info.issue.issue.repo
-             pr_info.issue.issue.number)
+             pr_info.issue.issue.number )
         ()
 
 let rec adjust_milestone ~bot_info ~issue ~sleep_time =
@@ -2077,7 +2077,7 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
       Lwt_io.printf "Could not find backporting info for PR.\n"
   | Ok (Some (id, _, {backport_info; rejected_milestone}))
     when List.exists backport_info ~f:(fun {request_inclusion_column} ->
-             Int.equal request_inclusion_column column_id) ->
+             Int.equal request_inclusion_column column_id ) ->
       Lwt_io.printf
         "This was a request inclusion column: PR was rejected.\n\
          Change of milestone requested to: %s\n"
@@ -2120,7 +2120,7 @@ let push_action ~bot_info ~base_ref ~commits_msg =
                      backport_to
                    >>= fun () ->
                    GitHub_mutations.add_pr_to_column ~pr_id
-                     ~column_id:request_inclusion_column ~bot_info)
+                     ~column_id:request_inclusion_column ~bot_info )
       | Ok None ->
           Lwt_io.printf "Did not get any backporting info.\n"
       | Error err ->
@@ -2177,7 +2177,7 @@ let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
                   (* even with a race condition it cannot happen *)
                   failwith
                     (f "Anomaly: Label \"%s\" absent from timeline of PR #%i"
-                       label pr_number)
+                       label pr_number )
               | Some ts ->
                   days_elapsed ts
             in
@@ -2211,7 +2211,7 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
                      "The \"%s\" label was set more than %i days ago. If the \
                       PR is not rebased in %i days, it will be automatically \
                       closed."
-                     rebase_label warn_after close_after)
+                     rebase_label warn_after close_after )
                 ~bot_info
               >>= GitHub_mutations.report_on_posting_comment
               >>= fun () ->
@@ -2234,7 +2234,7 @@ let coq_check_stale_pr ~bot_info ~owner ~repo ~after ~throttle =
         (f
            "This PR was not rebased after %i days despite the warning, it is \
             now closed."
-           after)
+           after )
       ~bot_info
     >>= GitHub_mutations.report_on_posting_comment
     >>= fun () ->
