@@ -507,7 +507,8 @@ type ci_minimization_job_suggestion_info =
   ; head_job_succeeded: bool
   ; missing_error: bool
   ; non_v_file: string option
-  ; job_kind: string (*; overlayed: bool*) }
+  ; job_kind: string
+  ; job_target: string (*; overlayed: bool*) }
 
 let ci_minimization_extract_job_specific_info ~head_pipeline_summary
     ~base_pipeline_summary ~base_checks_errors ~base_checks = function
@@ -584,7 +585,8 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
                   ; missing_error
                   ; non_v_file
                   ; job_kind
-                  ; head_job_succeeded (*; overlayed= false (* XXX FIXME *)*) }
+                  ; head_job_succeeded
+                  ; job_target= target (*; overlayed= false (* XXX FIXME *)*) }
                 , { target
                   ; full_target= name
                   ; docker_image
@@ -846,7 +848,8 @@ let ci_minimization_suggest ~base
     ; head_job_succeeded
     ; missing_error
     ; non_v_file
-    ; job_kind (*; overlayed*) } =
+    ; job_kind
+    ; job_target (*; overlayed*) } =
   if head_job_succeeded then Bad "job succeeded!"
   else if missing_error then Bad "no error message was found"
   else
@@ -864,6 +867,12 @@ let ci_minimization_suggest ~base
         then
           Possible
             (f "the job is a %s which is not a library nor a plugin" job_kind)
+        else if String.equal job_target "ci-coq_tools" then
+          Possible
+            (f
+               "coq-tools is too sensitive to the output of coqc to be \
+                minimized at this time (instead, @JasonGross can help diagnose \
+                and fix the issue)" )
         else Suggested
 
 type ci_pr_minimization_suggestion =
