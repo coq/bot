@@ -1725,8 +1725,10 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
             Lwt.return_error
               (f
                  "@%s: This PR targets branch `%s` instead of `master`. Only \
-                  release managers can merge in release branches. Merging with \
-                  the bot is not supported."
+                  release managers can merge in release branches. If you are \
+                  the release manager for this branch, you should use the \
+                  `dev/tools/merge-pr.sh` script to merge this PR. Merging \
+                  with the bot is not supported yet."
                  comment_info.author reviews_info.baseRef )
           else
             match reviews_info.review_decision with
