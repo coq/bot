@@ -2108,9 +2108,24 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
 let push_action ~bot_info ~base_ref ~commits_msg =
   Stdio.printf "Merge and backport commit messages:\n" ;
   let commit_action commit_msg =
-    if string_match ~regexp:"^Merge PR #\\([0-9]*\\):" commit_msg then
-      let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
-      Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
+    if
+      string_match ~regexp:"^Merge \\(PR\\|pull request\\) #\\([0-9]*\\)[: ]"
+        commit_msg
+    then
+      let merge_button_alert =
+        (* Might require more verification that we are not merging a
+           subtree from another repository. Then, we could post a
+           message alerting the merger than they did not use the right
+           method. *)
+        String.equal (Str.matched_group 1 commit_msg) "pull request"
+      in
+      let log_alert =
+        if merge_button_alert then
+          "Warning: the wrong merge method was used for this PR!\n"
+        else ""
+      in
+      let pr_number = Str.matched_group 2 commit_msg |> Int.of_string in
+      Lwt_io.printf "%s\nPR #%d was merged.\n%s" commit_msg pr_number log_alert
       >>= fun () ->
       GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
         ~repo:"coq" ~number:pr_number
