@@ -212,12 +212,13 @@ let send_doc_url_aux ~bot_info job_info (kind, url) =
   let description_base = f "Link to %s build artifact" kind in
   url |> Uri.of_string |> Client.get
   >>= fun (resp, _) ->
-  if resp |> Response.status |> Code.code_of_status |> Int.equal 200 then
+  let status_code = resp |> Response.status |> Code.code_of_status in
+  if Int.equal 200 status_code then
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
       ~commit:job_info.common_info.head_commit ~state:"success" ~url ~context
       ~description:(description_base ^ ".") ~bot_info
   else
-    Lwt_io.printf "But we didn't get a 200 code when checking the URL.\n"
+    Lwt_io.printf "But we got a %d code when checking the URL.\n" status_code
     <&>
     let job_url = f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id in
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
