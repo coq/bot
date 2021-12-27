@@ -1081,7 +1081,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         | [] ->
             ""
         | ls ->
-            f "\nHowever, you may want to wait until the %s for the %s %s."
+            f
+              "\n\n\
+               :warning: :hourglass: You may want to wait until the %s for the \
+               %s %s."
               (pluralize "pipeline" ls)
               (ls |> String.concat ~sep:" and ")
               (pluralize "finishes" ~plural:"finish" ls)
@@ -1309,8 +1312,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             | _ ->
                 Some
                   (f
-                     "If you tag me saying `@%s ci minimize`, I will minimize \
-                      the following %s: %s.\n"
+                     ":runner: <code>@%s ci minimize</code> will minimize the \
+                      following %s: %s"
                      bot_info.name
                      (pluralize "target" suggested_jobs_to_minimize)
                      ( suggested_jobs_to_minimize
@@ -1320,7 +1323,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
           let suggest_only_all_jobs =
             let pre_message =
               f
-                "If you tag me saying `@%s ci minimize all`, I will \
+                "- If you tag me saying `@%s ci minimize all`, I will \
                  additionally minimize the following %s (which I do not \
                  suggest minimizing):"
                 bot_info.name
@@ -1336,22 +1339,13 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                   (f "%s\n%s\n\n\n" pre_message
                      ( possible_jobs_to_minimize
                      |> List.map ~f:(fun (reason, {target}) ->
-                            f "- %s (because %s)" target reason )
+                            f "  - %s (because %s)" target reason )
                      |> String.concat ~sep:"\n" ) )
-          in
-          let suggest_all_jobs =
-            match (suggest_jobs, suggest_only_all_jobs) with
-            | None, _ ->
-                None
-            | Some msg, None ->
-                Some (msg ^ may_wish_to_wait_msg)
-            | Some msg1, Some msg2 ->
-                Some (msg1 ^ msg2 ^ may_wish_to_wait_msg)
           in
           match
             ( jobs_minimized
             , failed_minimization_description
-            , suggest_all_jobs
+            , suggest_jobs
             , suggest_only_all_jobs
             , suggest_minimization )
           with
@@ -1367,23 +1361,15 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  %s"
                 owner repo head pr_number msg
               >>= fun () -> Lwt.return_none
-          | [], None, Some suggestion_msg, _, Ok () ->
-              f
-                "Hey, I have detected that there were CI failures at commit %s \
-                 without any failure in the test-suite.\n\
-                 I checked that the corresponding jobs for the base commit %s \
-                 succeeded. You can ask me to try to extract a minimal test \
-                 case from this so that it can be added to the test-suite.\n\
-                 %s"
-                head base suggestion_msg
-              |> Lwt.return_some
           | [], None, Some suggestion_msg, _, Error reason ->
               Lwt_io.printlf
                 "Candidates found for minimization on %s/%s@%s for PR #%d, but \
                  I am not commenting because minimization is not suggested \
                  because %s:\n\
+                 %s\n\
                  %s"
                 owner repo head pr_number reason suggestion_msg
+                (Option.value ~default:"" suggest_only_all_jobs)
               >>= fun () -> Lwt.return_none
           | [], Some failed_minimization_description, _, _, _ ->
               Lwt_io.printlf
@@ -1392,20 +1378,46 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  %s"
                 owner repo head pr_number failed_minimization_description
               >>= fun () -> Lwt.return_none
+          | [], None, Some suggestion_msg, _, Ok () ->
+              f
+                ":red_circle: CI %s at commit %s without any failure in the \
+                 test-suite\n\n\
+                 :heavy_check_mark: Corresponding %s for the base commit %s \
+                 succeeded\n\n\
+                 :grey_question: Ask me to try to extract %s that can be added \
+                 to the test-suite\n\n\
+                 <details><summary>%s</summary>\n\n\
+                 - You can also pass me a specific list of targets to minimize \
+                 as arguments.\n\
+                 %s\n\
+                 </details>%s"
+                (pluralize "failure" suggested_jobs_to_minimize)
+                head
+                (pluralize "job" suggested_jobs_to_minimize)
+                base
+                (pluralize "a minimal test case" ~plural:"minimal test cases"
+                   suggested_jobs_to_minimize )
+                suggestion_msg
+                (Option.value ~default:"" suggest_only_all_jobs)
+                may_wish_to_wait_msg
+              |> Lwt.return_some
           | _ :: _, _, _, _, _ ->
               f
-                "Hey, I have detected that the %s %s failed on the CI at \
-                 commit %s without any failure in the test-suite.\n\
-                 I checked that the corresponding %s for the base commit %s \
-                 succeeded. Now, I'm trying to extract a minimal test case \
-                 from this so that it can be added to the test-suite. I'll \
-                 come back to you with the results once it's done.\n\
-                 %s"
-                (pluralize "job" jobs_minimized)
-                (jobs_minimized |> String.concat ~sep:", ")
+                ":red_circle: CI %s at commit %s without any failure in the \
+                 test-suite\n\n\
+                 :heavy_check_mark: Corresponding %s for the base commit %s \
+                 succeeded\n\n\
+                 <details><summary>:runner: I have automatically started \
+                 minimization for %s to augment the test-suite</summary>\n\n\
+                 - You can also pass me a specific list of targets to minimize \
+                 as arguments.\n\
+                 %s\n\
+                 </details>"
+                (pluralize "failure" jobs_minimized)
                 head
                 (pluralize "job" jobs_minimized)
                 base
+                (jobs_minimized |> String.concat ~sep:", ")
                 (Option.value ~default:"" suggest_only_all_jobs)
               |> Lwt.return_some ) )
       >>= function

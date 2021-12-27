@@ -67,8 +67,8 @@ let callback _conn req body =
        the tagging to "@`coqbot minimize foo`" so that the matching
        below doesn't pick up the name *)
     Str.global_replace
-      (Str.regexp_string (f "`@%s " bot_name))
-      (f "@`%s " bot_name) body
+      (Str.regexp (f "\\(`\\|<code>\\)@%s " (Str.quote bot_name)))
+      (f "@\\1%s " bot_name) body
   in
   (* print_endline "Request received."; *)
   match Uri.path (Request.uri req) with
