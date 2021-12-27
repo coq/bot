@@ -36,7 +36,7 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
                 Option.value
                   (Config.subkey_value
                      (Config.toml_of_string content)
-                     "mapping" "gitlab")
+                     "mapping" "gitlab" )
                   ~default:gh_repo
               in
               ( match Hashtbl.add gitlab_mapping ~key:gl_repo ~data:gh_repo with

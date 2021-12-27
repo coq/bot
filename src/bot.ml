@@ -41,7 +41,7 @@ let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 
 let string_of_installation_tokens =
   Hashtbl.fold ~init:"" ~f:(fun ~key ~data acc ->
-      acc ^ f "Owner: %s, token: %s,  expire at: %f\n" key (fst data) (snd data))
+      acc ^ f "Owner: %s, token: %s,  expire at: %f\n" key (fst data) (snd data) )
 
 (* TODO: deprecate unsigned webhooks *)
 
@@ -87,7 +87,7 @@ let callback _conn req body =
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
               ~repo:gh_repo
-              (job_action ~gitlab_mapping job_info))
+              (job_action ~gitlab_mapping job_info) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Job event." ()
       | Ok (_, PipelineEvent pipeline_info) ->
@@ -97,7 +97,7 @@ let callback _conn req body =
                 pipeline_info.project_path
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (pipeline_action ~gitlab_mapping pipeline_info))
+              (pipeline_action ~gitlab_mapping pipeline_info) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Pipeline event." ()
       | Ok (_, UnsupportedEvent e) ->
@@ -123,7 +123,7 @@ let callback _conn req body =
             init_git_bare_repository ~bot_info
             >>= fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (push_action ~base_ref ~commits_msg))
+              (push_action ~base_ref ~commits_msg) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Processing push event." ()
       | Ok (_, PullRequestUpdated (PullRequestClosed, pr_info)) ->
@@ -133,7 +133,7 @@ let callback _conn req body =
             action_as_github_app ~bot_info ~key ~app_id
               ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
               (pull_request_closed_action ~gitlab_mapping ~github_mapping
-                 pr_info))
+                 pr_info ) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -141,7 +141,7 @@ let callback _conn req body =
                  "Pull request %s/%s#%d was closed: removing the branch from \
                   GitLab."
                  pr_info.issue.issue.owner pr_info.issue.issue.repo
-                 pr_info.issue.issue.number)
+                 pr_info.issue.issue.number )
             ()
       | Ok (signed, PullRequestUpdated (action, pr_info)) ->
           init_git_bare_repository ~bot_info
@@ -149,31 +149,31 @@ let callback _conn req body =
           action_as_github_app ~bot_info ~key ~app_id
             ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
             (pull_request_updated_action ~action ~pr_info ~gitlab_mapping
-               ~github_mapping ~signed)
+               ~github_mapping ~signed )
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
               ~repo:issue.repo
-              (adjust_milestone ~issue ~sleep_time:5.))
+              (adjust_milestone ~issue ~sleep_time:5.) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Issue %s/%s#%d was closed: checking its milestone."
-                 issue.owner issue.repo issue.number)
+                 issue.owner issue.repo issue.number )
             ()
       | Ok (_, RemovedFromProject ({issue= Some issue; column_id} as card)) ->
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
               ~repo:issue.repo
-              (project_action ~issue ~column_id))
+              (project_action ~issue ~column_id) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f
                  "Issue or PR %s/%s#%d was removed from project column %d: \
                   checking if this was a backporting column."
-                 issue.owner issue.repo issue.number card.column_id)
+                 issue.owner issue.repo issue.number card.column_id )
             ()
       | Ok (_, RemovedFromProject _) ->
           Server.respond_string ~status:`OK
@@ -189,7 +189,8 @@ let callback _conn req body =
                   ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
                   (run_coq_minimizer ~script ~comment_thread_id:issue_info.id
                      ~comment_author:issue_info.user
-                     ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo))
+                     ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo )
+                )
               |> Lwt.async ;
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
@@ -213,7 +214,7 @@ let callback _conn req body =
                      ~comment_thread_id:comment_info.issue.id
                      ~comment_author:comment_info.author
                      ~owner:comment_info.issue.issue.owner
-                     ~repo:comment_info.issue.issue.repo))
+                     ~repo:comment_info.issue.issue.repo ) )
               |> Lwt.async ;
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
@@ -243,7 +244,7 @@ let callback _conn req body =
                     ~owner:comment_info.issue.issue.owner
                     ~repo:comment_info.issue.issue.repo
                     (ci_minimize ~comment_info ~requests ~comment_on_error:true
-                       ~bug_file_contents:None))
+                       ~bug_file_contents:None ) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:"Handling CI minimization." () )
@@ -258,7 +259,7 @@ let callback _conn req body =
                         ]*\n\
                         \\(\\(.\\|\n\
                         \\)+\\)"
-                       bot_name)
+                       bot_name )
                   body
               then (
                 let requests, bug_file_contents =
@@ -275,7 +276,7 @@ let callback _conn req body =
                     ~owner:comment_info.issue.issue.owner
                     ~repo:comment_info.issue.issue.repo
                     (ci_minimize ~comment_info ~requests ~comment_on_error:true
-                       ~bug_file_contents:(Some bug_file_contents)))
+                       ~bug_file_contents:(Some bug_file_contents) ) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:"Handling CI minimization resumption." () )
@@ -289,7 +290,7 @@ let callback _conn req body =
                   ~owner:comment_info.issue.issue.owner
                   ~repo:comment_info.issue.issue.repo
                   (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
-                     ~signed)
+                     ~signed )
               else if
                 string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
                 && comment_info.issue.pull_request
@@ -301,7 +302,7 @@ let callback _conn req body =
                   action_as_github_app ~bot_info ~key ~app_id
                     ~owner:comment_info.issue.issue.owner
                     ~repo:comment_info.issue.issue.repo
-                    (merge_pull_request_action comment_info))
+                    (merge_pull_request_action comment_info) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:(f "Received a request to merge the PR.")
@@ -319,14 +320,14 @@ let callback _conn req body =
               ~body:"Request to rerun check run but empty external ID." ()
           else (
             (fun () ->
-              GitLab_mutations.generic_retry ~bot_info ~url_part:external_id)
+              GitLab_mutations.generic_retry ~bot_info ~url_part:external_id )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
                 (f
                    "Received a request to re-run a job / pipeline (GitLab ID : \
                     %s)."
-                   external_id)
+                   external_id )
               () )
       | Ok (_, UnsupportedEvent s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
@@ -364,10 +365,11 @@ let callback _conn req body =
             (fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
                 (coq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
-                   ~throttle:6)
+                   ~throttle:6 )
               >>= fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-                (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4))
+                (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4)
+              )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:"Stale pull requests updated" () )

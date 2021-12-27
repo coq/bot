@@ -168,18 +168,17 @@ type msg =
 let github_action ~event ~action json =
   match (event, action) with
   | "pull_request", "opened" ->
-      Ok
-        (PullRequestUpdated (PullRequestOpened, pull_request_info_of_json json))
+      Ok (PullRequestUpdated (PullRequestOpened, pull_request_info_of_json json))
   | "pull_request", "reopened" ->
       Ok
-        (PullRequestUpdated (PullRequestReopened, pull_request_info_of_json json))
+        (PullRequestUpdated (PullRequestReopened, pull_request_info_of_json json)
+        )
   | "pull_request", "synchronize" ->
       Ok
         (PullRequestUpdated
-           (PullRequestSynchronized, pull_request_info_of_json json))
+           (PullRequestSynchronized, pull_request_info_of_json json) )
   | "pull_request", "closed" ->
-      Ok
-        (PullRequestUpdated (PullRequestClosed, pull_request_info_of_json json))
+      Ok (PullRequestUpdated (PullRequestClosed, pull_request_info_of_json json))
   | "issues", "opened" ->
       Ok (IssueOpened (issue_info_of_json json))
   | "issues", "closed" ->
