@@ -1341,9 +1341,9 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
           in
           let suggest_all_jobs =
             match (suggest_jobs, suggest_only_all_jobs) with
-            | None, None ->
+            | None, _ ->
                 None
-            | Some msg, None | None, Some msg ->
+            | Some msg, None ->
                 Some (msg ^ may_wish_to_wait_msg)
             | Some msg1, Some msg2 ->
                 Some (msg1 ^ msg2 ^ may_wish_to_wait_msg)
@@ -1352,14 +1352,22 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
             ( jobs_minimized
             , failed_minimization_description
             , suggest_all_jobs
+            , suggest_only_all_jobs
             , suggest_minimization )
           with
-          | [], None, None, _ ->
+          | [], None, None, None, _ ->
               Lwt_io.printlf
                 "No candidates found for minimization on %s/%s@%s for PR #%d."
                 owner repo head pr_number
               >>= fun () -> Lwt.return_none
-          | [], None, Some suggestion_msg, Ok () ->
+          | [], None, None, Some msg, _ ->
+              Lwt_io.printlf
+                "No suggested candidates found for minimization on %s/%s@%s \
+                 for PR #%d:\n\
+                 %s"
+                owner repo head pr_number msg
+              >>= fun () -> Lwt.return_none
+          | [], None, Some suggestion_msg, _, Ok () ->
               f
                 "Hey, I have detected that there were CI failures at commit %s \
                  without any failure in the test-suite.\n\
@@ -1369,7 +1377,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  %s"
                 head base suggestion_msg
               |> Lwt.return_some
-          | [], None, Some suggestion_msg, Error reason ->
+          | [], None, Some suggestion_msg, _, Error reason ->
               Lwt_io.printlf
                 "Candidates found for minimization on %s/%s@%s for PR #%d, but \
                  I am not commenting because minimization is not suggested \
@@ -1377,14 +1385,14 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  %s"
                 owner repo head pr_number reason suggestion_msg
               >>= fun () -> Lwt.return_none
-          | [], Some failed_minimization_description, _, _ ->
+          | [], Some failed_minimization_description, _, _, _ ->
               Lwt_io.printlf
                 "Candidates found for auto minimization on %s/%s@%s for PR \
                  #%d, but all attempts to trigger minimization failed:\n\
                  %s"
                 owner repo head pr_number failed_minimization_description
               >>= fun () -> Lwt.return_none
-          | _ :: _, _, _, _ ->
+          | _ :: _, _, _, _, _ ->
               f
                 "Hey, I have detected that the %s %s failed on the CI at \
                  commit %s without any failure in the test-suite.\n\
