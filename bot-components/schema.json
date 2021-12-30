@@ -78113,14 +78113,14 @@
           },
           {
             "name": "pusher",
-            "description": "The user who pushed",
+            "description": "The actor who pushed",
             "args": [],
             "type": {
               "kind": "NON_NULL",
               "name": null,
               "ofType": {
-                "kind": "OBJECT",
-                "name": "User",
+                "kind": "INTERFACE",
+                "name": "Actor",
                 "ofType": null
               }
             },
