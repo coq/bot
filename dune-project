@@ -12,6 +12,7 @@
  (name coq-bot)
  (synopsis "A (Coq Development Team) bot written in OCaml")
  (depends
+  (ocaml (>= 4.10))
   (dune (>= 2.2))
   (base (>= v0.14.0))
   (lwt (>= 5.3.0))
