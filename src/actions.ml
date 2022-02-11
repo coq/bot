@@ -1711,7 +1711,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       let bullet_reasons = reasons_for_not_merging |> List.map ~f:(fun x -> "- " ^ x) in
       let reasons = bullet_reasons |> String.concat ~sep:"\n" in
       Lwt.return_error
-        (f "@%s: You cannot merge this PR because:\n%s." comment_info.author reasons)
+        (f "@%s: You cannot merge this PR because:\n%s" comment_info.author reasons)
   | [] -> (
       GitHub_queries.get_pull_request_reviews_refs ~bot_info
         ~owner:pr.issue.owner ~repo:pr.issue.repo ~number:pr.issue.number
