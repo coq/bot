@@ -20111,6 +20111,65 @@
         "possibleTypes": null
       },
       {
+        "kind": "ENUM",
+        "name": "DependencyGraphEcosystem",
+        "description": "The possible ecosystems of a dependency graph package.",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "RUBYGEMS",
+            "description": "Ruby gems hosted at RubyGems.org",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "NPM",
+            "description": "JavaScript packages hosted at npmjs.com",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "PIP",
+            "description": "Python packages hosted at PyPI.org",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "MAVEN",
+            "description": "Java artifacts hosted at the Maven central repository",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "NUGET",
+            "description": ".NET packages hosted at the NuGet Gallery",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "COMPOSER",
+            "description": "PHP packages hosted at packagist.org",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "GO",
+            "description": "Go modules",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ACTIONS",
+            "description": "GitHub Actions",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "possibleTypes": null
+      },
+      {
         "kind": "OBJECT",
         "name": "DeployKey",
         "description": "A repository deploy key.",
@@ -74965,6 +75024,22 @@
             "deprecationReason": null
           },
           {
+            "name": "viewerCanMergeAsAdmin",
+            "description": "Indicates whether the viewer can bypass branch protections and merge the pull request immediately",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Boolean",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "viewerCanReact",
             "description": "Can user react to this subject",
             "args": [],
@@ -81167,10 +81242,20 @@
               },
               {
                 "name": "dependencyEcosystem",
-                "description": "Optional filter for which dependencies should be checked for sponsorable owners. Only sponsorable owners of dependencies in this ecosystem will be included. Used when onlyDependencies = true.",
+                "description": "Optional filter for which dependencies should be checked for sponsorable owners. Only sponsorable owners of dependencies in this ecosystem will be included. Used when onlyDependencies = true.\n\n**Upcoming Change on 2022-07-01 UTC**\n**Description:** `dependencyEcosystem` will be removed. Use the ecosystem argument instead.\n**Reason:** The type is switching from SecurityAdvisoryEcosystem to DependencyGraphEcosystem.\n",
                 "type": {
                   "kind": "ENUM",
                   "name": "SecurityAdvisoryEcosystem",
+                  "ofType": null
+                },
+                "defaultValue": null
+              },
+              {
+                "name": "ecosystem",
+                "description": "Optional filter for which dependencies should be checked for sponsorable owners. Only sponsorable owners of dependencies in this ecosystem will be included. Used when onlyDependencies = true.",
+                "type": {
+                  "kind": "ENUM",
+                  "name": "DependencyGraphEcosystem",
                   "ofType": null
                 },
                 "defaultValue": null
@@ -92296,6 +92381,29 @@
             "deprecationReason": null
           },
           {
+            "name": "codeowners",
+            "description": "Information extracted from the repository's `CODEOWNERS` file.",
+            "args": [
+              {
+                "name": "refName",
+                "description": "The ref name used to return the associated `CODEOWNERS` file.",
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                },
+                "defaultValue": null
+              }
+            ],
+            "type": {
+              "kind": "OBJECT",
+              "name": "RepositoryCodeowners",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "collaborators",
             "description": "A list of collaborators associated with the repository.",
             "args": [
@@ -95557,6 +95665,24 @@
                   "ofType": null
                 },
                 "defaultValue": null
+              },
+              {
+                "name": "states",
+                "description": "Filter by the state of the alert",
+                "type": {
+                  "kind": "LIST",
+                  "name": null,
+                  "ofType": {
+                    "kind": "NON_NULL",
+                    "name": null,
+                    "ofType": {
+                      "kind": "ENUM",
+                      "name": "RepositoryVulnerabilityAlertState",
+                      "ofType": null
+                    }
+                  }
+                },
+                "defaultValue": null
               }
             ],
             "type": {
@@ -95874,6 +96000,160 @@
             "ofType": null
           }
         ]
+      },
+      {
+        "kind": "OBJECT",
+        "name": "RepositoryCodeowners",
+        "description": "Information extracted from a repository's `CODEOWNERS` file.",
+        "fields": [
+          {
+            "name": "errors",
+            "description": "Any problems that were encountered while parsing the `CODEOWNERS` file.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "LIST",
+                "name": null,
+                "ofType": {
+                  "kind": "NON_NULL",
+                  "name": null,
+                  "ofType": {
+                    "kind": "OBJECT",
+                    "name": "RepositoryCodeownersError",
+                    "ofType": null
+                  }
+                }
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "OBJECT",
+        "name": "RepositoryCodeownersError",
+        "description": "An error in a `CODEOWNERS` file.",
+        "fields": [
+          {
+            "name": "column",
+            "description": "The column number where the error occurs.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "kind",
+            "description": "A short string describing the type of error.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "line",
+            "description": "The line number where the error occurs.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "message",
+            "description": "A complete description of the error, combining information from other fields.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "path",
+            "description": "The path to the file when the error occurs.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "source",
+            "description": "The content of the line where the error occurs.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "String",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "suggestion",
+            "description": "A suggestion of how to fix the error.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
+        "inputFields": null,
+        "interfaces": [],
+        "enumValues": null,
+        "possibleTypes": null
       },
       {
         "kind": "OBJECT",
@@ -99132,6 +99412,30 @@
             "deprecationReason": null
           },
           {
+            "name": "fixReason",
+            "description": "The reason the alert was marked as fixed.",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "fixedAt",
+            "description": "When was the alert fixed?",
+            "args": [],
+            "type": {
+              "kind": "SCALAR",
+              "name": "DateTime",
+              "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "id",
             "description": null,
             "args": [],
@@ -99141,6 +99445,22 @@
               "ofType": {
                 "kind": "SCALAR",
                 "name": "ID",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "number",
+            "description": "Identifies the alert number.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "SCALAR",
+                "name": "Int",
                 "ofType": null
               }
             },
@@ -99183,6 +99503,22 @@
               "kind": "OBJECT",
               "name": "SecurityVulnerability",
               "ofType": null
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "state",
+            "description": "Identifies the state of the alert.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "RepositoryVulnerabilityAlertState",
+                "ofType": null
+              }
             },
             "isDeprecated": false,
             "deprecationReason": null
@@ -99360,6 +99696,35 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "RepositoryVulnerabilityAlertState",
+        "description": "The possible states of an alert",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "OPEN",
+            "description": "An alert that is still open.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "FIXED",
+            "description": "An alert that has been resolved by a code change.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "DISMISSED",
+            "description": "An alert that has been manually closed by a user.",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
         "possibleTypes": null
       },
       {
@@ -106850,6 +107215,26 @@
           {
             "name": "metadataArchiveUrl",
             "description": "The signed URL to access the user-uploaded metadata archive",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "accessToken",
+            "description": "The Octoshift migration source access token.",
+            "type": {
+              "kind": "SCALAR",
+              "name": "String",
+              "ofType": null
+            },
+            "defaultValue": null
+          },
+          {
+            "name": "githubPat",
+            "description": "The GitHub personal access token of the user importing to the target repository.",
             "type": {
               "kind": "SCALAR",
               "name": "String",
@@ -126667,7 +127052,18 @@
           {
             "name": "args",
             "description": null,
-            "args": [],
+            "args": [
+              {
+                "name": "includeDeprecated",
+                "description": null,
+                "type": {
+                  "kind": "SCALAR",
+                  "name": "Boolean",
+                  "ofType": null
+                },
+                "defaultValue": "false"
+              }
+            ],
             "type": {
               "kind": "NON_NULL",
               "name": null,
@@ -127618,6 +128014,42 @@
               "ofType": null
             },
             "defaultValue": "\"No longer supported\""
+          }
+        ]
+      },
+      {
+        "name": "requiredCapabilities",
+        "description": null,
+        "locations": [
+          "OBJECT",
+          "SCALAR",
+          "ARGUMENT_DEFINITION",
+          "INTERFACE",
+          "INPUT_OBJECT",
+          "FIELD_DEFINITION",
+          "ENUM",
+          "ENUM_VALUE",
+          "UNION",
+          "INPUT_FIELD_DEFINITION"
+        ],
+        "args": [
+          {
+            "name": "requiredCapabilities",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "NON_NULL",
+                "name": null,
+                "ofType": {
+                  "kind": "SCALAR",
+                  "name": "String",
+                  "ofType": null
+                }
+              }
+            },
+            "defaultValue": null
           }
         ]
       }
