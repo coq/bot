@@ -131,6 +131,20 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
         `QUEUED
   in
   let open GitHub_GraphQL.NewCheckRun in
+  (* Workaround for issue #203 while waiting for resolution of teamwalnut/graphql-ppx#272 *)
+  let query =
+    "mutation newCheckRun($name: String!, $repoId: ID!, $headSha: \
+     GitObjectID!, $status: RequestableCheckStatusState!, $title: String!, \
+     $text: String, $summary: String!, $url: URI!, $conclusion: \
+     CheckConclusionState, $externalId: String) {\n\
+     createCheckRun(input: {status: $status, name: $name, repositoryId: \
+     $repoId, headSha: $headSha, conclusion: $conclusion, detailsUrl: $url, \
+     output: {title: $title, text: $text, summary: $summary}, externalId: \
+     $externalId}) {\n\
+     clientMutationId \n\
+     }\n\n\
+     }\n"
+  in
   makeVariables ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ?text
     ~summary ~url:details_url ?conclusion ?externalId:external_id ()
   |> serializeVariables |> variablesToJson
