@@ -467,6 +467,48 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
 
 let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
   let open GitHub_GraphQL.Issue_Milestone.IssueMilestone in
+  (* Workaround for #167 until teamwalnut/graphql-ppx#270 is fixed. *)
+  let query =
+    "query issueMilestone($owner: String!, $repo: String!, $number: Int!) {\n\
+    \    repository(owner: $owner, name: $repo) {\n\
+    \      issue(number: $number) {\n\
+    \        id\n\
+    \        milestone {\n\
+    \          ...Milestone\n\
+    \        }\n\
+    \        timelineItems(itemTypes: [CLOSED_EVENT], last: 1) {\n\
+    \          nodes {\n\
+    \            __typename\n\
+    \            ...on ClosedEvent {\n\
+    \              closer {\n\
+    \                __typename\n\
+    \                ...on PullRequest {\n\
+    \                  ...PullRequest\n\
+    \                }\n\
+    \                ...on Commit {\n\
+    \                  associatedPullRequests(first: 2) {\n\
+    \                    nodes {\n\
+    \                      ...PullRequest\n\
+    \                    }\n\
+    \                  }\n\
+    \                }\n\
+    \              }\n\
+    \            }\n\
+    \          }\n\
+    \        }\n\
+    \      }\n\
+    \    }\n\
+    \  }\n\
+    \  fragment Milestone on Milestone {\n\
+    \    id\n\
+    \  }\n\
+    \  fragment PullRequest on PullRequest {\n\
+    \    id\n\
+    \    milestone {\n\
+    \      ...Milestone\n\
+    \    }\n\
+    \  }"
+  in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
