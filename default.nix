@@ -17,6 +17,7 @@ in stdenv.mkDerivation rec {
     utop
     ncurses
     merlin
+    ocaml-lsp
     ocamlformat
     nixfmt
     nodePackages.get-graphql-schema
