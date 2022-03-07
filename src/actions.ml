@@ -66,9 +66,9 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
           |> String.concat ~sep:"\n" )
     | Some index_of_error ->
         ( f
-            "We show below an excerpt from the trace from GitLab starting \
-             around the last detected \"Error\" (the complete trace is \
-             available [here](%s))."
+            {|We show below an excerpt from the trace from GitLab starting \
+             around the last detected "Error" (the complete trace is \
+             available [here](%s)).|}
             job_url
         , trace_lines
           |> Fn.flip List.drop (index_of_error - 1)
@@ -167,7 +167,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
           | Ok {issue= id; head}
           (* Commits reported back by get_pull_request_refs are surrounded in double quotes *)
             when String.equal head.sha
-                   (f "\"%s\"" job_info.common_info.head_commit) ->
+                   (f {|"%s"|} job_info.common_info.head_commit) ->
               GitHub_mutations.post_comment ~bot_info ~id ~message
               >>= GitHub_mutations.report_on_posting_comment
           | Ok {head} ->
@@ -200,9 +200,10 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
               ~head_sha:job_info.common_info.head_commit ~conclusion:FAILURE
               ~status:COMPLETED ~title ~details_url:job_url
               ~summary:
-                ( "This job has failed. If you need to, you can restart it \
-                   directly in the GitHub interface using the \"Re-run\" \
-                   button.\n\n" ^ summary_tail )
+                ( {|This job has failed. If you need to, you can restart it \
+                   directly in the GitHub interface using the "Re-run" \
+                   button.\n\n|}
+                ^ summary_tail )
               ~text ~external_id ()
         | Error e ->
             Lwt_io.printf "No repo id: %s\n" e )
@@ -559,9 +560,9 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
             if
               string_match
                 ~regexp:
-                  "\n\
-                   File \"\\([^\"]*\\)\", line [0-9]*, characters [0-9]*-[0-9]*:\n\
-                   Error:"
+                  {|\n\
+                   File "\\([^"]*\\)", line [0-9]*, characters [0-9]*-[0-9]*:\n\
+                   Error:|}
                 text
             then
               let filename = Str.matched_group 1 text in
@@ -658,8 +659,8 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
             owner repo pr_number err )
   | Ok {base= {sha= base}; head= {sha= head}} -> (
       (* TODO: figure out why there are quotes, cf https://github.com/coq/bot/issues/61 *)
-      let base = Str.global_replace (Str.regexp "\"") "" base in
-      let head = Str.global_replace (Str.regexp "\"") "" head in
+      let base = Str.global_replace (Str.regexp {|"|}) "" base in
+      let head = Str.global_replace (Str.regexp {|"|}) "" head in
       GitHub_queries.get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number
         ~base ~head
       >>= function
@@ -1503,9 +1504,10 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
             , Some FAILURE
             , "Pipeline completed with errors on GitLab CI"
             , Some
-                "*If you need to restart the entire pipeline, you may do so \
-                 directly in the GitHub interface using the \"Re-run\" \
-                 button.*" )
+                {|*If you need to restart the entire pipeline, you may do so \
+                 directly in the GitHub interface using the "Re-run" \
+                 button.*|}
+            )
         | "cancelled" | "canceled" ->
             ( "error"
             , COMPLETED
@@ -1708,10 +1710,13 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
   in
   ( match reasons_for_not_merging with
   | _ :: _ ->
-      let bullet_reasons = reasons_for_not_merging |> List.map ~f:(fun x -> "- " ^ x) in
+      let bullet_reasons =
+        reasons_for_not_merging |> List.map ~f:(fun x -> "- " ^ x)
+      in
       let reasons = bullet_reasons |> String.concat ~sep:"\n" in
       Lwt.return_error
-        (f "@%s: You cannot merge this PR because:\n%s" comment_info.author reasons)
+        (f "@%s: You cannot merge this PR because:\n%s" comment_info.author
+           reasons )
   | [] -> (
       GitHub_queries.get_pull_request_reviews_refs ~bot_info
         ~owner:pr.issue.owner ~repo:pr.issue.repo ~number:pr.issue.number
@@ -1883,7 +1888,7 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
           "dev/ci/docker/.*Dockerfile.*"
         >>= function
         | Ok true ->
-            Lwt.return "-o ci.variable=\"SKIP_DOCKER=false\""
+            Lwt.return {|-o ci.variable="SKIP_DOCKER=false"|}
         | Ok false ->
             Lwt.return ""
         | Error e ->
@@ -2218,7 +2223,7 @@ let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
               | None ->
                   (* even with a race condition it cannot happen *)
                   failwith
-                    (f "Anomaly: Label \"%s\" absent from timeline of PR #%i"
+                    (f {|Anomaly: Label "%s" absent from timeline of PR #%i|}
                        label pr_number )
               | Some ts ->
                   days_elapsed ts
@@ -2250,9 +2255,9 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
               GitHub_mutations.post_comment ~id:pr_id
                 ~message:
                   (f
-                     "The \"%s\" label was set more than %i days ago. If the \
+                     {|The "%s" label was set more than %i days ago. If the \
                       PR is not rebased in %i days, it will be automatically \
-                      closed."
+                      closed.|}
                      rebase_label warn_after close_after )
                 ~bot_info
               >>= GitHub_mutations.report_on_posting_comment

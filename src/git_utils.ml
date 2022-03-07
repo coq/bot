@@ -9,7 +9,7 @@ let gitlab_repo ~bot_info ~gitlab_full_name =
   f "https://oauth2:%s@gitlab.com/%s.git" bot_info.gitlab_token gitlab_full_name
 
 let report_status command report code =
-  Error (f "Command \"%s\" %s %d\n" command report code)
+  Error (f {|Command "%s" %s %d\n|} command report code)
 
 let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
@@ -113,7 +113,7 @@ let git_make_ancestor ~pr_title ~pr_number ~base head =
 
 let git_test_modified ~base ~head pattern =
   let command =
-    f "git diff %s %s --name-only | grep \"%s\"" base head pattern
+    f {|git diff %s %s --name-only | grep "%s"|} base head pattern
   in
   Lwt_unix.system command
   >|= fun status ->
@@ -173,8 +173,8 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
 let init_git_bare_repository ~bot_info =
   Stdio.printf "Initializing repository...\n" ;
   "git init --bare"
-  |&& f "git config user.email \"%s\"" bot_info.email
-  |&& f "git config user.name \"%s\"" bot_info.name
+  |&& f {|git config user.email "%s"|} bot_info.email
+  |&& f {|git config user.name "%s"|} bot_info.name
   |> execute_cmd
   >|= function
   | Ok _ ->

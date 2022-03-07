@@ -202,7 +202,7 @@ let update_milestone ~bot_info new_milestone (issue : issue) =
     |> Uri.of_string
   in
   let body =
-    "{\"milestone\": " ^ new_milestone ^ "}" |> Cohttp_lwt.Body.of_string
+    f {|{"milestone": %s}|} new_milestone |> Cohttp_lwt.Body.of_string
   in
   Lwt_io.printf "Sending patch request.\n"
   >>= fun () -> Client.patch ~headers ~body uri >>= print_response
@@ -215,9 +215,9 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
     repo_full_name commit state
   >>= fun () ->
   let body =
-    "{\"state\": \"" ^ state ^ "\",\"target_url\":\"" ^ url
-    ^ "\", \"description\": \"" ^ description ^ "\", \"context\": \"" ^ context
-    ^ "\"}"
+    {|{"state": "|} ^ state ^ {|","target_url":"|} ^ url
+    ^ {|", "description": "|} ^ description ^ {|", "context": "|} ^ context
+    ^ {|"}|}
     |> Cohttp_lwt.Body.of_string
   in
   let uri =
@@ -228,8 +228,7 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
 
 let add_pr_to_column ~bot_info ~pr_id ~column_id =
   let body =
-    "{\"content_id\":" ^ Int.to_string pr_id
-    ^ ", \"content_type\": \"PullRequest\"}"
+    f {|{"content_id":%d, "content_type": "PullRequest"}|} pr_id
     |> (fun body ->
          Stdio.printf "Body:\n%s\n" body ;
          body )
