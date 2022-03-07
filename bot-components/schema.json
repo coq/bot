@@ -71152,6 +71152,22 @@
             "deprecationReason": null
           },
           {
+            "name": "dataType",
+            "description": "The field's type.",
+            "args": [],
+            "type": {
+              "kind": "NON_NULL",
+              "name": null,
+              "ofType": {
+                "kind": "ENUM",
+                "name": "ProjectNextFieldType",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "databaseId",
             "description": "Identifies the primary key from the database.",
             "args": [],
@@ -71357,6 +71373,89 @@
         "inputFields": null,
         "interfaces": [],
         "enumValues": null,
+        "possibleTypes": null
+      },
+      {
+        "kind": "ENUM",
+        "name": "ProjectNextFieldType",
+        "description": "The type of a project next field.",
+        "fields": null,
+        "inputFields": null,
+        "interfaces": null,
+        "enumValues": [
+          {
+            "name": "ASSIGNEES",
+            "description": "Assignees",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "LINKED_PULL_REQUESTS",
+            "description": "Linked Pull Requests",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "REVIEWERS",
+            "description": "Reviewers",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "LABELS",
+            "description": "Labels",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "MILESTONE",
+            "description": "Milestone",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "REPOSITORY",
+            "description": "Repository",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TITLE",
+            "description": "Title",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "TEXT",
+            "description": "Text",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "SINGLE_SELECT",
+            "description": "Single Select",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "NUMBER",
+            "description": "Number",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "DATE",
+            "description": "Date",
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
+            "name": "ITERATION",
+            "description": "Iteration",
+            "isDeprecated": false,
+            "deprecationReason": null
+          }
+        ],
         "possibleTypes": null
       },
       {
