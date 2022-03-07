@@ -82,7 +82,7 @@ let comment_info_of_json ?(review_comment = false) json =
       | `Null (* body of review comments can be null *) ->
           ""
       | _ ->
-          raise (Yojson.Json_error "Unexpected type for field \"body\".") )
+          raise (Yojson.Json_error {|Unexpected type for field "body".|}) )
   ; author= comment_json |> member "user" |> member "login" |> to_string
   ; pull_request
   ; issue=

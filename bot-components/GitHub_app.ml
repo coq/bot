@@ -19,10 +19,10 @@ let base64 = Base64.encode ~pad:false ~alphabet:Base64.uri_safe_alphabet
 
 (* The following functions are largely based on https://github.com/Schniz/reason-pr-labels *)
 let make_jwt ~key ~app_id =
-  let header = "{ \"alg\": \"RS256\" }" in
+  let header = {|{ "alg": "RS256" }|} in
   let issuedAt = Unix.time () |> Int.of_float in
   let payload =
-    f "{ \"iat\": %d, \"exp\": %d, \"iss\": %d }" issuedAt
+    f {|{ "iat": %d, "exp": %d, "iss": %d }|} issuedAt
       (issuedAt + (55 * 10))
       app_id
   in
