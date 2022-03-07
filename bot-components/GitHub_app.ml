@@ -23,7 +23,7 @@ let make_jwt ~key ~app_id =
   let issuedAt = Unix.time () |> Int.of_float in
   let payload =
     f "{ \"iat\": %d, \"exp\": %d, \"iss\": %d }" issuedAt
-      (issuedAt + (60 * 10))
+      (issuedAt + (55 * 10))
       app_id
   in
   match (base64 header, base64 payload) with
