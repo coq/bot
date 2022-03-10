@@ -307,6 +307,22 @@ let callback _conn req body =
                 Server.respond_string ~status:`OK
                   ~body:(f "Received a request to merge the PR.")
                   () )
+              else if
+                string_match ~regexp:(f "@%s:? [Bb]ench" bot_name) body
+                && comment_info.issue.pull_request
+                && String.equal comment_info.issue.issue.owner "coq"
+                && String.equal comment_info.issue.issue.repo "coq"
+                && signed
+              then (
+                (fun () ->
+                  action_as_github_app ~bot_info ~key ~app_id
+                    ~owner:comment_info.issue.issue.owner
+                    ~repo:comment_info.issue.issue.repo (run_bench comment_info)
+                  )
+                |> Lwt.async ;
+                Server.respond_string ~status:`OK
+                  ~body:(f "Received a request to start the bench.")
+                  () )
               else
                 Server.respond_string ~status:`OK
                   ~body:(f "Unhandled comment: %s" body)

@@ -2495,3 +2495,87 @@ let coq_check_stale_pr ~bot_info ~owner ~repo ~after ~throttle =
     >>= fun () -> Lwt.return true
   in
   apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
+
+let run_bench ~bot_info comment_info =
+  (* Do we want to use this more often? *)
+  let open Lwt.Syntax in
+  let owner = comment_info.issue.issue.owner in
+  let repo = comment_info.issue.issue.repo in
+  let pr_number = comment_info.issue.number in
+  (* We need the GitLab build_id and project_id. Currently there is no good way
+     to query this data so we have to jump through some somewhat useless hoops in
+     order to get our hands on this information. TODO: do this more directly.*)
+  let* gitlab_check_summary =
+    GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
+      ~number:pr_number
+    >>= function
+    | Error err ->
+        Lwt.return_error
+          (f
+             "Error while fetching PR refs for %s/%s#%d for running bench job: \
+              %s"
+             owner repo pr_number err )
+    | Ok {base= {sha= base}; head= {sha= head}} -> (
+        let base = Str.global_replace (Str.regexp {|"|}) "" base in
+        let head = Str.global_replace (Str.regexp {|"|}) "" head in
+        GitHub_queries.get_base_and_head_checks ~bot_info ~owner ~repo
+          ~pr_number ~base ~head
+        >>= function
+        | Error err ->
+            Lwt.return_error
+              (f
+                 "Error while fetching checks for %s/%s#%d for running bench \
+                  job: %s"
+                 owner repo pr_number err )
+        | Ok info -> (
+            List.find info.head_checks ~f:(function
+              | Error _ ->
+                  false
+              | Ok (check_tab_info, _) ->
+                  String.is_prefix ~prefix:"GitLab CI pipeline"
+                    check_tab_info.name )
+            |> function
+            | Some (Ok (info, _)) -> (
+              match info.summary with
+              | Some sum ->
+                  Lwt.return_ok sum
+              | None ->
+                  Lwt.return_error
+                    (f
+                       "Error while detecting GitLab check summary for \
+                        %s/%s#%d for running bench job."
+                       owner repo pr_number ) )
+            | _ ->
+                Lwt.return_error
+                  (f
+                     "Error while detecting GitLab check for %s/%s#%d for \
+                      running bench job."
+                     owner repo pr_number ) ) )
+  in
+  match gitlab_check_summary with
+  | Error err ->
+      Lwt_io.printlf "Error: %s\n" err
+  | Ok summary -> (
+    try
+      let build_id =
+        let regexp =
+          f {|.*%s\([0-9]*\)|}
+            (Str.quote "[bench](https://gitlab.com/coq/coq/-/jobs/")
+        in
+        ( if Helpers.string_match ~regexp summary then
+          Str.matched_group 1 summary
+        else raise @@ Stdlib.Failure "Could not find GitLab bench job ID" )
+        |> Stdlib.int_of_string
+      in
+      let project_id =
+        let regexp = {|.*GitLab Project ID: \([0-9]*\)|} in
+        ( if Helpers.string_match ~regexp summary then
+          Str.matched_group 1 summary
+        else raise @@ Stdlib.Failure "Could not find GitLab Project ID" )
+        |> Int.of_string
+      in
+      GitLab_mutations.play_job ~bot_info ~project_id ~build_id
+    with Stdlib.Failure s ->
+      Lwt_io.printlf
+        "Error while regexing summary for %s/%s#%d for running bench job: %s"
+        owner repo pr_number s )
