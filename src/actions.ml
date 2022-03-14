@@ -66,9 +66,9 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
           |> String.concat ~sep:"\n" )
     | Some index_of_error ->
         ( f
-            {|We show below an excerpt from the trace from GitLab starting \
-             around the last detected "Error" (the complete trace is \
-             available [here](%s)).|}
+            "We show below an excerpt from the trace from GitLab starting \
+             around the last detected \"Error\" (the complete trace is \
+             available [here](%s))."
             job_url
         , trace_lines
           |> Fn.flip List.drop (index_of_error - 1)
@@ -200,10 +200,9 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
               ~head_sha:job_info.common_info.head_commit ~conclusion:FAILURE
               ~status:COMPLETED ~title ~details_url:job_url
               ~summary:
-                ( {|This job has failed. If you need to, you can restart it \
-                   directly in the GitHub interface using the "Re-run" \
-                   button.\n\n|}
-                ^ summary_tail )
+                ( "This job has failed. If you need to, you can restart it \
+                   directly in the GitHub interface using the \"Re-run\" \
+                   button.\n\n" ^ summary_tail )
               ~text ~external_id ()
         | Error e ->
             Lwt_io.printf "No repo id: %s\n" e )
@@ -560,9 +559,9 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
             if
               string_match
                 ~regexp:
-                  {|\n\
-                   File "\\([^"]*\\)", line [0-9]*, characters [0-9]*-[0-9]*:\n\
-                   Error:|}
+                  "\n\
+                   File \"\\([^\"]*\\)\", line [0-9]*, characters [0-9]*-[0-9]*:\n\
+                   Error:"
                 text
             then
               let filename = Str.matched_group 1 text in
@@ -1504,10 +1503,9 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
             , Some FAILURE
             , "Pipeline completed with errors on GitLab CI"
             , Some
-                {|*If you need to restart the entire pipeline, you may do so \
-                 directly in the GitHub interface using the "Re-run" \
-                 button.*|}
-            )
+                "*If you need to restart the entire pipeline, you may do so \
+                 directly in the GitHub interface using the \"Re-run\" \
+                 button.*" )
         | "cancelled" | "canceled" ->
             ( "error"
             , COMPLETED
@@ -2255,9 +2253,9 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
               GitHub_mutations.post_comment ~id:pr_id
                 ~message:
                   (f
-                     {|The "%s" label was set more than %i days ago. If the \
+                     "The \"%s\" label was set more than %i days ago. If the \
                       PR is not rebased in %i days, it will be automatically \
-                      closed.|}
+                      closed."
                      rebase_label warn_after close_after )
                 ~bot_info
               >>= GitHub_mutations.report_on_posting_comment
