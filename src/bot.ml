@@ -56,7 +56,8 @@ let callback _conn req body =
     if
       string_match
         ~regexp:
-          (f "@%s:? [Mm]inimize[^`]*```[^\n]*\n\\(\\(.\\|\n\\)+\\)" bot_name)
+          ( f "@%s:? [Mm]inimize[^`]*```[^\n]*\n\\(\\(.\\|\n\\)+\\)"
+          @@ Str.quote bot_name )
         body
     then Some (Str.matched_group 1 body |> extract_minimize_file)
     else None
@@ -67,8 +68,9 @@ let callback _conn req body =
        the tagging to "@`coqbot minimize foo`" so that the matching
        below doesn't pick up the name *)
     Str.global_replace
-      (Str.regexp (f "\\(`\\|<code>\\)@%s " (Str.quote bot_name)))
-      (f "@\\1%s " bot_name) body
+      (Str.regexp (f "\\(`\\|<code>\\)@%s " @@ Str.quote bot_name))
+      (f "@\\1%s " @@ Str.quote bot_name)
+      body
   in
   (* print_endline "Request received."; *)
   match Uri.path (Request.uri req) with
@@ -231,7 +233,8 @@ let callback _conn req body =
               if
                 string_match
                   ~regexp:
-                    (f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)" bot_name)
+                    ( f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)"
+                    @@ Str.quote bot_name )
                   body
               then (
                 let requests =
@@ -251,15 +254,15 @@ let callback _conn req body =
               else if
                 string_match
                   ~regexp:
-                    (f
-                       "@%s:? resume [Cc][Ii][- \
-                        ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
-                        ]*\\)\n\
-                        +```[^\n\
-                        ]*\n\
-                        \\(\\(.\\|\n\
-                        \\)+\\)"
-                       bot_name )
+                    ( f
+                        "@%s:? resume [Cc][Ii][- \
+                         ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
+                         ]*\\)\n\
+                         +```[^\n\
+                         ]*\n\
+                         \\(\\(.\\|\n\
+                         \\)+\\)"
+                    @@ Str.quote bot_name )
                   body
               then (
                 let requests, bug_file_contents =
@@ -281,7 +284,9 @@ let callback _conn req body =
                 Server.respond_string ~status:`OK
                   ~body:"Handling CI minimization resumption." () )
               else if
-                string_match ~regexp:(f "@%s:? [Rr]un CI now" bot_name) body
+                string_match
+                  ~regexp:(f "@%s:? [Rr]un CI now" @@ Str.quote bot_name)
+                  body
                 && comment_info.issue.pull_request
               then
                 init_git_bare_repository ~bot_info
@@ -292,7 +297,9 @@ let callback _conn req body =
                   (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
                      ~signed )
               else if
-                string_match ~regexp:(f "@%s:? [Mm]erge now" bot_name) body
+                string_match
+                  ~regexp:(f "@%s:? [Mm]erge now" @@ Str.quote bot_name)
+                  body
                 && comment_info.issue.pull_request
                 && String.equal comment_info.issue.issue.owner "coq"
                 && String.equal comment_info.issue.issue.repo "coq"
@@ -308,7 +315,9 @@ let callback _conn req body =
                   ~body:(f "Received a request to merge the PR.")
                   () )
               else if
-                string_match ~regexp:(f "@%s:? [Bb]ench" bot_name) body
+                string_match
+                  ~regexp:(f "@%s:? [Bb]ench" @@ Str.quote bot_name)
+                  body
                 && comment_info.issue.pull_request
                 && String.equal comment_info.issue.issue.owner "coq"
                 && String.equal comment_info.issue.issue.repo "coq"
