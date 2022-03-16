@@ -449,19 +449,23 @@ let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
     |> List.sort ~compare:(fun build1 build2 ->
            String.compare build1.build_name build2.build_name )
   in
-  pipeline_info.stages
-  |> List.concat_map ~f:(fun stage ->
-         sorted_builds
-         |> List.filter_map ~f:(fun build ->
-                if String.equal build.stage stage then
-                  Some
-                    (f "  - [%s](%s/-/jobs/%d)" build.build_name
-                       pipeline_info.common_info.repo_url build.build_id )
-                else None )
-         |> List.cons ("- " ^ stage) )
-  |> List.cons
-       (f "This [GitLab pipeline](%s) contains the following stages and jobs:"
-          pipeline_url )
+  let stage_summary =
+    pipeline_info.stages
+    |> List.concat_map ~f:(fun stage ->
+           sorted_builds
+           |> List.filter_map ~f:(fun build ->
+                  if String.equal build.stage stage then
+                    Some
+                      (f "  - [%s](%s/-/jobs/%d)" build.build_name
+                         pipeline_info.common_info.repo_url build.build_id )
+                  else None )
+           |> List.cons ("- " ^ stage) )
+    |> String.concat ~sep:"\n"
+  in
+  [ f "This [GitLab pipeline](%s) contains the following stages and jobs:"
+      pipeline_url
+  ; stage_summary
+  ; f "GitLab Project ID: %d" pipeline_info.common_info.project_id ]
   |> (match summary_top with Some text -> List.cons text | None -> Fn.id)
   |> String.concat ~sep:"\n\n"
 
@@ -1621,11 +1625,8 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
       ; pr_number ] -> (
         message |> String.split ~on:'\n'
         |> function
-        | docker_image
-          :: target
-             :: opam_switch
-                :: failing_urls
-                   :: passing_urls :: base :: head :: bug_file_lines ->
+        | docker_image :: target :: opam_switch :: failing_urls :: passing_urls
+          :: base :: head :: bug_file_lines ->
             (let bug_file_contents = String.concat ~sep:"\n" bug_file_lines in
              fun () ->
                init_git_bare_repository ~bot_info
