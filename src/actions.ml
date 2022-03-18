@@ -1793,7 +1793,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                             ~f:(fun s r -> s ^ f "Ack-by: %s\n" r)
                         ^ f "Co-authored-by: %s <%s@users.noreply.github.com>\n"
                             comment_info.author comment_info.author )
-                      ~merge_method:MERGE
+                      ~merge_method:MERGE ()
                     >>= fun () ->
                     match
                       List.fold_left ~init:[] reviews_info.files
