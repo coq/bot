@@ -58,8 +58,8 @@ let close_pull_request ~bot_info ~pr_id =
   | Error err ->
       Stdio.print_endline (f "Error while closing PR: %s" err)
 
-let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
-    ~pr_id =
+let merge_pull_request ~bot_info ?merge_method ?commit_headline
+    ?commit_body ~pr_id () =
   let merge_method =
     Option.map merge_method ~f:(function
       | MERGE ->

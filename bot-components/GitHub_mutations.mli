@@ -19,6 +19,7 @@ val merge_pull_request :
   -> ?commit_headline:string
   -> ?commit_body:string
   -> pr_id:id
+  -> unit
   -> unit Lwt.t
 
 val create_check_run :
