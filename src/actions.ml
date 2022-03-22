@@ -257,35 +257,117 @@ let send_doc_url ~bot_info ~github_repo_full_name job_info =
   | _ ->
       Lwt.return_unit
 
-let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id =
-  GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
+module BenchResults = struct
+  type t =
+    { summary_table: string
+    ; slow_table: string
+    ; slow_number: int
+    ; fast_table: string
+    ; fast_number: int }
+end
+
+let fetch_bench_results ~job_info () =
+  let open BenchResults in
+  let open Lwt.Syntax in
+  let fetch_artifact url =
+    url |> Uri.of_string |> Client.get
+    >>= fun (resp, body) ->
+    let status_code = resp |> Response.status |> Code.code_of_status in
+    if Int.equal 200 status_code then
+      body |> Cohttp_lwt.Body.to_string >>= Lwt.return_ok
+    else Lwt.return_error (f "Recieved status %d from %s." status_code url)
+  in
+  let artifact_url file =
+    f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
+      job_info.build_id file
+  in
+  let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
+  let* slow_table = artifact_url "slow_table" |> fetch_artifact in
+  let* fast_table = artifact_url "fast_table" |> fetch_artifact in
+  match (summary_table, slow_table, fast_table) with
+  | Error e, _, _ | _, Error e, _ | _, _, Error e ->
+      Lwt.return_error
+        (f "Could not fetch table artifacts for bench summary: %s\n" e)
+  | Ok summary_table, Ok slow_table, Ok fast_table -> (
+      (* The tables include how many entries there are, this is useful
+         information to know. *)
+      let parse_quantity table table_name =
+        let regexp = {|.*TOP \([0-9]*\)|} in
+        if Helpers.string_match ~regexp table then
+          Str.matched_group 1 table |> Int.of_string |> Lwt.return_ok
+        else Lwt.return_error (f "parsing %s table." table_name)
+      in
+      let* slow_number = parse_quantity slow_table "slow" in
+      let* fast_number = parse_quantity fast_table "fast" in
+      match (slow_number, fast_number) with
+      | Error e, _ | _, Error e ->
+          Lwt.return_error (f "Fetch bench regex issue: %s" e)
+      | Ok slow_number, Ok fast_number ->
+          Lwt.return_ok
+            {summary_table; slow_table; slow_number; fast_table; fast_number} )
+
+let bench_text ~job_info () =
+  fetch_bench_results ~job_info ()
   >>= function
+  | Ok results ->
+      (* Formatting helpers *)
+      let header2 str = f "## %s" str in
+      let code_wrap str = f "```\n%s\n```" str in
+      (* Document *)
+      let open BenchResults in
+      let summary_title = header2 "Bench Summary:" in
+      let summary_table = code_wrap results.summary_table in
+      let slow_title = header2 (f "Top %d slow downs:" results.slow_number) in
+      let slow_table = code_wrap results.slow_table in
+      let fast_title = header2 (f "Top %d speed ups:" results.fast_number) in
+      let fast_table = code_wrap results.fast_table in
+      [ summary_title
+      ; summary_table
+      ; slow_title
+      ; slow_table
+      ; fast_title
+      ; fast_table ]
+      |> String.concat ~sep:"\n" |> Lwt.return
+  | Error e ->
+      f "Error occured when creating bench summary: %s\n" e |> Lwt.return
+
+let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id =
+  let open Lwt.Syntax in
+  let* repo_id =
+    GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
+  in
+  match repo_id with
+  (* Not currently using pr id that was fetched *)
   | Ok repo_id -> (
-      Lwt_io.print "Pushing status check for bench job.\n"
+      Lwt_io.printl "Pushing status check for bench job."
       <&>
       let url = f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id in
+      let summary = f "## GitLab Job URL:\n[GitLab Bench Job](%s)\n" url in
       let state = job_info.build_status in
       let context = "bench" in
       ( match state with
       | "success" ->
-          Lwt.return_ok (COMPLETED, Some SUCCESS, "Bench completed successfully")
-      | "running" ->
-          Lwt.return_ok (IN_PROGRESS, None, "Bench in progress")
-      | "cancelled" | "canceled" ->
-          Lwt.return_ok (COMPLETED, Some CANCELLED, "Bench has been cancelled")
-      | "failed" ->
+          let* text = bench_text ~job_info () in
           Lwt.return_ok
-            (COMPLETED, Some NEUTRAL, "Bench completed with failures")
+            (COMPLETED, Some SUCCESS, "Bench completed successfully", text)
+      | "failed" ->
+          let* text = bench_text ~job_info () in
+          Lwt.return_ok
+            (COMPLETED, Some NEUTRAL, "Bench completed with failures", text)
+      | "running" ->
+          Lwt.return_ok (IN_PROGRESS, None, "Bench in progress", "")
+      | "cancelled" | "canceled" ->
+          Lwt.return_ok
+          (COMPLETED, Some CANCELLED, "Bench has been cancelled", "")
       | "created" ->
           Lwt.return_error ("Bench job has been created, ignoring info update.")
       | _ ->
           Lwt.return_error (f "Unknown state for bench job: %s" state) )
       >>= function
-      | Ok (status, conclusion, description) ->
-          let description = description in
+      | Ok (status, conclusion, description, text) ->
           GitHub_mutations.create_check_run ~bot_info ~name:context ~status
             ~repo_id ~head_sha:job_info.common_info.head_commit ?conclusion
-            ~title:description ~details_url:url ~summary:"" ~external_id ()
+            ~title:description ~details_url:url ~summary ~text ~external_id ()
       | Error e ->
           Lwt_io.print e )
   | Error e ->
