@@ -7,7 +7,7 @@ type msg =
   | PullRequestUpdated of pull_request_action * issue_info pull_request_info
   | BranchCreated of remote_ref_info
   | TagCreated of remote_ref_info
-  | CommentCreatedOrEdited of comment_info
+  | CommentCreated of comment_info
   | CheckRunCreated of check_run_info
   | CheckRunUpdated of check_run_info
   | CheckRunReRequested of check_run_info

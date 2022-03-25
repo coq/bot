@@ -156,7 +156,7 @@ type msg =
   | PullRequestUpdated of pull_request_action * issue_info pull_request_info
   | BranchCreated of remote_ref_info
   | TagCreated of remote_ref_info
-  | CommentCreatedOrEdited of comment_info
+  | CommentCreated of comment_info
   | CheckRunCreated of check_run_info
   | CheckRunUpdated of check_run_info
   | CheckRunReRequested of check_run_info
@@ -186,11 +186,10 @@ let github_action ~event ~action json =
   | "project_card", "deleted" ->
       json |> project_card_of_json
       |> Result.map ~f:(fun card -> RemovedFromProject card)
-  | "issue_comment", ("created" | "edited") ->
-      Ok (CommentCreatedOrEdited (comment_info_of_json json))
+  | "issue_comment", "created" ->
+      Ok (CommentCreated (comment_info_of_json json))
   | "pull_request_review", "submitted" ->
-      Ok
-        (CommentCreatedOrEdited (comment_info_of_json json ~review_comment:true))
+      Ok (CommentCreated (comment_info_of_json json ~review_comment:true))
   | "check_run", "created" ->
       Ok (CheckRunCreated (check_run_info_of_json json))
   | "check_run", "rerequested" ->

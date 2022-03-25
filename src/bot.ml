@@ -198,7 +198,7 @@ let callback _conn req body =
               Server.respond_string ~status:`OK
                 ~body:(f "Unhandled new issue: %s" body)
                 () )
-      | Ok (signed, CommentCreatedOrEdited comment_info) -> (
+      | Ok (signed, CommentCreated comment_info) -> (
           let body =
             comment_info.body |> Helpers.trim_comments |> strip_quoted_bot_name
           in
