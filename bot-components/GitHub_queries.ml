@@ -175,6 +175,24 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                     | _ ->
                         None ) ) ) )
 
+let get_pull_request_id ~bot_info ~owner ~repo ~number =
+  let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
+  makeVariables ~owner ~repo ~number ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(fun result ->
+          match result.repository with
+          | None ->
+              Error (f "Repository %s/%s does not exist." owner repo)
+          | Some result -> (
+            match result.pullRequest with
+            | None ->
+                Error
+                  (f "Pull request %s/%s#%d does not exist." owner repo number)
+            | Some pr ->
+                Ok pr.id ) )
+
 let team_membership_of_resp ~org ~team ~user resp =
   let open GitHub_GraphQL.TeamMembership in
   match resp.organization with
