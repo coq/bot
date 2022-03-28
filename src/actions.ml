@@ -257,6 +257,40 @@ let send_doc_url ~bot_info ~github_repo_full_name job_info =
   | _ ->
       Lwt.return_unit
 
+let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id =
+  GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
+  >>= function
+  | Ok repo_id -> (
+      Lwt_io.print "Pushing status check for bench job.\n"
+      <&>
+      let url = f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id in
+      let state = job_info.build_status in
+      let context = "bench" in
+      ( match state with
+      | "success" ->
+          Lwt.return_ok (COMPLETED, Some SUCCESS, "Bench completed successfully")
+      | "running" ->
+          Lwt.return_ok (IN_PROGRESS, None, "Bench in progress")
+      | "cancelled" | "canceled" ->
+          Lwt.return_ok (COMPLETED, Some CANCELLED, "Bench has been cancelled")
+      | "failed" ->
+          Lwt.return_ok
+            (COMPLETED, Some NEUTRAL, "Bench completed with failures")
+      | "created" ->
+          Lwt.return_error ("Bench job has been created, ignoring info update.")
+      | _ ->
+          Lwt.return_error (f "Unknown state for bench job: %s" state) )
+      >>= function
+      | Ok (status, conclusion, description) ->
+          let description = description in
+          GitHub_mutations.create_check_run ~bot_info ~name:context ~status
+            ~repo_id ~head_sha:job_info.common_info.head_commit ?conclusion
+            ~title:description ~details_url:url ~summary:"" ~external_id ()
+      | Error e ->
+          Lwt_io.print e )
+  | Error e ->
+      Lwt_io.printlf "No repo id for bench job: %s" e
+
 type build_failure = Warn of string | Retry | Ignore
 
 let trace_action ~repo_full_name trace =
@@ -418,30 +452,34 @@ let job_action ~bot_info ({build_name} as job_info) ~gitlab_mapping =
   let external_id =
     f "projects/%d/jobs/%d" job_info.common_info.project_id job_info.build_id
   in
-  match job_info.build_status with
-  | "failed" ->
-      let failure_reason = Option.value_exn job_info.failure_reason in
-      job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
-        ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason
-        ~external_id
-  | "success" as state ->
-      job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
-        ~github_repo_full_name ~gitlab_repo_full_name ~context ~state
-        ~external_id
-      <&> send_doc_url ~bot_info job_info ~github_repo_full_name
-  | ("created" | "running") as state ->
-      job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
-        ~github_repo_full_name ~gitlab_repo_full_name ~context ~state
-        ~external_id
-  | "cancelled" | "canceled" ->
-      (* Ideally we should check if a status was already reported for
-         this job.  But it is important to avoid making dozens of
-         requests at once when a pipeline is canceled.  So we should
-         have a caching mechanism to limit this case to a single
-         request. *)
-      Lwt.return_unit
-  | unknown_state ->
-      Lwt_io.printf "Unknown job status: %s\n" unknown_state
+  match (github_repo_full_name, job_info.build_name) with
+  | "coq/coq", "bench" ->
+      update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
+  | _, _ -> (
+    match job_info.build_status with
+    | "failed" ->
+        let failure_reason = Option.value_exn job_info.failure_reason in
+        job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
+          ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason
+          ~external_id
+    | "success" as state ->
+        job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
+          ~github_repo_full_name ~gitlab_repo_full_name ~context ~state
+          ~external_id
+        <&> send_doc_url ~bot_info job_info ~github_repo_full_name
+    | ("created" | "running") as state ->
+        job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
+          ~github_repo_full_name ~gitlab_repo_full_name ~context ~state
+          ~external_id
+    | "cancelled" | "canceled" | "pending" ->
+        (* Ideally we should check if a status was already reported for
+           this job.  But it is important to avoid making dozens of
+           requests at once when a pipeline is canceled.  So we should
+           have a caching mechanism to limit this case to a single
+           request. *)
+        Lwt.return_unit
+    | unknown_state ->
+        Lwt_io.printf "Unknown job status: %s\n" unknown_state )
 
 let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
   let sorted_builds =
