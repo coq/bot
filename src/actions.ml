@@ -144,12 +144,16 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
               ~repo:gh_repo
             >>= function
             | Ok repo_id ->
-                GitHub_mutations.create_check_run ~bot_info ~name:context
-                  ~repo_id ~head_sha:job_info.common_info.head_commit
-                  ~conclusion:NEUTRAL ~status:COMPLETED ~title
-                  ~details_url:job_url
-                  ~summary:("This job is allowed to fail.\n\n" ^ summary_tail)
-                  ~text ~external_id ()
+                let open Lwt.Syntax in
+                let+ _ =
+                  GitHub_mutations.create_check_run ~bot_info ~name:context
+                    ~repo_id ~head_sha:job_info.common_info.head_commit
+                    ~conclusion:NEUTRAL ~status:COMPLETED ~title
+                    ~details_url:job_url
+                    ~summary:("This job is allowed to fail.\n\n" ^ summary_tail)
+                    ~text ~external_id ()
+                in
+                ()
             | Error e ->
                 Lwt_io.printf "No repo id: %s\n" e ) )
     <&>
@@ -196,14 +200,18 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
         GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
         >>= function
         | Ok repo_id ->
-            GitHub_mutations.create_check_run ~bot_info ~name:context ~repo_id
-              ~head_sha:job_info.common_info.head_commit ~conclusion:FAILURE
-              ~status:COMPLETED ~title ~details_url:job_url
-              ~summary:
-                ( "This job has failed. If you need to, you can restart it \
-                   directly in the GitHub interface using the \"Re-run\" \
-                   button.\n\n" ^ summary_tail )
-              ~text ~external_id ()
+            let open Lwt.Syntax in
+            let+ _ =
+              GitHub_mutations.create_check_run ~bot_info ~name:context ~repo_id
+                ~head_sha:job_info.common_info.head_commit ~conclusion:FAILURE
+                ~status:COMPLETED ~title ~details_url:job_url
+                ~summary:
+                  ( "This job has failed. If you need to, you can restart it \
+                     directly in the GitHub interface using the \"Re-run\" \
+                     button.\n\n" ^ summary_tail )
+                ~text ~external_id ()
+            in
+            ()
         | Error e ->
             Lwt_io.printf "No repo id: %s\n" e )
 
@@ -332,7 +340,8 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url
     | Ok results -> (
         (* Formatting heleprs *)
         let details summary text =
-          f "<details>\n<summary>%s</summary>\n\n%s\n\n</details>\n" summary text
+          f "<details>\n<summary>%s</summary>\n\n%s\n\n</details>\n" summary
+            text
         in
         let code_wrap str = f "```\n%s\n```" str in
         let link text url = f "[%s](%s)" text url in
@@ -343,7 +352,7 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url
         ; details (f ":rabbit2: Top %d speed ups" results.fast_number)
           @@ code_wrap results.fast_table
         ; link "GitLab Bench Job" gitlab_url
-        (* TODO: how to get check_url? *)
+          (* TODO: how to get check_url? *)
           (* ; "- " ^ link "Bench Check Summary" check_url *) ]
         |> String.concat ~sep:"\n"
         |> fun message ->
@@ -381,41 +390,59 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
           let summary = f "## GitLab Job URL:\n[GitLab Bench Job](%s)\n" url in
           let state = job_info.build_status in
           let context = "bench" in
-          let create_check_run (status, conclusion, description, text) =
+          let create_check_run ~status ?conclusion ~title ?(text = "") () =
             GitHub_mutations.create_check_run ~bot_info ~name:context ~status
               ~repo_id ~head_sha:job_info.common_info.head_commit ?conclusion
-              ~title:description ~details_url:url ~summary ~text ~external_id ()
+              ~title ~details_url:url ~summary ~text ~external_id ()
+          in
+          let report_url url =
+            match url with
+            | Ok url ->
+                Lwt_io.printlf "Bench Check Summary updated: %s" url
+            | Error e ->
+                Lwt_io.printf "Bench Check Summary url missing: %s" e
           in
           match state with
           | "success" ->
               let* results = fetch_bench_results ~job_info () in
-              let* summary_text = bench_text results in
+              let* text = bench_text results in
               let* () =
                 bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
                   ~gitlab_url:url results
               in
-              ( COMPLETED
-              , Some SUCCESS
-              , "Bench completed successfully"
-              , summary_text )
-              |> create_check_run
+              let* url =
+                create_check_run ~status:COMPLETED ~conclusion:SUCCESS
+                  ~title:"Bench completed successfully" ~text ()
+              in
+              let* () = report_url url in
+              Lwt.return_unit
           | "failed" ->
               let* results = fetch_bench_results ~job_info () in
-              let* summary_text = bench_text results in
+              let* text = bench_text results in
               let* () =
                 bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
                   ~gitlab_url:url results
               in
-              ( COMPLETED
-              , Some NEUTRAL
-              , "Bench completed with failures"
-              , summary_text )
-              |> create_check_run
+              let* url =
+                create_check_run ~status:COMPLETED ~conclusion:NEUTRAL
+                  ~title:"Bench completed with failures" ~text ()
+              in
+              let* () = report_url url in
+              Lwt.return_unit
           | "running" ->
-              (IN_PROGRESS, None, "Bench in progress", "") |> create_check_run
+              let* url =
+                create_check_run ~status:IN_PROGRESS ~title:"Bench in progress"
+                  ()
+              in
+              let* () = report_url url in
+              Lwt.return_unit
           | "cancelled" | "canceled" ->
-              (COMPLETED, Some CANCELLED, "Bench has been cancelled", "")
-              |> create_check_run
+              let* url =
+                create_check_run ~status:COMPLETED ~conclusion:CANCELLED
+                  ~title:"Bench has been cancelled" ()
+              in
+              let* () = report_url url in
+              Lwt.return_unit
           | "created" ->
               Lwt_io.printlf "Bench job has been created, ignoring info update."
           | _ ->
@@ -554,10 +581,14 @@ let job_success_or_pending ~bot_info (gh_owner, gh_repo)
             ~repo:gh_repo
           >>= function
           | Ok repo_id ->
-              GitHub_mutations.create_check_run ~bot_info ~name:context ~status
-                ~repo_id ~head_sha:job_info.common_info.head_commit ?conclusion
-                ~title:description ~details_url:job_url ~summary:"" ~external_id
-                ()
+              let open Lwt.Syntax in
+              let+ _ =
+                GitHub_mutations.create_check_run ~bot_info ~name:context
+                  ~status ~repo_id ~head_sha:job_info.common_info.head_commit
+                  ?conclusion ~title:description ~details_url:job_url
+                  ~summary:"" ~external_id ()
+              in
+              ()
           | Error e ->
               Lwt_io.printf "No repo id: %s\n" e ) )
   | Ok _ ->
@@ -1720,7 +1751,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                 ~repo_id ~head_sha:pipeline_info.common_info.head_commit ~status
                 ?conclusion ~title ~details_url:pipeline_url ~summary
                 ~external_id ()
-              >>= fun () ->
+              >>= fun _ ->
               Lwt_unix.sleep 5.
               >>= fun () ->
               match (owner, repo, pipeline_info.state, pr_number) with
@@ -2101,17 +2132,21 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
         |> Lwt_result.ok
     | Some _ -> (
         let open Lwt.Infix in
+        let open Lwt.Syntax in
         GitHub_queries.get_repository_id ~bot_info
           ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
         >>= function
         | Ok repo_id ->
-            GitHub_mutations.create_check_run ~bot_info
-              ~name:"GitLab CI pipeline (pull request)" ~status:COMPLETED
-              ~repo_id ~head_sha:pr_info.head.sha ~conclusion:FAILURE
-              ~title:
-                "Pipeline did not run on GitLab CI because PR has conflicts \
-                 with base branch."
-              ~details_url:"" ~summary:"" ()
+            (let+ _ =
+               GitHub_mutations.create_check_run ~bot_info
+                 ~name:"GitLab CI pipeline (pull request)" ~status:COMPLETED
+                 ~repo_id ~head_sha:pr_info.head.sha ~conclusion:FAILURE
+                 ~title:
+                   "Pipeline did not run on GitLab CI because PR has conflicts \
+                    with base branch."
+                 ~details_url:"" ~summary:"" ()
+             in
+             () )
             |> Lwt_result.ok
         | Error e ->
             Lwt.return (Error e) ) )

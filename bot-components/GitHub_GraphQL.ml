@@ -328,7 +328,9 @@ module NewCheckRun =
         }
         externalId:$externalId
       }) {
-      clientMutationId
+      checkRun {
+        url @ppxCustom(module: "ParseAsString")
+      }
     }
   }
 |}]

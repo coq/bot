@@ -58,8 +58,8 @@ let close_pull_request ~bot_info ~pr_id =
   | Error err ->
       Stdio.print_endline (f "Error while closing PR: %s" err)
 
-let merge_pull_request ~bot_info ?merge_method ?commit_headline
-    ?commit_body ~pr_id () =
+let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
+    ~pr_id () =
   let merge_method =
     Option.map merge_method ~f:(function
       | MERGE ->
@@ -150,11 +150,11 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
-  >|= function
-  | Ok _ ->
-      ()
-  | Error err ->
-      Stdio.print_endline (f "Error while creating check run: %s" err)
+  >|= Result.bind ~f:(function
+        | {createCheckRun= Some {checkRun= Some {url}}} ->
+            Ok url
+        | _ ->
+            Error (f "Error while creating check run.") )
 
 let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
     ~title ?text ~summary () =

@@ -35,7 +35,7 @@ val create_check_run :
   -> summary:string
   -> ?external_id:string
   -> unit
-  -> unit Lwt.t
+  -> (string, string) result Lwt.t
 
 val update_check_run :
      bot_info:Bot_info.t
