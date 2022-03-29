@@ -332,7 +332,7 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url
     | Ok results -> (
         (* Formatting heleprs *)
         let details summary text =
-          f "<details>\n<summary>%s</summary>\n\n%s\n\n</details>" summary text
+          f "<details>\n<summary>%s</summary>\n\n%s\n\n</details>\n" summary text
         in
         let code_wrap str = f "```\n%s\n```" str in
         let link text url = f "[%s](%s)" text url in
@@ -342,7 +342,7 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url
           @@ code_wrap results.slow_table
         ; details (f ":rabbit2: Top %d speed ups" results.fast_number)
           @@ code_wrap results.fast_table
-        ; "- " ^ link "GitLab Bench Job" gitlab_url
+        ; link "GitLab Bench Job" gitlab_url
         (* TODO: how to get check_url? *)
           (* ; "- " ^ link "Bench Check Summary" check_url *) ]
         |> String.concat ~sep:"\n"
