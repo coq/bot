@@ -313,23 +313,17 @@ let bench_text = function
       let code_wrap str = f "```\n%s\n```" str in
       (* Document *)
       let open BenchResults in
-      let summary_title = header2 "Bench Summary:" in
-      let summary_table = code_wrap results.summary_table in
-      let slow_title = header2 (f "Top %d slow downs:" results.slow_number) in
-      let slow_table = code_wrap results.slow_table in
-      let fast_title = header2 (f "Top %d speed ups:" results.fast_number) in
-      let fast_table = code_wrap results.fast_table in
-      [ summary_title
-      ; summary_table
-      ; slow_title
-      ; slow_table
-      ; fast_title
-      ; fast_table ]
+      [ header2 ":checkered_flag: Bench Summary:"
+      ; code_wrap results.summary_table
+      ; header2 @@ f ":turtle: Top %d slow downs:" results.slow_number
+      ; code_wrap results.slow_table
+      ; header2 @@ f ":rabbit2: Top %d speed ups:" results.fast_number
+      ; code_wrap results.fast_table ]
       |> String.concat ~sep:"\n" |> Lwt.return
   | Error e ->
       f "Error occured when creating bench summary: %s\n" e |> Lwt.return
 
-let bench_comment ~bot_info ~owner ~repo ~number ~url
+let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url
     (results : (BenchResults.t, id) Result.t) =
   GitHub_queries.get_pull_request_id ~bot_info ~owner ~repo ~number
   >>= function
@@ -348,7 +342,9 @@ let bench_comment ~bot_info ~owner ~repo ~number ~url
           @@ code_wrap results.slow_table
         ; details (f ":rabbit2: Top %d speed ups" results.fast_number)
           @@ code_wrap results.fast_table
-        ; link "Bench Check Summary" url ]
+        ; "- " ^ link "GitLab Bench Job" gitlab_url
+        (* TODO: how to get check_url? *)
+          (* ; "- " ^ link "Bench Check Summary" check_url *) ]
         |> String.concat ~sep:"\n"
         |> fun message ->
         GitHub_mutations.post_comment ~bot_info ~id ~message
@@ -396,7 +392,7 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
               let* summary_text = bench_text results in
               let* () =
                 bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
-                  ~url results
+                  ~gitlab_url:url results
               in
               ( COMPLETED
               , Some SUCCESS
@@ -408,7 +404,7 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
               let* summary_text = bench_text results in
               let* () =
                 bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
-                  ~url results
+                  ~gitlab_url:url results
               in
               ( COMPLETED
               , Some NEUTRAL
