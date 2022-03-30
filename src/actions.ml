@@ -405,7 +405,7 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
                 Lwt.return_some url
             | Error e ->
                 let* () =
-                  Lwt_io.printf "Bench Check Summary URL missing: %s" e
+                  Lwt_io.printlf "Bench Check Summary URL missing: %s" e
                 in
                 Lwt.return_none
           in
