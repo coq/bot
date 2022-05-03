@@ -1525,7 +1525,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
       in
       let state, status, conclusion, title, summary_top =
         match pipeline_info.state with
-        | "pending" ->
+        | "created" | "pending" ->
             ("pending", QUEUED, None, "Pipeline is pending on GitLab CI", None)
         | "running" ->
             ( "pending"
