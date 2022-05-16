@@ -154,7 +154,7 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
         | {createCheckRun= Some {checkRun= Some {url}}} ->
             Ok url
         | _ ->
-            Error (f "Warning: Check run could not be created.") )
+            Error (f "Warning: Could not retrieve new check run URL.") )
 
 let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
     ~title ?text ~summary () =
