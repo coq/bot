@@ -33,6 +33,18 @@ module PullRequest_Milestone_and_Cards =
   }
 |}]
 
+module PullRequest_ID =
+[%graphql
+{|
+  query prID($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner,name: $repo) {
+      pullRequest(number: $number) {
+        id
+      }
+    }
+  }
+|}]
+
 module PullRequest_ID_and_Milestone =
 [%graphql
 {|
@@ -316,7 +328,9 @@ module NewCheckRun =
         }
         externalId:$externalId
       }) {
-      clientMutationId
+      checkRun {
+        url @ppxCustom(module: "ParseAsString")
+      }
     }
   }
 |}]
