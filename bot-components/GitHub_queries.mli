@@ -99,6 +99,13 @@ val get_base_and_head_checks :
   -> head:string
   -> (base_and_head_checks_info, string) result Lwt.t
 
+val get_pipeline_summary :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> head:string
+  -> (string, string) result Lwt.t
+
 val get_cards_in_column :
   int -> bot_info:Bot_info.t -> ((string * int) list, string) result Lwt.t
 

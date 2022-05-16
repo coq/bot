@@ -2516,42 +2516,9 @@ let run_bench ~bot_info comment_info =
              "Error while fetching PR refs for %s/%s#%d for running bench job: \
               %s"
              owner repo pr_number err )
-    | Ok {base= {sha= base}; head= {sha= head}} -> (
-        let base = Str.global_replace (Str.regexp {|"|}) "" base in
+    | Ok {base= _; head= {sha= head}} ->
         let head = Str.global_replace (Str.regexp {|"|}) "" head in
-        GitHub_queries.get_base_and_head_checks ~bot_info ~owner ~repo
-          ~pr_number ~base ~head
-        >>= function
-        | Error err ->
-            Lwt.return_error
-              (f
-                 "Error while fetching checks for %s/%s#%d for running bench \
-                  job: %s"
-                 owner repo pr_number err )
-        | Ok info -> (
-            List.find info.head_checks ~f:(function
-              | Error _ ->
-                  false
-              | Ok (check_tab_info, _) ->
-                  String.is_prefix ~prefix:"GitLab CI pipeline"
-                    check_tab_info.name )
-            |> function
-            | Some (Ok (info, _)) -> (
-              match info.summary with
-              | Some sum ->
-                  Lwt.return_ok sum
-              | None ->
-                  Lwt.return_error
-                    (f
-                       "Error while detecting GitLab check summary for \
-                        %s/%s#%d for running bench job."
-                       owner repo pr_number ) )
-            | _ ->
-                Lwt.return_error
-                  (f
-                     "Error while detecting GitLab check for %s/%s#%d for \
-                      running bench job."
-                     owner repo pr_number ) ) )
+        GitHub_queries.get_pipeline_summary ~bot_info ~owner ~repo ~head
   in
   (* Parsing the summary into (build_id, project_id) *)
   let* process_summary =
