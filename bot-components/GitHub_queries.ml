@@ -777,8 +777,6 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
               | _ ->
                   Error "Got more than one checkSuite." ) )
 
-(* TODO: use GraphQL API *)
-
 let get_pipeline_summary ~bot_info ~owner ~repo ~head =
   let appId = bot_info.app_id in
   let open GitHub_GraphQL.GetPipelineSummary in
@@ -835,6 +833,8 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                       Error "Got more than one checkRun." ) )
               | _ ->
                   Error "Got more than one checkSuite." ) )
+
+(* TODO: use GraphQL API *)
 
 let get_cards_in_column column_id =
   generic_get
