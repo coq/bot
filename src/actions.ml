@@ -2553,7 +2553,7 @@ let run_bench ~bot_info comment_info =
              owner repo pr_number s ) )
   in
   let* allowed_to_bench =
-    GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team:"pushers"
+    GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team:"contributors"
       ~user:comment_info.author
   in
   match (allowed_to_bench, process_summary) with
@@ -2568,7 +2568,7 @@ let run_bench ~bot_info comment_info =
       let err =
         f
           "@%s: You can't request a bench because you're not a member of the \
-           `@coq/pushers` team."
+           `@coq/contributors` team."
           comment_info.author
       in
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
