@@ -777,6 +777,63 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
               | _ ->
                   Error "Got more than one checkSuite." ) )
 
+let get_pipeline_summary ~bot_info ~owner ~repo ~head =
+  let appId = bot_info.app_id in
+  let open GitHub_GraphQL.GetPipelineSummary in
+  makeVariables ~appId ~owner ~repo ~head ()
+  |> serializeVariables |> variablesToJson
+  |> GraphQL_query.send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(fun resp ->
+          resp.repository
+          |> Result.of_option ~error:(f "Unknown repository %s/%s." owner repo) )
+  >|= Result.bind ~f:(fun repository ->
+          match repository.getPipelineSummaryCommit with
+          | None ->
+              Error (f "Unknown head commit %s/%s@%s." owner repo head)
+          | Some (`UnspecifiedFragment _) ->
+              Error "Unspecified fragment."
+          | Some (`Commit head_obj) -> (
+              let extract_check_suites checkSuites =
+                checkSuites
+                |> Option.bind ~f:(fun checkSuites -> checkSuites.nodes)
+                |> Option.map ~f:Array.to_list
+                |> Option.map ~f:List.filter_opt
+              in
+              match extract_check_suites head_obj.checkSuites with
+              | None ->
+                  Error
+                    (f "No check suite %d for head commit %s/%s@%s." appId owner
+                       repo head )
+              | Some [headCheckSuite] -> (
+                match headCheckSuite.getPipelineSummaryCheckRuns with
+                | None ->
+                    Error
+                      (f
+                         "No GitLab CI pipeline summary for head commit \
+                          %s/%s@%s."
+                         owner repo head )
+                | Some checkRuns -> (
+                  match checkRuns.nodes |> Option.map ~f:Array.to_list with
+                  | None | Some [None] ->
+                      Error
+                        (f
+                           "No GitLab CI pipeline summary for head commit \
+                            %s/%s@%s."
+                           owner repo head )
+                  | Some [Some headCheckRun] ->
+                      Stdlib.Option.to_result
+                        ~none:
+                          (f
+                             "No GitLab CI pipeline summary for head commit \
+                              %s/%s@%s."
+                             owner repo head )
+                        headCheckRun.summary
+                  | Some _ ->
+                      Error "Got more than one checkRun." ) )
+              | _ ->
+                  Error "Got more than one checkSuite." ) )
+
 (* TODO: use GraphQL API *)
 
 let get_cards_in_column column_id =

@@ -2495,3 +2495,81 @@ let coq_check_stale_pr ~bot_info ~owner ~repo ~after ~throttle =
     >>= fun () -> Lwt.return true
   in
   apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
+
+let run_bench ~bot_info comment_info =
+  (* Do we want to use this more often? *)
+  let open Lwt.Syntax in
+  let pr = comment_info.issue in
+  let owner = pr.issue.owner in
+  let repo = pr.issue.repo in
+  let pr_number = pr.number in
+  (* We need the GitLab build_id and project_id. Currently there is no good way
+     to query this data so we have to jump through some somewhat useless hoops in
+     order to get our hands on this information. TODO: do this more directly.*)
+  let* gitlab_check_summary =
+    GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
+      ~number:pr_number
+    >>= function
+    | Error err ->
+        Lwt.return_error
+          (f
+             "Error while fetching PR refs for %s/%s#%d for running bench job: \
+              %s"
+             owner repo pr_number err )
+    | Ok {base= _; head= {sha= head}} ->
+        let head = Str.global_replace (Str.regexp {|"|}) "" head in
+        GitHub_queries.get_pipeline_summary ~bot_info ~owner ~repo ~head
+  in
+  (* Parsing the summary into (build_id, project_id) *)
+  let* process_summary =
+    match gitlab_check_summary with
+    | Error err ->
+        Lwt.return_error err
+    | Ok summary -> (
+      try
+        let build_id =
+          let regexp =
+            f {|.*%s\([0-9]*\)|}
+              (Str.quote "[bench](https://gitlab.com/coq/coq/-/jobs/")
+          in
+          ( if Helpers.string_match ~regexp summary then
+            Str.matched_group 1 summary
+          else raise @@ Stdlib.Failure "Could not find GitLab bench job ID" )
+          |> Stdlib.int_of_string
+        in
+        let project_id =
+          let regexp = {|.*GitLab Project ID: \([0-9]*\)|} in
+          ( if Helpers.string_match ~regexp summary then
+            Str.matched_group 1 summary
+          else raise @@ Stdlib.Failure "Could not find GitLab Project ID" )
+          |> Int.of_string
+        in
+        Lwt.return_ok (build_id, project_id)
+      with Stdlib.Failure s ->
+        Lwt.return_error
+          (f
+             "Error while regexing summary for %s/%s#%d for running bench job: \
+              %s"
+             owner repo pr_number s ) )
+  in
+  let* allowed_to_bench =
+    GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team:"contributors"
+      ~user:comment_info.author
+  in
+  match (allowed_to_bench, process_summary) with
+  | Ok true, Ok (build_id, project_id) ->
+      (* Permission to bench has been granted *)
+      GitLab_mutations.play_job ~bot_info ~project_id ~build_id
+  | Error err, _ | _, Error err ->
+      GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
+      >>= GitHub_mutations.report_on_posting_comment
+  | Ok false, _ ->
+      (* User not found in the team *)
+      let err =
+        f
+          "@%s: You can't request a bench because you're not a member of the \
+           `@coq/contributors` team."
+          comment_info.author
+      in
+      GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
+      >>= GitHub_mutations.report_on_posting_comment

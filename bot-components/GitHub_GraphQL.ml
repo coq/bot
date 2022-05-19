@@ -518,3 +518,25 @@ query getChecks($appId: Int!, $owner: String!, $repo:String!, $prNumber: Int!, $
   }
 }
 |}]
+
+module GetPipelineSummary =
+[%graphql
+{|
+query getChecks($appId: Int!, $owner: String!, $repo:String!, $head: String!) {
+  repository(name: $repo,owner:$owner) {
+    getPipelineSummaryCommit: object(expression: $head) {
+      ... on Commit {
+        checkSuites(first: 1,filterBy:{appId: $appId}) {
+          nodes {
+            getPipelineSummaryCheckRuns: checkRuns(first: 1, filterBy: {checkName:"GitLab CI pipeline (pull request)"}) {
+              nodes {
+                summary
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+|}]
