@@ -1,6 +1,5 @@
 open Base
 open Bot_info
-open Lwt.Infix
 open Utils
 
 let send_graphql_query ~bot_info ?(extra_headers = []) ~query ~parse variables =
@@ -15,10 +14,11 @@ let send_graphql_query ~bot_info ?(extra_headers = []) ~query ~parse variables =
     `Assoc [("query", `String query); ("variables", variables)]
   in
   let request = Yojson.Basic.to_string request_json in
-  Cohttp_lwt_unix.Client.post ~headers ~body:(`String request) uri
-  >>= fun (rsp, body) ->
-  Cohttp_lwt.Body.to_string body
-  >|= fun body ->
+  let open Lwt.Syntax in
+  let* rsp, body =
+    Cohttp_lwt_unix.Client.post ~headers ~body:(`String request) uri
+  in
+  let+ body = Cohttp_lwt.Body.to_string body in
   match Cohttp.Code.(code_of_status rsp.status |> is_success) with
   | false ->
       Error body
