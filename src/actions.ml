@@ -235,35 +235,27 @@ let send_doc_url_aux ~bot_info job_info (kind, url) =
       ~description:(description_base ^ ": not found.")
       ~bot_info
 
+let send_doc_url_job ~bot_info job_info doc_key artifact =
+  Lwt_io.printf
+    "This is a successful %s build. Pushing a status check with a \
+     link...\n" doc_key
+  <&>
+  let url_base = f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id artifact in
+  send_doc_url_aux ~bot_info job_info (doc_key, url_base)
+
 let send_doc_url ~bot_info ~github_repo_full_name job_info =
   match (github_repo_full_name, job_info.build_name) with
   | "coq/coq", "doc:refman" ->
-      Lwt_io.printf
-        "This is a successful refman build. Pushing a status check with a \
-         link...\n"
-      <&>
-      let url_base =
-        f
-          "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_install_ci/share/doc/coq"
-          job_info.build_id
-      in
-      [ ("refman", f "%s/sphinx/html/index.html" url_base)
-      ; ("stdlib", f "%s/html/stdlib/index.html" url_base) ]
-      |> List.map ~f:(send_doc_url_aux ~bot_info job_info)
-      |> Lwt.all |> Lwt.map ignore
+    send_doc_url_job ~bot_info job_info "refman"
+      "_build/default/doc/refman-html/index.html"
+  | "coq/coq", "doc:stdlib" ->
+    send_doc_url_job ~bot_info job_info "stdlib"
+      "_build/default/doc/stdlib/html/index.html"
   | "coq/coq", "doc:ml-api:odoc" ->
-      Lwt_io.printf
-        "This is a successful ml-api build. Pushing a status check with a \
-         link...\n"
-      <&>
-      let url_base =
-        f
-          "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_build/default/_doc/_html/index.html"
-          job_info.build_id
-      in
-      ("ml-api", url_base) |> send_doc_url_aux ~bot_info job_info
+    send_doc_url_job ~bot_info job_info "ml-api"
+      "_build/default/_doc/_html/index.html"
   | _ ->
-      Lwt.return_unit
+    Lwt.return_unit
 
 module BenchResults = struct
   type t =
