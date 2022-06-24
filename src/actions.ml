@@ -215,17 +215,21 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
         | Error e ->
             Lwt_io.printf "No repo id: %s\n" e )
 
-let send_doc_url_aux ~bot_info job_info (kind, url) =
+let send_doc_url_aux ~bot_info job_info ?fallback_urls (kind, url) =
   let context = f "%s: %s artifact" job_info.build_name kind in
   let description_base = f "Link to %s build artifact" kind in
-  url |> Uri.of_string |> Client.get
-  >>= fun (resp, _) ->
-  let status_code = resp |> Response.status |> Code.code_of_status in
-  if Int.equal 200 status_code then
+  let open Lwt.Syntax in
+  let status_code url =
+    let+ resp, _ = url |> Uri.of_string |> Client.get in
+    resp |> Response.status |> Code.code_of_status
+  in
+  let success_response url =
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
       ~commit:job_info.common_info.head_commit ~state:"success" ~url ~context
       ~description:(description_base ^ ".") ~bot_info
-  else
+  in
+  let fail_response url =
+    let* status_code = status_code url in
     Lwt_io.printf "But we got a %d code when checking the URL.\n" status_code
     <&>
     let job_url = f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id in
@@ -234,28 +238,61 @@ let send_doc_url_aux ~bot_info job_info (kind, url) =
       ~context
       ~description:(description_base ^ ": not found.")
       ~bot_info
+  in
+  let check_valid url =
+    let+ status_code = status_code url in
+    Int.equal 200 status_code
+  in
+  match fallback_urls with
+  | None ->
+      let* valid = check_valid url in
+      if valid then success_response url else fail_response url
+  (* After PR #15560 the location of the refman and stdlib artifacts changed.
+     However in order to keep coqbot working with older versions of Coq, we need
+     this compatibility routine. *)
+  | Some (refman_fallback_url, stdlib_fallback_url) ->
+      let* valid = check_valid url in
+      if valid then success_response url
+      else
+        let* valid_refman = check_valid refman_fallback_url in
+        let* valid_stdlib = check_valid stdlib_fallback_url in
+        let+ () =
+          if valid_refman then success_response refman_fallback_url
+          else fail_response refman_fallback_url
+        and+ () =
+          if valid_stdlib then success_response stdlib_fallback_url
+          else fail_response stdlib_fallback_url
+        in
+        ()
 
-let send_doc_url_job ~bot_info job_info doc_key artifact =
+let send_doc_url_job ~bot_info ?fallback_urls job_info doc_key artifact =
   Lwt_io.printf
-    "This is a successful %s build. Pushing a status check with a \
-     link...\n" doc_key
+    "This is a successful %s build. Pushing a status check with a link...\n"
+    doc_key
   <&>
-  let url_base = f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id artifact in
-  send_doc_url_aux ~bot_info job_info (doc_key, url_base)
+  let url_base =
+    f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id
+      artifact
+  in
+  send_doc_url_aux ~bot_info job_info ?fallback_urls (doc_key, url_base)
 
 let send_doc_url ~bot_info ~github_repo_full_name job_info =
   match (github_repo_full_name, job_info.build_name) with
   | "coq/coq", "doc:refman" ->
-    send_doc_url_job ~bot_info job_info "refman"
-      "_build/default/doc/refman-html/index.html"
+      let fallback_urls =
+        ( "_install_ci/share/doc/coq/sphinx/html/index.html"
+        , "_install_ci/share/doc/coq/html/stdlib/index.html" )
+      in
+      send_doc_url_job ~bot_info ~fallback_urls job_info "refman"
+        "_build/default/doc/refman-html/index.html"
   | "coq/coq", "doc:stdlib" ->
-    send_doc_url_job ~bot_info job_info "stdlib"
-      "_build/default/doc/stdlib/html/index.html"
+      send_doc_url_job ~bot_info job_info "stdlib"
+        "_build/default/doc/stdlib/html/index.html"
   | "coq/coq", "doc:ml-api:odoc" ->
-    send_doc_url_job ~bot_info job_info "ml-api"
-      "_build/default/_doc/_html/index.html"
+      send_doc_url_job ~bot_info job_info "ml-api"
+        "_build/default/_doc/_html/index.html"
   | _ ->
-    Lwt.return_unit
+      Lwt.return_unit
 
 module BenchResults = struct
   type t =
