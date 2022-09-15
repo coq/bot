@@ -1,26 +1,22 @@
 { pkgs ? import (fetchTarball {
-  name = "nixpkgs-unstable-2022-02-16";
-  url =
-    "https://github.com/NixOS/nixpkgs/archive/b66b39216b1fef2d8c33cc7a5c72d8da80b79970.tar.gz";
-  sha256 = "0xqxrmdr3adcdj1ksnwf8w7d0qjzsc4sgzfcmvvrpk7hrc5q9cvg";
+  url = "https://github.com/NixOS/nixpkgs/archive/d003639e6f1266a0847df3bf1703dde4744c03f0.tar.gz";
+  sha256 = "1w0i46rv5f03f17v3x5m4fsnbw3811h8xkw7hf2nfrxv0nzgfb7y";
 }) { } }:
 
-with pkgs;
-let ocamlPackages = ocaml-ng.ocamlPackages_4_10;
-in stdenv.mkDerivation rec {
+pkgs.stdenv.mkDerivation rec {
   name = "coqbot";
   src = null;
-  buildInputs = with ocamlPackages; [ # Compiler and dev tools
+  buildInputs = with pkgs.ocamlPackages; [ # Compiler and dev tools
     ocaml
     findlib
     dune_2
     utop
-    ncurses
+    pkgs.ncurses
     merlin
     ocaml-lsp
-    ocamlformat
-    nixfmt
-    nodePackages.get-graphql-schema
+    pkgs.ocamlformat
+    pkgs.nixfmt
+    pkgs.nodePackages.get-graphql-schema
     # Direct dependencies
     base
     cohttp
@@ -38,6 +34,6 @@ in stdenv.mkDerivation rec {
   ];
 
   shellHook = ''
-    export OCAMLFORMAT_LOCATION=${ocamlformat}
+    export OCAMLFORMAT_LOCATION=${pkgs.ocamlformat}
   '';
 }

@@ -5,7 +5,7 @@ let toml_of_file file_path = Toml.Parser.(from_filename file_path |> unsafe)
 
 let toml_of_string s = Toml.Parser.(from_string s |> unsafe)
 
-let find k = Toml.Types.Table.find (Toml.Types.Table.Key.bare_key_of_string k)
+let find k = Toml.Types.Table.find (Toml.Types.Table.Key.of_string k)
 
 let subkey_value toml_table k k' =
   Toml.Lenses.(get toml_table (key k |-- table |-- key k' |-- string))
