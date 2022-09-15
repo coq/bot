@@ -9,7 +9,7 @@ pkgs.stdenv.mkDerivation rec {
   buildInputs = with pkgs.ocamlPackages; [ # Compiler and dev tools
     ocaml
     findlib
-    dune_2
+    dune_3
     utop
     pkgs.ncurses
     merlin
