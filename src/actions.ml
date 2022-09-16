@@ -232,15 +232,11 @@ let rec send_doc_url_aux ~bot_info job_info ~fallback_urls (kind, url) =
     Lwt_io.printf "But we got a %d code when checking the URL.\n" code
     <&>
     let job_url = f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id in
-    let description =
-      description_base
-      ^
-      if Int.equal 404 code then ": not found."
-      else f ": error while checking artifact (%d)." code
-    in
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
       ~commit:job_info.common_info.head_commit ~state:"failure" ~url:job_url
-      ~context ~description ~bot_info
+      ~context
+      ~description:(description_base ^ ": not found.")
+      ~bot_info
   in
   let error_code url =
     let+ status_code = status_code url in
