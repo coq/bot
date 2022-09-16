@@ -215,7 +215,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
         | Error e ->
             Lwt_io.printf "No repo id: %s\n" e )
 
-let rec send_doc_url_aux ~bot_info job_info ?fallback_url (kind, url) =
+let rec send_doc_url_aux ~bot_info job_info ~fallback_urls (kind, url) =
   let context = f "%s: %s artifact" job_info.build_name kind in
   let description_base = f "Link to %s build artifact" kind in
   let open Lwt.Syntax in
@@ -251,13 +251,14 @@ let rec send_doc_url_aux ~bot_info job_info ?fallback_url (kind, url) =
   | None ->
       success_response url
   | Some code -> (
-    match fallback_url with
-    | None ->
+    match fallback_urls with
+    | [] ->
         fail_response code
-    | Some url ->
-        send_doc_url_aux ~bot_info job_info (kind, url) )
+    | url :: fallback_urls ->
+        send_doc_url_aux ~bot_info ~fallback_urls job_info (kind, url) )
 
-let send_doc_url_job ~bot_info ?fallback_artifact job_info doc_key artifact =
+let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
+    artifact =
   Lwt_io.printf
     "This is a successful %s build. Pushing a status check with a link...\n"
     doc_key
@@ -267,18 +268,18 @@ let send_doc_url_job ~bot_info ?fallback_artifact job_info doc_key artifact =
       artifact
   in
   send_doc_url_aux ~bot_info job_info
-    ?fallback_url:(Option.map ~f:build_url fallback_artifact)
+    ~fallback_urls:(List.map ~f:build_url fallback_artifacts)
     (doc_key, build_url artifact)
 
 let send_doc_url ~bot_info ~github_repo_full_name job_info =
   match (github_repo_full_name, job_info.build_name) with
   | "coq/coq", "doc:refman" ->
       send_doc_url_job ~bot_info
-        ~fallback_artifact:"_install_ci/share/doc/coq/sphinx/html/index.html"
+        ~fallback_artifacts:["_install_ci/share/doc/coq/sphinx/html/index.html"]
         job_info "refman" "_build/default/doc/refman-html/index.html"
   | "coq/coq", "doc:stdlib" ->
       send_doc_url_job ~bot_info
-        ~fallback_artifact:"_install_ci/share/doc/coq/html/stdlib/index.html"
+        ~fallback_artifacts:["_install_ci/share/doc/coq/html/stdlib/index.html"]
         job_info "stdlib" "_build/default/doc/stdlib/html/index.html"
   | "coq/coq", "doc:ml-api:odoc" ->
       send_doc_url_job ~bot_info job_info "ml-api"
