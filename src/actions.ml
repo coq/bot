@@ -274,13 +274,15 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
 let send_doc_url ~bot_info ~github_repo_full_name job_info =
   match (github_repo_full_name, job_info.build_name) with
   | "coq/coq", "doc:refman" ->
+      (* Used to be a non-Dune job, now a Dune job, thus we need a fallback *)
       send_doc_url_job ~bot_info
         ~fallback_artifacts:["_install_ci/share/doc/coq/sphinx/html/index.html"]
         job_info "refman" "_build/default/doc/refman-html/index.html"
-  | "coq/coq", "doc:stdlib" ->
-      send_doc_url_job ~bot_info
-        ~fallback_artifacts:["_install_ci/share/doc/coq/html/stdlib/index.html"]
-        job_info "stdlib" "_build/default/doc/stdlib/html/index.html"
+  | ( "coq/coq"
+    , ( "doc:stdlib" (* only after complete switch to Dune *)
+      | "doc:stdlib:dune" (* only before complete switch to Dune *) ) ) ->
+      send_doc_url_job ~bot_info job_info "stdlib"
+        "_build/default/doc/stdlib/html/index.html"
   | "coq/coq", "doc:ml-api:odoc" ->
       send_doc_url_job ~bot_info job_info "ml-api"
         "_build/default/_doc/_html/index.html"
