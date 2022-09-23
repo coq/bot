@@ -872,18 +872,31 @@ let shorten_ci_check_name target =
   |> Stdlib.String.trim
 
 let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
-    ~head_pipeline_summary =
-  Lwt_io.printlf "I'm going to look for failed tests to minimize on PR #%d."
-    pr_number
-  >>= fun () ->
-  GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo ~number:pr_number
-  >>= function
+    ~head_pipeline_summary ?base_sha ?head_sha () =
+  let open Lwt.Syntax in
+  let* () =
+    Lwt_io.printlf "I'm going to look for failed tests to minimize on PR #%d."
+      pr_number
+  in
+  let* refs =
+    match (base_sha, head_sha) with
+    | None, _ | _, None ->
+        let open Lwt_result.Syntax in
+        let+ {base= {sha= base}; head= {sha= head}} =
+          GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
+            ~number:pr_number
+        in
+        (base, head)
+    | Some base, Some head ->
+        Lwt.return_ok (base, head)
+  in
+  match refs with
   | Error err ->
       Lwt.return_error
         ( None
         , f "Error while fetching PR refs for %s/%s#%d for CI minimization: %s"
             owner repo pr_number err )
-  | Ok {base= {sha= base}; head= {sha= head}} -> (
+  | Ok (base, head) -> (
       (* TODO: figure out why there are quotes, cf https://github.com/coq/bot/issues/61 *)
       let base = Str.global_replace (Str.regexp {|"|}) "" base in
       let head = Str.global_replace (Str.regexp {|"|}) "" head in
@@ -1129,9 +1142,10 @@ let suggest_ci_minimization_for_pr = function
       Suggest
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
-    ~head_pipeline_summary ~request ~comment_on_error ~bug_file_contents =
+    ~head_pipeline_summary ~request ~comment_on_error ~bug_file_contents
+    ?base_sha ?head_sha () =
   fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
-    ~head_pipeline_summary
+    ~head_pipeline_summary ?base_sha ?head_sha ()
   >>= function
   | Ok
       ( ( { comment_thread_id
@@ -1681,7 +1695,7 @@ let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error
           RequestAll
       | requests ->
           RequestExplicit requests )
-    ~comment_on_error ~bug_file_contents
+    ~comment_on_error ~bug_file_contents ()
 
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
@@ -1782,6 +1796,8 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                   minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                     ~head_pipeline_summary:(Some summary) ~request:Auto
                     ~comment_on_error:false ~bug_file_contents:None
+                    ?base_sha:pipeline_info.common_info.base_commit
+                    ~head_sha:pipeline_info.common_info.head_commit ()
               | _ ->
                   Lwt.return_unit ) ) )
 
