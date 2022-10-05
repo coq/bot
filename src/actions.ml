@@ -2116,26 +2116,52 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
         )
       |> Lwt.async ;
     let open Lwt.Infix in
-    (* In Coq repo, if something has changed in
-       dev/ci/docker/, we rebuild the Docker image*)
+    (* In Coq repo, we have several special cases:
+       1. if something has changed in dev/ci/docker/, we rebuild the Docker image
+       2. if there was a special label set, we run a full CI
+    *)
     let get_options =
       if
         String.equal pr_info.issue.issue.owner "coq"
         && String.equal pr_info.issue.issue.repo "coq"
       then
-        git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
-          "dev/ci/docker/.*Dockerfile.*"
-        >>= function
-        | Ok true ->
-            Lwt.return {|-o ci.variable="SKIP_DOCKER=false"|}
-        | Ok false ->
-            Lwt.return ""
-        | Error e ->
-            Lwt_io.printf
-              "Error while checking if something has changed in dev/ci/docker:\n\
-               %s\n"
-              e
-            >>= fun () -> Lwt.return ""
+        Lwt.all
+          [ ( git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
+                "dev/ci/docker/.*Dockerfile.*"
+            >>= function
+            | Ok true ->
+                Lwt.return {|-o ci.variable="SKIP_DOCKER=false"|}
+            | Ok false ->
+                Lwt.return ""
+            | Error e ->
+                Lwt_io.printf
+                  "Error while checking if something has changed in \
+                   dev/ci/docker:\n\
+                   %s\n"
+                  e
+                >>= fun () -> Lwt.return "" )
+          ; (let full_ci_label = "needs: full CI" in
+             if
+               pr_info.issue.labels
+               |> List.exists ~f:(fun l -> String.equal l full_ci_label)
+             then
+               GitHub_queries.get_label ~bot_info ~owner:issue.owner
+                 ~repo:issue.repo ~label:full_ci_label
+               >>= (function
+                     | Ok (Some full_ci_label_id) ->
+                         GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id
+                           ~labels:[full_ci_label_id] ~bot_info
+                     | Ok None ->
+                         Lwt_io.printlf
+                           "Error while querying for label %s: did not get any \
+                            result back."
+                           full_ci_label
+                     | Error err ->
+                         Lwt_io.printlf "Error while querying for label %s: %s"
+                           full_ci_label err )
+               >>= fun () -> Lwt.return {|-o ci.variable="FULL_CI=true"|}
+             else Lwt.return {|-o ci.variable="FULL_CI=false"|} ) ]
+        >|= fun options -> String.concat ~sep:" " options
       else Lwt.return ""
     in
     (* Force push *)
