@@ -73,6 +73,13 @@ let pipeline_info_of_json json =
   let repo_url = project |> member "web_url" |> to_string in
   let project_path = project |> member "path_with_namespace" |> to_string in
   let project_id = project |> member "id" |> to_int in
+  let variables =
+    pipeline_json |> member "variables" |> to_list
+    |> List.map ~f:(fun variable ->
+           let key = variable |> member "key" |> to_string in
+           let value = variable |> member "value" |> to_string in
+           (key, value) )
+  in
   let stages =
     pipeline_json |> member "stages" |> to_list |> List.map ~f:to_string
   in
@@ -83,6 +90,7 @@ let pipeline_info_of_json json =
   ; pipeline_id
   ; project_path
   ; common_info= {head_commit; base_commit; branch; repo_url; project_id}
+  ; variables
   ; stages
   ; builds }
 

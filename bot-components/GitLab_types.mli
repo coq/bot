@@ -19,5 +19,6 @@ type pipeline_info =
   ; pipeline_id: int
   ; project_path: string
   ; common_info: ci_common_info
+  ; variables: (string * string) list
   ; stages: string list
   ; builds: unit job_info list }

@@ -667,6 +667,11 @@ let job_action ~bot_info ({build_name} as job_info) ~gitlab_mapping =
         Lwt_io.printlf "Unknown job status: %s" unknown_state )
 
 let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
+  let variables =
+    List.map pipeline_info.variables ~f:(fun (key, value) ->
+        f "- %s: %s" key value )
+    |> String.concat ~sep:"\n"
+  in
   let sorted_builds =
     pipeline_info.builds
     |> List.sort ~compare:(fun build1 build2 ->
@@ -685,8 +690,9 @@ let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
            |> List.cons ("- " ^ stage) )
     |> String.concat ~sep:"\n"
   in
-  [ f "This [GitLab pipeline](%s) contains the following stages and jobs:"
-      pipeline_url
+  [ f "This [GitLab pipeline](%s) sets the following variables:" pipeline_url
+  ; variables
+  ; "It contains the following stages and jobs:"
   ; stage_summary
   ; f "GitLab Project ID: %d" pipeline_info.common_info.project_id ]
   |> (match summary_top with Some text -> List.cons text | None -> Fn.id)
