@@ -1,10 +1,9 @@
-type id = string
-
-type repository_info = {id: int; node_id: string; owner: string; name: string}
+type repository_info =
+  {id: int; node_id: GitHub_ID.t; owner: string; name: string}
 
 type milestone = {milestone_title: string; description: string option}
 
-type project_column = {id: string; databaseId: int option}
+type project_column = {id: GitHub_ID.t; databaseId: int option}
 
 type merge_method = MERGE | REBASE | SQUASH
 
@@ -15,11 +14,12 @@ type full_backport_info =
   {backport_info: backport_info list; rejected_milestone: string}
 
 type project_card =
-  {id: id; column: project_column option; columns: project_column list}
+  {id: GitHub_ID.t; column: project_column option; columns: project_column list}
 
-type mv_card_to_column_input = {card_id: id; column_id: id}
+type mv_card_to_column_input = {card_id: GitHub_ID.t; column_id: GitHub_ID.t}
 
-type closer_info = {pull_request_id: id; milestone_id: id option}
+type closer_info =
+  {pull_request_id: GitHub_ID.t; milestone_id: GitHub_ID.t option}
 
 type 'a closed_by =
   | ClosedByPullRequest of 'a
@@ -29,17 +29,17 @@ type 'a closed_by =
   | NoCloseEvent
 
 type issue_closer_info =
-  {issue_id: id; milestone_id: id option; closer: closer_info}
+  {issue_id: GitHub_ID.t; milestone_id: GitHub_ID.t option; closer: closer_info}
 
 type issue = {owner: string; repo: string; number: int}
 
-type comment = {id: id; author: string; created_by_email: bool}
+type comment = {id: GitHub_ID.t; author: string; created_by_email: bool}
 
 type issue_info =
   { issue: issue
   ; title: string
   ; number: int
-  ; id: id
+  ; id: GitHub_ID.t
   ; user: string
   ; labels: string list
   ; milestoned: bool
@@ -82,7 +82,7 @@ type comment_info =
   ; pull_request: issue_info pull_request_info option
   ; issue: issue_info
   ; review_comment: bool
-  ; id: id }
+  ; id: GitHub_ID.t }
 
 type push_info =
   {owner: string; repo: string; base_ref: string; commits_msg: string list}
@@ -100,11 +100,11 @@ type check_conclusion =
   | TIMED_OUT
 
 type check_suite_info =
-  {id: int; node_id: id; head_sha: string; status: check_run_status}
+  {id: int; node_id: GitHub_ID.t; head_sha: string; status: check_run_status}
 
 type check_run_info =
   { id: int
-  ; node_id: id
+  ; node_id: GitHub_ID.t
   ; head_sha: string
   ; status: check_run_status
   ; check_suite_info: check_suite_info
@@ -113,7 +113,7 @@ type check_run_info =
 
 type check_run =
   { id: int
-  ; node_id: id
+  ; node_id: GitHub_ID.t
   ; head_sha: string
   ; name: string
   ; status: string

@@ -18,14 +18,14 @@ val get_pull_request_id_and_milestone :
   -> owner:string
   -> repo:string
   -> number:int
-  -> ((string * int * full_backport_info) option, string) result Lwt.t
+  -> ((GitHub_ID.t * int * full_backport_info) option, string) result Lwt.t
 
-  val get_pull_request_id :
-       bot_info:Bot_info.t
-    -> owner:string
-    -> repo:string
-    -> number:int
-    -> (id , string) result Lwt.t
+val get_pull_request_id :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> number:int
+  -> (GitHub_ID.t, string) result Lwt.t
 
 val get_team_membership :
      bot_info:Bot_info.t
@@ -39,7 +39,7 @@ val get_pull_request_refs :
   -> owner:string
   -> repo:string
   -> number:int
-  -> (string pull_request_info, string) result Lwt.t
+  -> (GitHub_ID.t pull_request_info, string) result Lwt.t
 
 val get_pull_request_reviews_refs :
      bot_info:Bot_info.t
@@ -71,7 +71,7 @@ val get_repository_id :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
-  -> (id, string) result Lwt.t
+  -> (GitHub_ID.t, string) result Lwt.t
 
 val get_status_check :
      bot_info:Bot_info.t
@@ -84,7 +84,7 @@ val get_status_check :
 (* N.B. the [bool option] is [None] for in progress and [Some success_status] for finished *)
 (* TODO: Should we use a type for this instead of [bool option]? *)
 type base_and_head_checks_info =
-  { pr_id: string
+  { pr_id: GitHub_ID.t
   ; base_checks: (check_tab_info * bool option, string * string) result list
   ; head_checks: (check_tab_info * bool option, string * string) result list
   ; draft: bool
@@ -114,14 +114,14 @@ val get_open_pull_requests_with_label :
   -> owner:string
   -> repo:string
   -> label:string
-  -> ((id * int) list, string) result Lwt.t
+  -> ((GitHub_ID.t * int) list, string) result Lwt.t
 
 val get_label :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> label:string
-  -> (id option, string) result Lwt.t
+  -> (GitHub_ID.t option, string) result Lwt.t
 
 val get_pull_request_label_timeline :
      bot_info:Bot_info.t

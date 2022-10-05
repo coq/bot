@@ -352,7 +352,7 @@ let bench_text = function
       f "Error occured when creating bench summary: %s\n" e |> Lwt.return
 
 let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url ?check_url
-    (results : (BenchResults.t, id) Result.t) =
+    (results : (BenchResults.t, string) Result.t) =
   GitHub_queries.get_pull_request_id ~bot_info ~owner ~repo ~number
   >>= function
   | Ok id -> (
@@ -854,7 +854,7 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
       Error (f "Could not find text for job %s." name)
 
 type ci_minimization_pr_info =
-  { comment_thread_id: string
+  { comment_thread_id: GitHub_ID.t
   ; base: string
   ; head: string
   ; pr_number: int
@@ -1828,7 +1828,7 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
         (fun () ->
           Github_installations.action_as_github_app ~bot_info ~key ~app_id
             ~owner ~repo
-            (GitHub_mutations.post_comment ~id
+            (GitHub_mutations.post_comment ~id:(GitHub_ID.of_string id)
                ~message:(if ci then message else f "@%s, %s" author message) )
           >>= GitHub_mutations.report_on_posting_comment
           <&> ( execute_cmd
@@ -1872,8 +1872,9 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                >>= fun () ->
                Github_installations.action_as_github_app ~bot_info ~key ~app_id
                  ~owner ~repo
-                 (run_ci_minimization ~comment_thread_id ~owner ~repo ~base
-                    ~pr_number ~head
+                 (run_ci_minimization
+                    ~comment_thread_id:(GitHub_ID.of_string comment_thread_id)
+                    ~owner ~repo ~base ~pr_number ~head
                     ~ci_minimization_infos:
                       [ { target
                         ; opam_switch
@@ -1962,7 +1963,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       | Ok reviews_info -> (
           let comment =
             List.find reviews_info.last_comments ~f:(fun c ->
-                String.equal comment_info.id c.id )
+                GitHub_ID.equal comment_info.id c.id )
           in
           if (not comment_info.review_comment) && Option.is_none comment then
             if Float.(t > 5.) then
@@ -2421,7 +2422,9 @@ let push_action ~bot_info ~base_ref ~commits_msg =
       GitHub_queries.get_backported_pr_info ~bot_info pr_number base_ref
       >>= function
       | Ok (Some ({card_id; column_id} as input)) ->
-          Lwt_io.printf "Moving card %s to column %s.\n" card_id column_id
+          Lwt_io.printf "Moving card %s to column %s.\n"
+            (GitHub_ID.to_string card_id)
+            (GitHub_ID.to_string column_id)
           >>= fun () -> GitHub_mutations.mv_card_to_column ~bot_info input
       | Ok None ->
           Lwt_io.printf "Could not find backporting info for backported PR.\n"

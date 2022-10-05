@@ -83,10 +83,10 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
             | Some cards ->
                 cards |> Array.to_list |> List.filter_opt
                 |> List.map ~f:(fun card ->
-                       { id= card.id
+                       { id= GitHub_ID.of_string card.id
                        ; column=
                            Option.map card.column ~f:(fun column ->
-                               { GitHub_types.id= column.id
+                               { GitHub_types.id= GitHub_ID.of_string column.id
                                ; databaseId= column.databaseId } )
                        ; columns=
                            ( match card.project.columns.nodes with
@@ -95,7 +95,8 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
                            | Some columns ->
                                columns |> Array.to_list |> List.filter_opt
                                |> List.map ~f:(fun column ->
-                                      { GitHub_types.id= column.Column.id
+                                      { GitHub_types.id=
+                                          GitHub_ID.of_string column.Column.id
                                       ; databaseId= column.databaseId } ) ) } )
           in
           Ok (cards, Option.map ~f:convertMilestone result.milestone)
@@ -133,7 +134,7 @@ let get_backported_pr_info ~bot_info number base_ref =
                     column.databaseId
                 then Some {card_id= card.id; column_id= column.id}
                 else None )
-          else None ))
+          else None ) )
       |> fun res -> Ok res
   | Error err ->
       Error (f "Error in backported_pr_info: %s." err)
@@ -169,7 +170,7 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                     | Some description -> (
                       match extract_backport_info ~bot_info description with
                       | Some bp_info ->
-                          Some (pr.id, db_id, bp_info)
+                          Some (GitHub_ID.of_string pr.id, db_id, bp_info)
                       | _ ->
                           None )
                     | _ ->
@@ -191,7 +192,7 @@ let get_pull_request_id ~bot_info ~owner ~repo ~number =
                 Error
                   (f "Pull request %s/%s#%d does not exist." owner repo number)
             | Some pr ->
-                Ok pr.id ) )
+                Ok (GitHub_ID.of_string pr.id) ) )
 
 let team_membership_of_resp ~org ~team ~user resp =
   let open GitHub_GraphQL.TeamMembership in
@@ -225,8 +226,7 @@ let get_team_membership ~bot_info ~org ~team ~user =
           f "Query get_team_membership failed with %s" err )
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
 
-let pull_request_info_of_resp ~owner ~repo ~number resp :
-    (string pull_request_info, string) Result.t =
+let pull_request_info_of_resp ~owner ~repo ~number resp =
   let open GitHub_GraphQL.PullRequest_Refs in
   let repo_url = f "https://github.com/%s/%s" owner repo in
   match resp.repository with
@@ -250,7 +250,7 @@ let pull_request_info_of_resp ~owner ~repo ~number resp :
                    number )
           | Some node ->
               Ok
-                { issue= pull_request.id
+                { issue= GitHub_ID.of_string pull_request.id
                 ; base=
                     { branch= {repo_url; name= pull_request.baseRefName}
                     ; sha= pull_request.baseRefOid }
@@ -349,7 +349,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                       |> List.filter_map ~f:(fun c ->
                              c.author
                              |> Option.map ~f:(fun a : comment ->
-                                    { id= c.id
+                                    { id= GitHub_ID.of_string c.id
                                     ; author= a.login
                                     ; created_by_email= c.createdViaEmail } ) )
                   )
@@ -427,8 +427,10 @@ let closer_info_of_pr pr =
   let open GitHub_GraphQL.Issue_Milestone in
   let open PullRequest in
   { milestone_id=
-      pr.milestone |> Option.map ~f:(fun milestone -> milestone.Milestone.id)
-  ; pull_request_id= pr.id }
+      pr.milestone
+      |> Option.map ~f:(fun milestone ->
+             GitHub_ID.of_string milestone.Milestone.id )
+  ; pull_request_id= GitHub_ID.of_string pr.id }
 
 let closer_info_option_of_closer closer =
   let open GitHub_GraphQL.Issue_Milestone in
@@ -472,11 +474,11 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
           |> Result.map ~f:(function
                | ClosedByPullRequest closer_info ->
                    ClosedByPullRequest
-                     { issue_id= issue.id
+                     { issue_id= GitHub_ID.of_string issue.id
                      ; milestone_id=
                          issue.milestone
                          |> Option.map ~f:(fun milestone ->
-                                milestone.Milestone.id )
+                                GitHub_ID.of_string milestone.Milestone.id )
                      ; closer= closer_info }
                | (ClosedByCommit | ClosedByOther | NoCloseEvent) as reason ->
                    reason )
@@ -541,7 +543,7 @@ let repo_id_of_resp ~owner ~repo resp =
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
   | Some repository ->
-      Ok repository.id
+      Ok (GitHub_ID.of_string repository.id)
 
 let get_repository_id ~bot_info ~owner ~repo =
   let open GitHub_GraphQL.RepoId in
@@ -615,7 +617,7 @@ let get_check_tab_info checkRun =
   {name= checkRun.name; summary= checkRun.summary; text= checkRun.text}
 
 type base_and_head_checks_info =
-  { pr_id: string
+  { pr_id: GitHub_ID.t
   ; base_checks: (check_tab_info * bool option, string * string) Result.t list
   ; head_checks: (check_tab_info * bool option, string * string) Result.t list
   ; draft: bool
@@ -769,7 +771,7 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                         |> Option.return
                       in
                       Ok
-                        { pr_id= pull_request.id
+                        { pr_id= GitHub_ID.of_string pull_request.id
                         ; base_checks= completed_runs baseCheckRuns "base" base
                         ; head_checks= completed_runs headCheckRuns "head" head
                         ; draft= pull_request.isDraft
@@ -892,7 +894,11 @@ let get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label =
             | None ->
                 []
             | Some data ->
-                let map o = Option.map ~f:(fun o -> (o.id, o.number)) o in
+                let map o =
+                  Option.map
+                    ~f:(fun o -> (GitHub_ID.of_string o.id, o.number))
+                    o
+                in
                 List.filter_map ~f:map (Array.to_list data)
           in
           Lwt.return (Ok (data, next))
@@ -967,7 +973,7 @@ let get_label ~bot_info ~owner ~repo ~label =
           | Some result -> (
             match result.label with
             | Some label ->
-                Ok (Some label.id)
+                Ok (Some (GitHub_ID.of_string label.id))
             | None ->
                 Ok None )
           | None ->

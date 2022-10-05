@@ -5,20 +5,20 @@ val mv_card_to_column :
 
 val post_comment :
      bot_info:Bot_info.t
-  -> id:id
+  -> id:GitHub_ID.t
   -> message:string
   -> (string, string) result Lwt.t
 
 val report_on_posting_comment : (string, string) result -> unit Lwt.t
 
-val close_pull_request : bot_info:Bot_info.t -> pr_id:id -> unit Lwt.t
+val close_pull_request : bot_info:Bot_info.t -> pr_id:GitHub_ID.t -> unit Lwt.t
 
 val merge_pull_request :
      bot_info:Bot_info.t
   -> ?merge_method:merge_method
   -> ?commit_headline:string
   -> ?commit_body:string
-  -> pr_id:id
+  -> pr_id:GitHub_ID.t
   -> unit
   -> unit Lwt.t
 
@@ -26,7 +26,7 @@ val create_check_run :
      bot_info:Bot_info.t
   -> ?conclusion:check_conclusion
   -> name:string
-  -> repo_id:id
+  -> repo_id:GitHub_ID.t
   -> head_sha:string
   -> status:check_run_status
   -> details_url:string
@@ -39,8 +39,8 @@ val create_check_run :
 
 val update_check_run :
      bot_info:Bot_info.t
-  -> check_run_id:id
-  -> repo_id:id
+  -> check_run_id:GitHub_ID.t
+  -> repo_id:GitHub_ID.t
   -> conclusion:check_conclusion
   -> ?details_url:string
   -> title:string
@@ -52,10 +52,17 @@ val update_check_run :
 val reflect_pull_request_milestone :
   bot_info:Bot_info.t -> issue_closer_info -> unit Lwt.t
 
-val add_labels : bot_info:Bot_info.t -> labels:id list -> pr_id:id -> unit Lwt.t
+val add_labels :
+     bot_info:Bot_info.t
+  -> labels:GitHub_ID.t list
+  -> pr_id:GitHub_ID.t
+  -> unit Lwt.t
 
 val remove_labels :
-  bot_info:Bot_info.t -> labels:id list -> pr_id:id -> unit Lwt.t
+     bot_info:Bot_info.t
+  -> labels:GitHub_ID.t list
+  -> pr_id:GitHub_ID.t
+  -> unit Lwt.t
 
 val update_milestone : bot_info:Bot_info.t -> string -> issue -> unit Lwt.t
 

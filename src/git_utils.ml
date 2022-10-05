@@ -136,7 +136,7 @@ let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
      not coqbot the GitHub App *)
   Stdlib.Filename.quote_command "./coq_bug_minimizer.sh"
     [ script
-    ; comment_thread_id
+    ; GitHub_ID.to_string comment_thread_id
     ; comment_author
     ; bot_info.github_pat
     ; bot_info.name
@@ -151,7 +151,7 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
   (* To push a new branch we need to identify as coqbot the GitHub
      user, who is a collaborator on the run-coq-bug-minimizer repo,
      not coqbot the GitHub App *)
-  ( [ comment_thread_id
+  ( [ GitHub_ID.to_string comment_thread_id
     ; bot_info.github_pat
     ; bot_info.name
     ; bot_info.domain

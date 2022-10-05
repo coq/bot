@@ -15,7 +15,7 @@ val pipeline_action :
 val run_coq_minimizer :
      bot_info:Bot_info.t
   -> script:string
-  -> comment_thread_id:string
+  -> comment_thread_id:GitHub_ID.t
   -> comment_author:string
   -> owner:string
   -> repo:string

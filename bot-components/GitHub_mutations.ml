@@ -7,7 +7,10 @@ open Utils
 let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     =
   let open GitHub_GraphQL.MoveCardToColumn in
-  makeVariables ~card_id ~column_id ()
+  makeVariables
+    ~card_id:(GitHub_ID.to_string card_id)
+    ~column_id:(GitHub_ID.to_string column_id)
+    ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
@@ -19,7 +22,7 @@ let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
 
 let post_comment ~bot_info ~id ~message =
   let open GitHub_GraphQL.PostComment in
-  makeVariables ~id ~message ()
+  makeVariables ~id:(GitHub_ID.to_string id) ~message ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
@@ -37,7 +40,10 @@ let report_on_posting_comment = function
 
 let update_milestone ~bot_info ~issue ~milestone =
   let open GitHub_GraphQL.UpdateMilestone in
-  makeVariables ~issue ~milestone ()
+  makeVariables
+    ~issue:(GitHub_ID.to_string issue)
+    ~milestone:(GitHub_ID.to_string milestone)
+    ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
@@ -49,7 +55,8 @@ let update_milestone ~bot_info ~issue ~milestone =
 
 let close_pull_request ~bot_info ~pr_id =
   let open GitHub_GraphQL.ClosePullRequest in
-  makeVariables ~pr_id () |> serializeVariables |> variablesToJson
+  makeVariables ~pr_id:(GitHub_ID.to_string pr_id) ()
+  |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
@@ -70,7 +77,9 @@ let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
           `SQUASH )
   in
   let open GitHub_GraphQL.MergePullRequest in
-  makeVariables ~pr_id ?commit_headline ?commit_body ?merge_method ()
+  makeVariables
+    ~pr_id:(GitHub_ID.to_string pr_id)
+    ?commit_headline ?commit_body ?merge_method ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
@@ -89,7 +98,8 @@ let reflect_pull_request_milestone ~bot_info issue_closer_info =
     | None ->
         (* No previous milestone: setting the one of the PR which closed the issue *)
         update_milestone ~bot_info ~issue:issue_closer_info.issue_id ~milestone
-    | Some previous_milestone when String.equal previous_milestone milestone ->
+    | Some previous_milestone when GitHub_ID.equal previous_milestone milestone
+      ->
         Lwt_io.print "Issue is already in the right milestone: doing nothing.\n"
     | Some _ ->
         update_milestone ~bot_info ~issue:issue_closer_info.issue_id ~milestone
@@ -145,8 +155,10 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
      }\n\n\
      }\n"
   in
-  makeVariables ~name ~repoId:repo_id ~headSha:head_sha ~status ~title ?text
-    ~summary ~url:details_url ?conclusion ?externalId:external_id ()
+  makeVariables ~name
+    ~repoId:(GitHub_ID.to_string repo_id)
+    ~headSha:head_sha ~status ~title ?text ~summary ~url:details_url ?conclusion
+    ?externalId:external_id ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
@@ -160,8 +172,10 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
     ~title ?text ~summary () =
   let conclusion = string_of_conclusion conclusion in
   let open GitHub_GraphQL.UpdateCheckRun in
-  makeVariables ~checkRunId:check_run_id ~repoId:repo_id ~conclusion
-    ?url:details_url ~title ?text ~summary ()
+  makeVariables
+    ~checkRunId:(GitHub_ID.to_string check_run_id)
+    ~repoId:(GitHub_ID.to_string repo_id)
+    ~conclusion ?url:details_url ~title ?text ~summary ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
@@ -172,18 +186,22 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
       Stdio.print_endline (f "Error while updating check run: %s" err)
 
 let add_labels ~bot_info ~labels ~pr_id =
-  let label_ids = Array.of_list labels in
   let open GitHub_GraphQL.LabelPullRequest in
-  makeVariables ~pr_id ~label_ids ()
+  makeVariables
+    ~pr_id:(GitHub_ID.to_string pr_id)
+    ~label_ids:(List.map ~f:GitHub_ID.to_string labels |> Array.of_list)
+    ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >>= fun _ -> Lwt.return_unit
 
 let remove_labels ~bot_info ~labels ~pr_id =
-  let label_ids = Array.of_list labels in
   let open GitHub_GraphQL.UnlabelPullRequest in
-  makeVariables ~pr_id ~label_ids ()
+  makeVariables
+    ~pr_id:(GitHub_ID.to_string pr_id)
+    ~label_ids:(List.map ~f:GitHub_ID.to_string labels |> Array.of_list)
+    ()
   |> serializeVariables |> variablesToJson
   |> GraphQL_query.send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)

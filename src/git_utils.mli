@@ -38,7 +38,7 @@ val init_git_bare_repository : bot_info:Bot_components.Bot_info.t -> unit Lwt.t
 val git_coq_bug_minimizer :
      bot_info:Bot_components.Bot_info.t
   -> script:string
-  -> comment_thread_id:string
+  -> comment_thread_id:Bot_components.GitHub_ID.t
   -> comment_author:string
   -> owner:string
   -> repo:string
@@ -46,7 +46,7 @@ val git_coq_bug_minimizer :
 
 val git_run_ci_minimization :
      bot_info:Bot_components.Bot_info.t
-  -> comment_thread_id:string
+  -> comment_thread_id:Bot_components.GitHub_ID.t
   -> owner:string
   -> repo:string
   -> pr_number:string
