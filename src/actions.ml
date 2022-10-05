@@ -1729,26 +1729,58 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
           pipeline_info.pipeline_id
       in
       let state, status, conclusion, title, summary_top =
+        (* For the Coq repo only, we report whether this was a full or a light CI *)
+        let full_ci =
+          match repo_full_name with
+          | "coq/coq" -> (
+            try
+              List.find_map
+                ~f:(fun (key, value) ->
+                  if String.equal key "FULL_CI" then Some (Bool.of_string value)
+                  else None )
+                pipeline_info.variables
+            with _ -> None )
+          | _ ->
+              None
+        in
+        let qualified_pipeline =
+          match full_ci with
+          | Some true ->
+              "Full pipeline"
+          | Some false ->
+              "Light pipeline"
+          | None ->
+              "Pipeline"
+        in
         match pipeline_info.state with
         | "pending" ->
-            ("pending", QUEUED, None, "Pipeline is pending on GitLab CI", None)
+            ( "pending"
+            , QUEUED
+            , None
+            , f "%s is pending on GitLab CI" qualified_pipeline
+            , None )
         | "running" ->
             ( "pending"
             , IN_PROGRESS
             , None
-            , "Pipeline is running on GitLab CI"
+            , f "%s is running on GitLab CI" qualified_pipeline
             , None )
         | "success" ->
             ( "success"
             , COMPLETED
-            , Some SUCCESS
-            , "Pipeline completed on GitLab CI"
+            , Some
+                ( match full_ci with
+                | Some false ->
+                    NEUTRAL
+                | Some true | None ->
+                    SUCCESS )
+            , f "%s completed successfully on GitLab CI" qualified_pipeline
             , None )
         | "failed" ->
             ( "failure"
             , COMPLETED
             , Some FAILURE
-            , "Pipeline completed with errors on GitLab CI"
+            , f "%s completed with errors on GitLab CI" qualified_pipeline
             , Some
                 "*If you need to restart the entire pipeline, you may do so \
                  directly in the GitHub interface using the \"Re-run\" \
@@ -1757,7 +1789,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
             ( "error"
             , COMPLETED
             , Some CANCELLED
-            , "Pipeline was cancelled on GitLab CI"
+            , f "%s was cancelled on GitLab CI" qualified_pipeline
             , None )
         | s ->
             ( "error"
