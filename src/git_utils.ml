@@ -113,7 +113,7 @@ let git_make_ancestor ~pr_title ~pr_number ~base head =
 
 let git_test_modified ~base ~head pattern =
   let command =
-    f {|git diff %s %s --name-only | grep "%s"|} base head pattern
+    f {|git diff %s...%s --name-only | grep "%s"|} base head pattern
   in
   Lwt_unix.system command
   >|= fun status ->
