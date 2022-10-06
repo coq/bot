@@ -9,11 +9,6 @@ open Git_utils
 open Helpers
 open Lwt.Infix
 
-let owner_team_map =
-  Map.of_alist_exn
-    (module String)
-    [("martijnbastiaan-test-org", "martijnbastiaan-test-team")]
-
 type coq_job_info =
   { docker_image: string
   ; build_dependency: string
@@ -2255,54 +2250,41 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
         | Error e ->
             Lwt.return (Error e) ) )
 
-let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping
-    ~signed =
-  match Map.find owner_team_map comment_info.issue.issue.owner with
-  | Some team when signed ->
-      (fun () ->
-        (let open Lwt_result.Infix in
-        GitHub_queries.get_team_membership ~bot_info
-          ~org:comment_info.issue.issue.owner ~team ~user:comment_info.author
-        >>= (fun is_member ->
-              if is_member then (
-                Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                match comment_info.pull_request with
-                | Some pr_info ->
-                    update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-                | None ->
-                    let {owner; repo; number} = comment_info.issue.issue in
-                    GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
-                      ~number
-                    >>= fun pr_info ->
-                    update_pr
-                      {pr_info with issue= comment_info.issue}
-                      ~bot_info ~gitlab_mapping ~github_mapping )
-              else
-                Lwt_io.print "Unauthorized user: doing nothing.\n"
-                |> Lwt_result.ok )
-        |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-               Lwt_io.printf "Error: %s\n" err ) )
-        >>= fun _ -> Lwt.return_unit )
-      |> Lwt.async ;
-      Server.respond_string ~status:`OK
-        ~body:
-          (f
-             "Received a request to run CI: checking that @%s is a member of \
-              @%s/%s before doing so."
-             comment_info.issue.user comment_info.issue.issue.owner team )
-        ()
-  | Some _ ->
-      Server.respond_string ~status:(Code.status_of_code 403)
-        ~body:"Webhook requires secret." ()
-  | None ->
-      (* TODO: check if user is member of the host organization. *)
-      Server.respond_string ~status:`OK
-        ~body:
-          (f
-             "Received a request to run CI but no team defined for \
-              organization %s: nothing to do."
-             comment_info.issue.issue.owner )
-        ()
+let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping =
+  let team = "contributors" in
+  (fun () ->
+    (let open Lwt_result.Infix in
+    GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team
+      ~user:comment_info.author
+    >>= (fun is_member ->
+          if is_member then
+            let open Lwt.Syntax in
+            let* () = Lwt_io.printl "Authorized user: pushing to GitLab." in
+            match comment_info.pull_request with
+            | Some pr_info ->
+                update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
+            | None ->
+                let {owner; repo; number} = comment_info.issue.issue in
+                GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
+                  ~number
+                >>= fun pr_info ->
+                update_pr
+                  {pr_info with issue= comment_info.issue}
+                  ~bot_info ~gitlab_mapping ~github_mapping
+          else
+            Lwt_io.printl "Unauthorized user: doing nothing." |> Lwt_result.ok
+          )
+    |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+           Lwt_io.printf "Error: %s\n" err ) )
+    >>= fun _ -> Lwt.return_unit )
+  |> Lwt.async ;
+  Server.respond_string ~status:`OK
+    ~body:
+      (f
+         "Received a request to run CI: checking that @%s is a member of \
+          @%s/%s before doing so."
+         comment_info.author comment_info.issue.issue.owner team )
+    ()
 
 let pull_request_closed_action ~bot_info
     (pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
@@ -2325,7 +2307,7 @@ let pull_request_closed_action ~bot_info
 let pull_request_updated_action ~bot_info
     ~(action : GitHub_types.pull_request_action)
     ~(pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
-    ~gitlab_mapping ~github_mapping ~signed =
+    ~gitlab_mapping ~github_mapping =
   ( match (action, pr_info.base.branch.repo_url) with
   | PullRequestOpened, "https://github.com/coq/coq"
     when String.equal pr_info.base.branch.name pr_info.head.branch.name ->
@@ -2343,46 +2325,18 @@ let pull_request_updated_action ~bot_info
       |> Lwt.async
   | _ ->
       () ) ;
-  match Map.find owner_team_map pr_info.issue.issue.owner with
-  | Some team when signed ->
-      (fun () ->
-        (let open Lwt_result.Infix in
-        GitHub_queries.get_team_membership ~bot_info
-          ~org:pr_info.issue.issue.owner ~team ~user:pr_info.issue.user
-        >>= (fun is_member ->
-              if is_member then (
-                Stdio.printf "Authorized user: pushing to GitLab.\n" ;
-                update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping )
-              else
-                Lwt_io.print "Unauthorized user: doing nothing.\n"
-                |> Lwt_result.ok )
-        |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-               Lwt_io.printf "Error: %s\n" err ) )
-        >>= fun _ -> Lwt.return_unit )
-      |> Lwt.async ;
-      Server.respond_string ~status:`OK
-        ~body:
-          (f
-             "Pull request was (re)opened / synchronized. Checking that user \
-              %s is a member of @%s/%s before pushing to GitLab."
-             pr_info.issue.user pr_info.issue.issue.owner team )
-        ()
-  | Some _ ->
-      Server.respond_string ~status:(Code.status_of_code 403)
-        ~body:"Webhook requires secret." ()
-  | None ->
-      (fun () ->
-        update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-        >>= fun _ -> Lwt.return_unit )
-      |> Lwt.async ;
-      Server.respond_string ~status:`OK
-        ~body:
-          (f
-             "Pull request %s/%s#%d was (re)opened / synchronized: \
-              (force-)pushing to GitLab."
-             pr_info.issue.issue.owner pr_info.issue.issue.repo
-             pr_info.issue.issue.number )
-        ()
+  (fun () ->
+    update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
+    >>= fun _ -> Lwt.return_unit )
+  |> Lwt.async ;
+  Server.respond_string ~status:`OK
+    ~body:
+      (f
+         "Pull request %s/%s#%d was (re)opened / synchronized: (force-)pushing \
+          to GitLab."
+         pr_info.issue.issue.owner pr_info.issue.issue.repo
+         pr_info.issue.issue.number )
+    ()
 
 let rec adjust_milestone ~bot_info ~issue ~sleep_time =
   (* We implement an exponential backoff strategy to try again after

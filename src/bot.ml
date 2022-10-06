@@ -145,13 +145,13 @@ let callback _conn req body =
                  pr_info.issue.issue.owner pr_info.issue.issue.repo
                  pr_info.issue.issue.number )
             ()
-      | Ok (signed, PullRequestUpdated (action, pr_info)) ->
+      | Ok (_, PullRequestUpdated (action, pr_info)) ->
           init_git_bare_repository ~bot_info
           >>= fun () ->
           action_as_github_app ~bot_info ~key ~app_id
             ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
             (pull_request_updated_action ~action ~pr_info ~gitlab_mapping
-               ~github_mapping ~signed )
+               ~github_mapping )
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (fun () ->
@@ -288,14 +288,16 @@ let callback _conn req body =
                   ~regexp:(f "@%s:? [Rr]un CI now" @@ Str.quote bot_name)
                   body
                 && comment_info.issue.pull_request
+                && String.equal comment_info.issue.issue.owner "coq"
+                && String.equal comment_info.issue.issue.repo "coq"
+                && signed
               then
                 init_git_bare_repository ~bot_info
                 >>= fun () ->
                 action_as_github_app ~bot_info ~key ~app_id
                   ~owner:comment_info.issue.issue.owner
                   ~repo:comment_info.issue.issue.repo
-                  (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping
-                     ~signed )
+                  (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping)
               else if
                 string_match
                   ~regexp:(f "@%s:? [Mm]erge now" @@ Str.quote bot_name)

@@ -39,7 +39,6 @@ val run_ci_action :
   -> comment_info:GitHub_types.comment_info
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> github_mapping:(string, string) Base.Hashtbl.t
-  -> signed:bool
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 
 val pull_request_closed_action :
@@ -55,7 +54,6 @@ val pull_request_updated_action :
   -> pr_info:GitHub_types.issue_info GitHub_types.pull_request_info
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> github_mapping:(string, string) Base.Hashtbl.t
-  -> signed:bool
   -> (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t
 
 val adjust_milestone :
