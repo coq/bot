@@ -91,8 +91,14 @@ module PullRequest_Refs =
     repository(owner: $owner, name:$repo) {
       pullRequest(number: $number) {
         id
+        baseRepository {
+          url @ppxCustom(module: "ParseAsString")
+        }
         baseRefName
         baseRefOid @ppxCustom(module: "ParseAsString")
+        headRepository {
+          url @ppxCustom(module: "ParseAsString")
+        }
         headRefName
         headRefOid @ppxCustom(module: "ParseAsString")
         merged

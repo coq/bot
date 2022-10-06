@@ -228,7 +228,6 @@ let get_team_membership ~bot_info ~org ~team ~user =
 
 let pull_request_info_of_resp ~owner ~repo ~number resp =
   let open GitHub_GraphQL.PullRequest_Refs in
-  let repo_url = f "https://github.com/%s/%s" owner repo in
   match resp.repository with
   | None ->
       Error (f "Unknown repository %s/%s." owner repo)
@@ -237,11 +236,23 @@ let pull_request_info_of_resp ~owner ~repo ~number resp =
     | None ->
         Error (f "Unknown pull request %s/%s#%d." owner repo number)
     | Some pull_request -> (
-      match pull_request.commits.nodes with
-      | None ->
+      match
+        ( pull_request.commits.nodes
+        , pull_request.baseRepository
+        , pull_request.headRepository )
+      with
+      | None, _, _ ->
           Error
             (f "No commits found for pull request %s/%s#%d." owner repo number)
-      | Some nodes -> (
+      | _, None, _ ->
+          Error
+            (f "No base repository found for pull request %s/%s#%d." owner repo
+               number )
+      | _, _, None ->
+          Error
+            (f "No head repository found for pull request %s/%s#%d." owner repo
+               number )
+      | Some nodes, Some base_repo, Some head_repo -> (
           let commits = nodes |> Array.to_list |> List.filter_opt in
           match List.hd commits with
           | None ->
@@ -252,10 +263,12 @@ let pull_request_info_of_resp ~owner ~repo ~number resp =
               Ok
                 { issue= GitHub_ID.of_string pull_request.id
                 ; base=
-                    { branch= {repo_url; name= pull_request.baseRefName}
+                    { branch=
+                        {repo_url= base_repo.url; name= pull_request.baseRefName}
                     ; sha= pull_request.baseRefOid }
                 ; head=
-                    { branch= {repo_url; name= pull_request.headRefName}
+                    { branch=
+                        {repo_url= head_repo.url; name= pull_request.headRefName}
                     ; sha= pull_request.headRefOid }
                 ; merged= pull_request.merged
                 ; last_commit_message= Some node.commit.message } ) ) )
