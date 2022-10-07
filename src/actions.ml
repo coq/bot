@@ -2106,7 +2106,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
       >>= GitHub_mutations.report_on_posting_comment
 
-let update_pr ?(skip_author_check = false) ~bot_info
+let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
     (pr_info : issue_info pull_request_info) ~gitlab_mapping ~github_mapping =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
@@ -2210,28 +2210,37 @@ let update_pr ?(skip_author_check = false) ~bot_info
                     e
                   >>= fun () -> Lwt.return "" )
             ; (let full_ci_label = "needs: full CI" in
-               if
-                 pr_info.issue.labels
-                 |> List.exists ~f:(fun l -> String.equal l full_ci_label)
-               then
-                 GitHub_queries.get_label ~bot_info ~owner:issue.owner
-                   ~repo:issue.repo ~label:full_ci_label
-                 >>= (function
-                       | Ok (Some full_ci_label_id) ->
-                           GitHub_mutations.remove_labels
-                             ~pr_id:pr_info.issue.id ~labels:[full_ci_label_id]
-                             ~bot_info
-                       | Ok None ->
-                           Lwt_io.printlf
-                             "Error while querying for label %s: did not get \
-                              any result back."
-                             full_ci_label
-                       | Error err ->
-                           Lwt_io.printlf
-                             "Error while querying for label %s: %s"
-                             full_ci_label err )
-                 >>= fun () -> Lwt.return {|-o ci.variable="FULL_CI=true"|}
-               else Lwt.return {|-o ci.variable="FULL_CI=false"|} ) ]
+               match
+                 ( full_ci
+                 , pr_info.issue.labels
+                   |> List.exists ~f:(fun l -> String.equal l full_ci_label) )
+               with
+               | Some false, _ | None, false ->
+                   (* Light CI requested or no label set *)
+                   Lwt.return {| -o ci.variable="FULL_CI=false" |}
+               | Some true, false ->
+                   (* Full CI requested but no label set *)
+                   Lwt.return {| -o ci.variable="FULL_CI=true" |}
+               | (None | Some true), true ->
+                   (* Full CI requested and label set: we remove the label *)
+                   GitHub_queries.get_label ~bot_info ~owner:issue.owner
+                     ~repo:issue.repo ~label:full_ci_label
+                   >>= (function
+                         | Ok (Some full_ci_label_id) ->
+                             GitHub_mutations.remove_labels
+                               ~pr_id:pr_info.issue.id
+                               ~labels:[full_ci_label_id] ~bot_info
+                         | Ok None ->
+                             Lwt_io.printlf
+                               "Error while querying for label %s: did not get \
+                                any result back."
+                               full_ci_label
+                         | Error err ->
+                             Lwt_io.printlf
+                               "Error while querying for label %s: %s"
+                               full_ci_label err )
+                   >>= fun () -> Lwt.return {|-o ci.variable="FULL_CI=true"|} )
+            ]
           >|= fun options -> String.concat ~sep:" " options
         else Lwt.return ""
       in
@@ -2288,7 +2297,8 @@ let update_pr ?(skip_author_check = false) ~bot_info
         | Error e ->
             Lwt.return (Error e) ) )
 
-let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping =
+let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
+    ~github_mapping () =
   let team = "contributors" in
   (fun () ->
     (let open Lwt_result.Infix in
@@ -2307,7 +2317,7 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping =
                 GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
                   ~number
                 >>= fun pr_info ->
-                update_pr ~skip_author_check:true
+                update_pr ?full_ci ~skip_author_check:true
                   {pr_info with issue= comment_info.issue}
                   ~bot_info ~gitlab_mapping ~github_mapping
           else

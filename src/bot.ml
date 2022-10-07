@@ -285,19 +285,33 @@ let callback _conn req body =
                   ~body:"Handling CI minimization resumption." () )
               else if
                 string_match
-                  ~regexp:(f "@%s:? [Rr]un CI now" @@ Str.quote bot_name)
+                  ~regexp:
+                    ( f "@%s:? [Rr]un \\(full\\|light\\|\\) ?[Cc][Ii]"
+                    @@ Str.quote bot_name )
                   body
                 && comment_info.issue.pull_request
                 && String.equal comment_info.issue.issue.owner "coq"
                 && String.equal comment_info.issue.issue.repo "coq"
                 && signed
               then
+                let full_ci =
+                  match Str.matched_group 1 body with
+                  | "full" ->
+                      Some true
+                  | "light" ->
+                      Some false
+                  | "" ->
+                      None
+                  | _ ->
+                      failwith "Impossible group value."
+                in
                 init_git_bare_repository ~bot_info
                 >>= fun () ->
                 action_as_github_app ~bot_info ~key ~app_id
                   ~owner:comment_info.issue.issue.owner
                   ~repo:comment_info.issue.issue.repo
-                  (run_ci_action ~comment_info ~gitlab_mapping ~github_mapping)
+                  (run_ci_action ~comment_info ?full_ci ~gitlab_mapping
+                     ~github_mapping () )
               else if
                 string_match
                   ~regexp:(f "@%s:? [Mm]erge now" @@ Str.quote bot_name)

@@ -37,8 +37,10 @@ val run_bench : bot_info:Bot_info.t -> GitHub_types.comment_info -> unit Lwt.t
 val run_ci_action :
      bot_info:Bot_info.t
   -> comment_info:GitHub_types.comment_info
+  -> ?full_ci:bool
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> github_mapping:(string, string) Base.Hashtbl.t
+  -> unit
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 
 val pull_request_closed_action :
