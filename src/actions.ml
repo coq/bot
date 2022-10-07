@@ -2106,8 +2106,8 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
       >>= GitHub_mutations.report_on_posting_comment
 
-let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
-    ~github_mapping =
+let update_pr ?(skip_author_check = false) ~bot_info
+    (pr_info : issue_info pull_request_info) ~gitlab_mapping ~github_mapping =
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
@@ -2127,14 +2127,17 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
   let rebase_label = "needs: rebase" in
   let stale_label = "stale" in
   let issue = pr_info.issue.issue in
-  GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
-    ~label:rebase_label
-  >>= fun rebase_label_id ->
+  let open Lwt_result.Syntax in
+  let* rebase_label_id =
+    GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
+      ~label:rebase_label
+  in
   if ok then (
     (* Remove rebase / stale label *)
-    GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
-      ~label:stale_label
-    >>= fun stale_label_id ->
+    let* stale_label_id =
+      GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
+        ~label:stale_label
+    in
     let map (label, id) =
       if pr_info.issue.labels |> List.exists ~f:(String.equal label) then id
       else None
@@ -2148,64 +2151,99 @@ let update_pr ~bot_info (pr_info : issue_info pull_request_info) ~gitlab_mapping
         GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels ~bot_info
         )
       |> Lwt.async ;
-    let open Lwt.Infix in
-    (* In Coq repo, we have several special cases:
-       1. if something has changed in dev/ci/docker/, we rebuild the Docker image
-       2. if there was a special label set, we run a full CI
-    *)
-    let get_options =
+    (* In the Coq repo, we want to prevent untrusted contributors from
+       circumventing the fact that the bench job is a manual job by changing
+       the CI configuration. *)
+    let* can_trigger_ci =
       if
         String.equal pr_info.issue.issue.owner "coq"
         && String.equal pr_info.issue.issue.repo "coq"
+        && not skip_author_check
       then
-        Lwt.all
-          [ ( git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
-                "dev/ci/docker/.*Dockerfile.*"
-            >>= function
-            | Ok true ->
-                Lwt.return {|-o ci.variable="SKIP_DOCKER=false"|}
-            | Ok false ->
-                Lwt.return ""
-            | Error e ->
-                Lwt_io.printf
-                  "Error while checking if something has changed in \
-                   dev/ci/docker:\n\
-                   %s\n"
-                  e
-                >>= fun () -> Lwt.return "" )
-          ; (let full_ci_label = "needs: full CI" in
-             if
-               pr_info.issue.labels
-               |> List.exists ~f:(fun l -> String.equal l full_ci_label)
-             then
-               GitHub_queries.get_label ~bot_info ~owner:issue.owner
-                 ~repo:issue.repo ~label:full_ci_label
-               >>= (function
-                     | Ok (Some full_ci_label_id) ->
-                         GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id
-                           ~labels:[full_ci_label_id] ~bot_info
-                     | Ok None ->
-                         Lwt_io.printlf
-                           "Error while querying for label %s: did not get any \
-                            result back."
-                           full_ci_label
-                     | Error err ->
-                         Lwt_io.printlf "Error while querying for label %s: %s"
-                           full_ci_label err )
-               >>= fun () -> Lwt.return {|-o ci.variable="FULL_CI=true"|}
-             else Lwt.return {|-o ci.variable="FULL_CI=false"|} ) ]
-        >|= fun options -> String.concat ~sep:" " options
-      else Lwt.return ""
+        let* config_modified, dev_dir_modified =
+          Lwt_result.both
+            (git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
+               ".gitlab-ci.yml" )
+            (git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
+               "dev/bench/gitlab-bench.yml" )
+        in
+        if config_modified || dev_dir_modified then
+          GitHub_queries.get_team_membership ~bot_info ~org:"coq"
+            ~team:"contributors" ~user:pr_info.issue.user
+          (* This is an approximation:
+             we are checking who the PR author is and not who is pushing. *)
+        else Lwt.return_ok true
+      else Lwt.return_ok true
     in
-    (* Force push *)
-    get_options
-    >>= fun options ->
-    gitlab_ref ~issue:pr_info.issue.issue ~gitlab_mapping ~github_mapping
-      ~bot_info
-    >|= (fun remote_ref ->
-          git_push ~force:true ~options ~remote_ref ~local_ref:local_head_branch
-            () )
-    >>= execute_cmd )
+    let open Lwt.Infix in
+    if not can_trigger_ci then
+      GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
+        ~message:
+          "I am not triggering a CI run on this PR because the CI \
+           configuration or the bench suite has been modified. CI can be \
+           triggered manually by an authorized contributor."
+      >>= GitHub_mutations.report_on_posting_comment
+      >>= fun () -> Lwt.return_ok ()
+    else
+      (* In Coq repo, we have several special cases:
+         1. if something has changed in dev/ci/docker/, we rebuild the Docker image
+         2. if there was a special label set, we run a full CI
+      *)
+      let get_options =
+        if
+          String.equal pr_info.issue.issue.owner "coq"
+          && String.equal pr_info.issue.issue.repo "coq"
+        then
+          Lwt.all
+            [ ( git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
+                  "dev/ci/docker/.*Dockerfile.*"
+              >>= function
+              | Ok true ->
+                  Lwt.return {|-o ci.variable="SKIP_DOCKER=false"|}
+              | Ok false ->
+                  Lwt.return ""
+              | Error e ->
+                  Lwt_io.printf
+                    "Error while checking if something has changed in \
+                     dev/ci/docker:\n\
+                     %s\n"
+                    e
+                  >>= fun () -> Lwt.return "" )
+            ; (let full_ci_label = "needs: full CI" in
+               if
+                 pr_info.issue.labels
+                 |> List.exists ~f:(fun l -> String.equal l full_ci_label)
+               then
+                 GitHub_queries.get_label ~bot_info ~owner:issue.owner
+                   ~repo:issue.repo ~label:full_ci_label
+                 >>= (function
+                       | Ok (Some full_ci_label_id) ->
+                           GitHub_mutations.remove_labels
+                             ~pr_id:pr_info.issue.id ~labels:[full_ci_label_id]
+                             ~bot_info
+                       | Ok None ->
+                           Lwt_io.printlf
+                             "Error while querying for label %s: did not get \
+                              any result back."
+                             full_ci_label
+                       | Error err ->
+                           Lwt_io.printlf
+                             "Error while querying for label %s: %s"
+                             full_ci_label err )
+                 >>= fun () -> Lwt.return {|-o ci.variable="FULL_CI=true"|}
+               else Lwt.return {|-o ci.variable="FULL_CI=false"|} ) ]
+          >|= fun options -> String.concat ~sep:" " options
+        else Lwt.return ""
+      in
+      (* Force push *)
+      get_options
+      >>= fun options ->
+      gitlab_ref ~issue:pr_info.issue.issue ~gitlab_mapping ~github_mapping
+        ~bot_info
+      >|= (fun remote_ref ->
+            git_push ~force:true ~options ~remote_ref
+              ~local_ref:local_head_branch () )
+      >>= execute_cmd )
   else (
     (* Add rebase label if it exists *)
     ( match rebase_label_id with
@@ -2262,13 +2300,14 @@ let run_ci_action ~bot_info ~comment_info ~gitlab_mapping ~github_mapping =
             let* () = Lwt_io.printl "Authorized user: pushing to GitLab." in
             match comment_info.pull_request with
             | Some pr_info ->
-                update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
+                update_pr ~skip_author_check:true pr_info ~bot_info
+                  ~gitlab_mapping ~github_mapping
             | None ->
                 let {owner; repo; number} = comment_info.issue.issue in
                 GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
                   ~number
                 >>= fun pr_info ->
-                update_pr
+                update_pr ~skip_author_check:true
                   {pr_info with issue= comment_info.issue}
                   ~bot_info ~gitlab_mapping ~github_mapping
           else
