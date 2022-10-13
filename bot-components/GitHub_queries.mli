@@ -116,6 +116,7 @@ val get_open_pull_requests_with_label :
   -> label:string
   -> ((GitHub_ID.t * int) list, string) result Lwt.t
 
+(* Can return [None] if the label is not found *)
 val get_label :
      bot_info:Bot_info.t
   -> owner:string

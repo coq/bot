@@ -2106,6 +2106,60 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
       >>= GitHub_mutations.report_on_posting_comment
 
+let add_remove_labels ~bot_info ~add (issue : issue_info) labels =
+  let open Lwt.Syntax in
+  let* labels =
+    let open Lwt.Infix in
+    labels
+    |> Lwt_list.filter_map_p (fun label ->
+           GitHub_queries.get_label ~bot_info ~owner:issue.issue.owner
+             ~repo:issue.issue.repo ~label
+           >|= function
+           | Ok (Some label) ->
+               Some label
+           | Ok None ->
+               (* Warn when a label is not found *)
+               (fun () ->
+                 Lwt_io.printlf
+                   "Warning: Label %s not found in repository %s/%s." label
+                   issue.issue.owner issue.issue.repo )
+               |> Lwt.async ;
+               None
+           | Error err ->
+               (* Print any other error, but do not prevent acting on other labels *)
+               (fun () ->
+                 Lwt_io.printlf
+                   "Error while querying for label %s in repository %s/%s: %s"
+                   label issue.issue.owner issue.issue.repo err )
+               |> Lwt.async ;
+               None )
+  in
+  match labels with
+  | [] ->
+      (* Nothing to do *)
+      Lwt.return_unit
+  | _ ->
+      if add then GitHub_mutations.add_labels ~bot_info ~issue:issue.id ~labels
+      else GitHub_mutations.remove_labels ~bot_info ~issue:issue.id ~labels
+
+let add_labels_if_absent ~bot_info (issue : issue_info) labels =
+  (* We construct the list of labels to add by filtering out the labels that
+     are already present. *)
+  (fun () ->
+    List.filter labels ~f:(fun label ->
+        not (List.mem issue.labels label ~equal:String.equal) )
+    |> add_remove_labels ~bot_info ~add:true issue )
+  |> Lwt.async
+
+let remove_labels_if_present ~bot_info (issue : issue_info) labels =
+  (* We construct the list of labels to remove by keeping only the labels that
+     are present. *)
+  (fun () ->
+    List.filter labels ~f:(fun label ->
+        List.mem issue.labels label ~equal:String.equal )
+    |> add_remove_labels ~bot_info ~add:false issue )
+  |> Lwt.async
+
 let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
     (pr_info : issue_info pull_request_info) ~gitlab_mapping ~github_mapping =
   let open Lwt_result.Infix in
@@ -2126,31 +2180,10 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
   >>= fun ok ->
   let rebase_label = "needs: rebase" in
   let stale_label = "stale" in
-  let issue = pr_info.issue.issue in
   let open Lwt_result.Syntax in
-  let* rebase_label_id =
-    GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
-      ~label:rebase_label
-  in
   if ok then (
     (* Remove rebase / stale label *)
-    let* stale_label_id =
-      GitHub_queries.get_label ~bot_info ~owner:issue.owner ~repo:issue.repo
-        ~label:stale_label
-    in
-    let map (label, id) =
-      if pr_info.issue.labels |> List.exists ~f:(String.equal label) then id
-      else None
-    in
-    let labels =
-      List.filter_map ~f:map
-        [(stale_label, stale_label_id); (rebase_label, rebase_label_id)]
-    in
-    if not (List.is_empty labels) then
-      (fun () ->
-        GitHub_mutations.remove_labels ~pr_id:pr_info.issue.id ~labels ~bot_info
-        )
-      |> Lwt.async ;
+    remove_labels_if_present ~bot_info pr_info.issue [rebase_label; stale_label] ;
     (* In the Coq repo, we want to prevent untrusted contributors from
        circumventing the fact that the bench job is a manual job by changing
        the CI configuration. *)
@@ -2210,37 +2243,35 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
                     e
                   >>= fun () -> Lwt.return "" )
             ; (let request_full_ci_label = "request: full CI" in
-               match
-                 ( full_ci
-                 , pr_info.issue.labels
-                   |> List.exists ~f:(fun l -> String.equal l request_full_ci_label) )
-               with
-               | Some false, _ | None, false ->
-                   (* Light CI requested or no label set *)
+               let needs_full_ci_label = "needs: full CI" in
+               match full_ci with
+               | Some false ->
+                   (* Light CI requested *)
+                   add_labels_if_absent ~bot_info pr_info.issue
+                     [needs_full_ci_label] ;
                    Lwt.return {| -o ci.variable="FULL_CI=false" |}
-               | Some true, false ->
-                   (* Full CI requested but no label set *)
+               | Some true ->
+                   (* Full CI requested *)
+                   remove_labels_if_present ~bot_info pr_info.issue
+                     [needs_full_ci_label; request_full_ci_label] ;
                    Lwt.return {| -o ci.variable="FULL_CI=true" |}
-               | (None | Some true), true ->
-                   (* Full CI requested and label set: we remove the label *)
-                   GitHub_queries.get_label ~bot_info ~owner:issue.owner
-                     ~repo:issue.repo ~label:request_full_ci_label
-                   >>= (function
-                         | Ok (Some request_full_ci_label_id) ->
-                             GitHub_mutations.remove_labels
-                               ~pr_id:pr_info.issue.id
-                               ~labels:[request_full_ci_label_id] ~bot_info
-                         | Ok None ->
-                             Lwt_io.printlf
-                               "Error while querying for label %s: did not get \
-                                any result back."
-                                request_full_ci_label
-                         | Error err ->
-                             Lwt_io.printlf
-                               "Error while querying for label %s: %s"
-                               request_full_ci_label err )
-                   >>= fun () -> Lwt.return {|-o ci.variable="FULL_CI=true"|} )
-            ]
+               | None ->
+                   (* Nothing requested with the command,
+                      check if the request label is present *)
+                   if
+                     pr_info.issue.labels
+                     |> List.exists ~f:(fun l ->
+                            String.equal l request_full_ci_label )
+                   then (
+                     (* Full CI requested *)
+                     remove_labels_if_present ~bot_info pr_info.issue
+                       [needs_full_ci_label; request_full_ci_label] ;
+                     Lwt.return {| -o ci.variable="FULL_CI=true" |} )
+                   else (
+                     (* Nothing requested *)
+                     add_labels_if_absent ~bot_info pr_info.issue
+                       [needs_full_ci_label] ;
+                     Lwt.return {| -o ci.variable="FULL_CI=false" |} ) ) ]
           >|= fun options -> String.concat ~sep:" " options
         else Lwt.return ""
       in
@@ -2255,14 +2286,7 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
       >>= execute_cmd )
   else (
     (* Add rebase label if it exists *)
-    ( match rebase_label_id with
-    | None ->
-        ()
-    | Some label_id ->
-        (fun () ->
-          GitHub_mutations.add_labels ~pr_id:pr_info.issue.id ~labels:[label_id]
-            ~bot_info )
-        |> Lwt.async ) ;
+    add_labels_if_absent ~bot_info pr_info.issue [rebase_label] ;
     (* Add fail status check *)
     match bot_info.github_install_token with
     | None ->
@@ -2574,7 +2598,8 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
                 ~bot_info
               >>= GitHub_mutations.report_on_posting_comment
               >>= fun () ->
-              GitHub_mutations.add_labels ~bot_info ~labels:[stale_id] ~pr_id
+              GitHub_mutations.add_labels ~bot_info ~labels:[stale_id]
+                ~issue:pr_id
               >>= fun () -> Lwt.return true
             else Lwt.return false
         | Error err ->

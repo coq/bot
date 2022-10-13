@@ -291,23 +291,23 @@ module ClosePullRequest =
   }
 |}]
 
-module LabelPullRequest =
+module LabelIssue =
 [%graphql
 {|
-  mutation labelPullRequest($pr_id: ID!, $label_ids: [ID!]!) {
+  mutation labelIssue($issue_id: ID!, $label_ids: [ID!]!) {
     addLabelsToLabelable(
-      input: {labelableId: $pr_id, labelIds:$label_ids}) {
+      input: {labelableId: $issue_id, labelIds:$label_ids}) {
       clientMutationId
     }
   }
 |}]
 
-module UnlabelPullRequest =
+module UnlabelIssue =
 [%graphql
 {|
-  mutation unlabelPullRequest($pr_id: ID!, $label_ids: [ID!]!) {
+  mutation unlabelIssue($issue_id: ID!, $label_ids: [ID!]!) {
     removeLabelsFromLabelable(
-      input: {labelableId: $pr_id, labelIds:$label_ids}) {
+      input: {labelableId: $issue_id, labelIds:$label_ids}) {
       clientMutationId
     }
   }

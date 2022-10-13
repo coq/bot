@@ -55,13 +55,13 @@ val reflect_pull_request_milestone :
 val add_labels :
      bot_info:Bot_info.t
   -> labels:GitHub_ID.t list
-  -> pr_id:GitHub_ID.t
+  -> issue:GitHub_ID.t
   -> unit Lwt.t
 
 val remove_labels :
      bot_info:Bot_info.t
   -> labels:GitHub_ID.t list
-  -> pr_id:GitHub_ID.t
+  -> issue:GitHub_ID.t
   -> unit Lwt.t
 
 val update_milestone : bot_info:Bot_info.t -> string -> issue -> unit Lwt.t

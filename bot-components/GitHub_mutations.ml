@@ -185,10 +185,10 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
   | Error err ->
       Stdio.print_endline (f "Error while updating check run: %s" err)
 
-let add_labels ~bot_info ~labels ~pr_id =
-  let open GitHub_GraphQL.LabelPullRequest in
+let add_labels ~bot_info ~labels ~issue =
+  let open GitHub_GraphQL.LabelIssue in
   makeVariables
-    ~pr_id:(GitHub_ID.to_string pr_id)
+    ~issue_id:(GitHub_ID.to_string issue)
     ~label_ids:(List.map ~f:GitHub_ID.to_string labels |> Array.of_list)
     ()
   |> serializeVariables |> variablesToJson
@@ -196,10 +196,10 @@ let add_labels ~bot_info ~labels ~pr_id =
        ~parse:(Fn.compose parse unsafe_fromJson)
   >>= fun _ -> Lwt.return_unit
 
-let remove_labels ~bot_info ~labels ~pr_id =
-  let open GitHub_GraphQL.UnlabelPullRequest in
+let remove_labels ~bot_info ~labels ~issue =
+  let open GitHub_GraphQL.UnlabelIssue in
   makeVariables
-    ~pr_id:(GitHub_ID.to_string pr_id)
+    ~issue_id:(GitHub_ID.to_string issue)
     ~label_ids:(List.map ~f:GitHub_ID.to_string labels |> Array.of_list)
     ()
   |> serializeVariables |> variablesToJson

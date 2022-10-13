@@ -983,12 +983,11 @@ let get_label ~bot_info ~owner ~repo ~label =
   >|= Result.map_error ~f:(fun err -> f "Query label failed with %s" err)
   >|= Result.bind ~f:(fun result ->
           match result.repository with
-          | Some result -> (
-            match result.label with
-            | Some label ->
-                Ok (Some (GitHub_ID.of_string label.id))
-            | None ->
-                Ok None )
+          | Some result ->
+              Ok
+                (Option.map
+                   ~f:(fun {id} -> GitHub_ID.of_string id)
+                   result.label )
           | None ->
               Error (f "Repository %s/%s does not exist." owner repo) )
 
