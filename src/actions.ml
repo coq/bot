@@ -2209,11 +2209,11 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
                      %s\n"
                     e
                   >>= fun () -> Lwt.return "" )
-            ; (let full_ci_label = "needs: full CI" in
+            ; (let request_full_ci_label = "request: full CI" in
                match
                  ( full_ci
                  , pr_info.issue.labels
-                   |> List.exists ~f:(fun l -> String.equal l full_ci_label) )
+                   |> List.exists ~f:(fun l -> String.equal l request_full_ci_label) )
                with
                | Some false, _ | None, false ->
                    (* Light CI requested or no label set *)
@@ -2224,21 +2224,21 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
                | (None | Some true), true ->
                    (* Full CI requested and label set: we remove the label *)
                    GitHub_queries.get_label ~bot_info ~owner:issue.owner
-                     ~repo:issue.repo ~label:full_ci_label
+                     ~repo:issue.repo ~label:request_full_ci_label
                    >>= (function
-                         | Ok (Some full_ci_label_id) ->
+                         | Ok (Some request_full_ci_label_id) ->
                              GitHub_mutations.remove_labels
                                ~pr_id:pr_info.issue.id
-                               ~labels:[full_ci_label_id] ~bot_info
+                               ~labels:[request_full_ci_label_id] ~bot_info
                          | Ok None ->
                              Lwt_io.printlf
                                "Error while querying for label %s: did not get \
                                 any result back."
-                               full_ci_label
+                                request_full_ci_label
                          | Error err ->
                              Lwt_io.printlf
                                "Error while querying for label %s: %s"
-                               full_ci_label err )
+                               request_full_ci_label err )
                    >>= fun () -> Lwt.return {|-o ci.variable="FULL_CI=true"|} )
             ]
           >|= fun options -> String.concat ~sep:" " options
