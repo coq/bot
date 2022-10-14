@@ -2178,6 +2178,7 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
           ~pr_number:pr_info.issue.number ~base:local_base_branch
           local_head_branch )
   >>= fun ok ->
+  let needs_full_ci_label = "needs: full CI" in
   let rebase_label = "needs: rebase" in
   let stale_label = "stale" in
   let open Lwt_result.Syntax in
@@ -2209,14 +2210,16 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
       else Lwt.return_ok true
     in
     let open Lwt.Infix in
-    if not can_trigger_ci then
+    if not can_trigger_ci then (
+      (* Since we cannot trigger CI, in particular, we still need to run a full CI *)
+      add_labels_if_absent ~bot_info pr_info.issue [needs_full_ci_label] ;
       GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
         ~message:
           "I am not triggering a CI run on this PR because the CI \
            configuration or the bench suite has been modified. CI can be \
            triggered manually by an authorized contributor."
       >>= GitHub_mutations.report_on_posting_comment
-      >>= fun () -> Lwt.return_ok ()
+      >>= fun () -> Lwt.return_ok () )
     else
       (* In Coq repo, we have several special cases:
          1. if something has changed in dev/ci/docker/, we rebuild the Docker image
@@ -2243,7 +2246,6 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
                     e
                   >>= fun () -> Lwt.return "" )
             ; (let request_full_ci_label = "request: full CI" in
-               let needs_full_ci_label = "needs: full CI" in
                match full_ci with
                | Some false ->
                    (* Light CI requested *)
