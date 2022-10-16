@@ -21,7 +21,10 @@ let play_job ~bot_info ~project_id ~build_id ?(key_value_pairs = []) () =
     @@ Printf.sprintf "https://gitlab.com/api/v4/projects/%d/jobs/%d/play"
          project_id build_id
   in
-  let gitlab_header = [("Private-Token", bot_info.gitlab_token)] in
+  let gitlab_header =
+    [ ("Private-Token", bot_info.gitlab_token)
+    ; ("Content-Type", "application/json") ]
+  in
   let body =
     match key_value_pairs with
     | [] ->
