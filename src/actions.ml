@@ -2629,7 +2629,7 @@ let coq_check_stale_pr ~bot_info ~owner ~repo ~after ~throttle =
   in
   apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
 
-let run_bench ~bot_info comment_info =
+let run_bench ~bot_info ?key_value_pairs comment_info =
   (* Do we want to use this more often? *)
   let open Lwt.Syntax in
   let pr = comment_info.issue in
@@ -2692,7 +2692,7 @@ let run_bench ~bot_info comment_info =
   match (allowed_to_bench, process_summary) with
   | Ok true, Ok (build_id, project_id) ->
       (* Permission to bench has been granted *)
-      GitLab_mutations.play_job ~bot_info ~project_id ~build_id
+      GitLab_mutations.play_job ~bot_info ~project_id ~build_id ?key_value_pairs ()
   | Error err, _ | _, Error err ->
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
       >>= GitHub_mutations.report_on_posting_comment

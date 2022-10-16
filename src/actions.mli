@@ -32,7 +32,11 @@ val coq_bug_minimizer_results_action :
 val merge_pull_request_action :
   bot_info:Bot_info.t -> ?t:float -> GitHub_types.comment_info -> unit Lwt.t
 
-val run_bench : bot_info:Bot_info.t -> GitHub_types.comment_info -> unit Lwt.t
+val run_bench :
+     bot_info:Bot_info.t
+  -> ?key_value_pairs:(string * string) list
+  -> GitHub_types.comment_info
+  -> unit Lwt.t
 
 val run_ci_action :
      bot_info:Bot_info.t
