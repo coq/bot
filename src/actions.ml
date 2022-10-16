@@ -280,18 +280,7 @@ let send_doc_url ~bot_info ~github_repo_full_name job_info =
   | _ ->
       Lwt.return_unit
 
-module BenchResults = struct
-  type t =
-    { summary_table: string
-    ; slow_table: string
-    ; slow_number: int
-    ; fast_table: string
-    ; fast_number: int }
-end
-
 let fetch_bench_results ~job_info () =
-  let open BenchResults in
-  let open Lwt.Syntax in
   let fetch_artifact url =
     url |> Uri.of_string |> Client.get
     >>= fun (resp, body) ->
@@ -304,167 +293,93 @@ let fetch_bench_results ~job_info () =
     f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
       job_info.build_id file
   in
-  let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
-  let* slow_table = artifact_url "slow_table" |> fetch_artifact in
-  let* fast_table = artifact_url "fast_table" |> fetch_artifact in
-  match (summary_table, slow_table, fast_table) with
-  | Error e, _, _ | _, Error e, _ | _, _, Error e ->
-      Lwt.return_error
-        (f "Could not fetch table artifacts for bench summary: %s\n" e)
-  | Ok summary_table, Ok slow_table, Ok fast_table -> (
-      (* The tables include how many entries there are, this is useful
-         information to know. *)
-      let parse_quantity table table_name =
-        let regexp = {|.*TOP \([0-9]*\)|} in
-        if Helpers.string_match ~regexp table then
-          Str.matched_group 1 table |> Int.of_string |> Lwt.return_ok
-        else Lwt.return_error (f "parsing %s table." table_name)
-      in
-      let* slow_number = parse_quantity slow_table "slow" in
-      let* fast_number = parse_quantity fast_table "fast" in
-      match (slow_number, fast_number) with
-      | Error e, _ | _, Error e ->
-          Lwt.return_error (f "Fetch bench regex issue: %s" e)
-      | Ok slow_number, Ok fast_number ->
-          Lwt.return_ok
-            {summary_table; slow_table; slow_number; fast_table; fast_number} )
+  let get_table_data name =
+    artifact_url name |> fetch_artifact
+    >|= function Ok table -> Some table | Error _ -> None
+  in
+  let parse_quantity table =
+    let regexp = {|.*TOP \([0-9]*\)|} in
+    if Helpers.string_match ~regexp table then
+      Some (Int.of_string @@ Str.matched_group 1 table)
+    else None
+  in
+  let open Lwt.Syntax in
+  let get_table name =
+    let+ table = get_table_data name in
+    match table with
+    | None ->
+        None
+    | Some table ->
+        Some {Bench_results.Table.table; count= parse_quantity table}
+  in
+  let+ summary_table = get_table "bench_summary"
+  and+ slow_table = get_table "slow_table"
+  and+ fast_table = get_table "fast_table"
+  and+ slow_table_pdiff = get_table "slow_table_pdiff"
+  and+ fast_table_pdiff = get_table "fast_table_pdiff" in
+  Bench_results.
+    {summary_table; slow_table; fast_table; slow_table_pdiff; fast_table_pdiff}
 
-let bench_text = function
-  | Ok results ->
-      (* Formatting helpers *)
-      let header2 str = f "## %s" str in
-      let code_wrap str = f "```\n%s\n```" str in
-      (* Document *)
-      let open BenchResults in
-      [ header2 ":checkered_flag: Bench Summary:"
-      ; code_wrap results.summary_table
-      ; header2 @@ f ":turtle: Top %d slow downs:" results.slow_number
-      ; code_wrap results.slow_table
-      ; header2 @@ f ":rabbit2: Top %d speed ups:" results.fast_number
-      ; code_wrap results.fast_table ]
-      |> String.concat ~sep:"\n" |> Lwt.return
-  | Error e ->
-      f "Error occured when creating bench summary: %s\n" e |> Lwt.return
-
-let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url ?check_url
-    (results : (BenchResults.t, string) Result.t) =
-  GitHub_queries.get_pull_request_id ~bot_info ~owner ~repo ~number
-  >>= function
-  | Ok id -> (
-    match results with
-    | Ok results -> (
-        (* Formatting heleprs *)
-        let details summary text =
-          f "<details>\n<summary>%s</summary>\n\n%s\n\n</details>\n" summary
-            text
-        in
-        let code_wrap str = f "```\n%s\n```" str in
-        let link text url = f "[%s](%s)" text url in
-        [ ":checkered_flag: Bench results:"
-        ; code_wrap results.summary_table
-        ; details (f ":turtle: Top %d slow downs" results.slow_number)
-          @@ code_wrap results.slow_table
-        ; details (f ":rabbit2: Top %d speed ups" results.fast_number)
-          @@ code_wrap results.fast_table
-        ; "- " ^ link ":chair: GitLab Bench Job" gitlab_url ]
-        @ Option.value_map
-            ~f:(fun x -> ["- " ^ link ":spiral_notepad: Bench Check Summary" x])
-            ~default:[] check_url
-        |> String.concat ~sep:"\n"
-        |> fun message ->
-        GitHub_mutations.post_comment ~bot_info ~id ~message
-        >>= function
-        | Ok _ ->
-            Lwt.return_unit
-        | Error e ->
-            Lwt_io.printlf "Unable to post bench comment for pr #%d: %s" number
-              e )
-    | Error e ->
-        Lwt_io.printlf "Unable to fetch_results for bench for pr #%d: %s" number
-          e )
-  | Error e ->
-      Lwt_io.printlf "Unable to get_pull_request_id for bench for pr #%d: %s"
-        number e
+let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url ~check_url
+    (res : Bench_results.t) =
+  let open Lwt_result.Syntax in
+  let* id = GitHub_queries.get_pull_request_id ~bot_info ~owner ~repo ~number in
+  let message = Bench_results.bench_comment_text ~gitlab_url ~check_url res in
+  GitHub_mutations.post_comment ~bot_info ~id ~message
 
 let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
     ~number =
-  let open Lwt.Syntax in
   match number with
   | None ->
-      Lwt_io.printlf "No PR number provided for bench summary so aborting."
+      Lwt.return_error "No PR number provided for bench summary so aborting."
   | Some number -> (
-      GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
-      >>= function
-      | Error e ->
-          Lwt_io.printlf "No repo id for bench job: %s" e
-      | Ok repo_id -> (
-          Lwt_io.printl "Pushing status check for bench job."
-          <&>
-          let gitlab_url =
-            f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id
+      let open Lwt_result.Syntax in
+      let* repo_id =
+        GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner ~repo:gh_repo
+      in
+      let gitlab_url =
+        f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id
+      in
+      let summary =
+        f "## GitLab Job URL:\n[GitLab Bench Job](%s)\n" gitlab_url
+      in
+      let state = job_info.build_status in
+      let context = "bench" in
+      let create_check_run ~status ?conclusion ~title ?(text = "") () =
+        GitHub_mutations.create_check_run ~bot_info ~name:context ~status
+          ~repo_id ~head_sha:job_info.common_info.head_commit ?conclusion ~title
+          ~details_url:gitlab_url ~summary ~text ~external_id ()
+      in
+      let open Lwt.Syntax in
+      match state with
+      | "success" ->
+          let* results = fetch_bench_results ~job_info () in
+          let text = Bench_results.bench_text results in
+          let* check_url =
+            create_check_run ~status:COMPLETED ~conclusion:SUCCESS
+              ~title:"Bench completed successfully" ~text ()
           in
-          let summary =
-            f "## GitLab Job URL:\n[GitLab Bench Job](%s)\n" gitlab_url
+          bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
+            ~gitlab_url ~check_url results
+      | "failed" ->
+          let* results = fetch_bench_results ~job_info () in
+          let text = Bench_results.bench_text results in
+          let open Lwt.Syntax in
+          let* check_url =
+            create_check_run ~status:COMPLETED ~conclusion:NEUTRAL
+              ~title:"Bench completed with failures" ~text ()
           in
-          let state = job_info.build_status in
-          let context = "bench" in
-          let create_check_run ~status ?conclusion ~title ?(text = "") () =
-            GitHub_mutations.create_check_run ~bot_info ~name:context ~status
-              ~repo_id ~head_sha:job_info.common_info.head_commit ?conclusion
-              ~title ~details_url:gitlab_url ~summary ~text ~external_id ()
-            >>= function
-            | Ok url ->
-                let* () =
-                  Lwt_io.printlf "Bench Check Summary updated: %s" url
-                in
-                Lwt.return_some url
-            | Error e ->
-                let* () =
-                  Lwt_io.printlf "Bench Check Summary URL missing: %s" e
-                in
-                Lwt.return_none
-          in
-          match state with
-          | "success" ->
-              let* results = fetch_bench_results ~job_info () in
-              let* text = bench_text results in
-              let* check_url =
-                create_check_run ~status:COMPLETED ~conclusion:SUCCESS
-                  ~title:"Bench completed successfully" ~text ()
-              in
-              let* () =
-                bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
-                  ~gitlab_url ?check_url results
-              in
-              Lwt.return_unit
-          | "failed" ->
-              let* results = fetch_bench_results ~job_info () in
-              let* text = bench_text results in
-              let* check_url =
-                create_check_run ~status:COMPLETED ~conclusion:NEUTRAL
-                  ~title:"Bench completed with failures" ~text ()
-              in
-              let* () =
-                bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
-                  ~gitlab_url ?check_url results
-              in
-              Lwt.return_unit
-          | "running" ->
-              let* _ =
-                create_check_run ~status:IN_PROGRESS ~title:"Bench in progress"
-                  ()
-              in
-              Lwt.return_unit
-          | "cancelled" | "canceled" ->
-              let* _ =
-                create_check_run ~status:COMPLETED ~conclusion:CANCELLED
-                  ~title:"Bench has been cancelled" ()
-              in
-              Lwt.return_unit
-          | "created" ->
-              Lwt_io.printlf "Bench job has been created, ignoring info update."
-          | _ ->
-              Lwt_io.printlf "Unknown state for bench job: %s" state ) )
+          bench_comment ~bot_info ~owner:gh_owner ~repo:gh_repo ~number
+            ~gitlab_url ~check_url results
+      | "running" ->
+          create_check_run ~status:IN_PROGRESS ~title:"Bench in progress" ()
+      | "cancelled" | "canceled" ->
+          create_check_run ~status:COMPLETED ~conclusion:CANCELLED
+            ~title:"Bench has been cancelled" ()
+      | "created" ->
+          Lwt_result.return "Bench job has been created, ignoring info update."
+      | _ ->
+          Lwt.return_error "Unknown state for bench job: %s" )
 
 type build_failure = Warn of string | Retry of string | Ignore of string
 
@@ -634,8 +549,13 @@ let job_action ~bot_info ({build_name} as job_info) ~gitlab_mapping =
   in
   match (github_repo_full_name, job_info.build_name) with
   | "coq/coq", "bench" ->
-      update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
-        ~number:pr_num
+      let open Lwt.Syntax in
+      let* msg =
+        update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
+          ~number:pr_num
+      in
+      let msg = match msg with Ok msg -> msg | Error msg -> msg in
+      Lwt_io.printlf "update_bench_status: %s" msg
   | _, _ -> (
     match job_info.build_status with
     | "failed" ->
