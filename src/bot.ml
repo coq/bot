@@ -332,6 +332,26 @@ let callback _conn req body =
                   () )
               else if
                 string_match
+                  ~regexp:(f "@%s:? [Bb]ench native" @@ Str.quote bot_name)
+                  body
+                && comment_info.issue.pull_request
+                && String.equal comment_info.issue.issue.owner "coq"
+                && String.equal comment_info.issue.issue.repo "coq"
+                && signed
+              then (
+                (fun () ->
+                  action_as_github_app ~bot_info ~key ~app_id
+                    ~owner:comment_info.issue.issue.owner
+                    ~repo:comment_info.issue.issue.repo
+                    (run_bench
+                       ~key_value_pairs:[("coq_native", "yes")]
+                       comment_info ) )
+                |> Lwt.async ;
+                Server.respond_string ~status:`OK
+                  ~body:(f "Received a request to start the bench.")
+                  () )
+              else if
+                string_match
                   ~regexp:(f "@%s:? [Bb]ench" @@ Str.quote bot_name)
                   body
                 && comment_info.issue.pull_request
