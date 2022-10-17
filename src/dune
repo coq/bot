@@ -1,10 +1,19 @@
+(library
+ (name botlib)
+ (libraries base bot-components cohttp-lwt-unix mirage-crypto
+   mirage-crypto-rng mirage-crypto-rng.lwt stdio toml yojson)
+ (modules :standard \ bot)
+ (inline_tests)
+ (preprocess
+  (pps ppx_expect)))
+
 (executable
  (name bot)
  (public_name bot)
  (package coq-bot)
+ (modules bot)
  (promote (until-clean))
- (libraries base bot-components cohttp-lwt-unix mirage-crypto
-   mirage-crypto-rng mirage-crypto-rng.lwt stdio toml yojson))
+ (libraries botlib))
 
 (env
  (dev

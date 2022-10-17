@@ -1,12 +1,13 @@
-open Actions
 open Base
-open Bot_components
 open Cohttp
 open Cohttp_lwt_unix
+open Lwt.Infix
+open Bot_components
+open Botlib
+open Actions
 open Git_utils
 open Github_installations
 open Helpers
-open Lwt.Infix
 
 let toml_data = Config.toml_of_file (Sys.get_argv ()).(1)
 
