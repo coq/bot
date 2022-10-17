@@ -24,7 +24,7 @@ let daily_schedule_secret = Config.daily_schedule_secret toml_data
 
 let bot_name = Config.bot_name toml_data
 
-let key = Config.github_private_key
+let key = Config.github_private_key ()
 
 let app_id = Config.github_app_id toml_data
 

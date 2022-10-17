@@ -26,7 +26,7 @@ val bot_email : Toml.Types.table -> string
 
 val github_app_id : Toml.Types.table -> int
 
-val github_private_key : Mirage_crypto_pk.Rsa.priv
+val github_private_key : unit -> Mirage_crypto_pk.Rsa.priv
 
 val make_mappings_table :
      Toml.Types.value Toml.Types.Table.t
