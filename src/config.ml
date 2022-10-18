@@ -92,7 +92,7 @@ let github_app_id toml_data =
 
 (*let string_of_file_path path = Stdio.In_channel.(with_file path ~f:input_all)*)
 
-let github_private_key =
+let github_private_key () =
   (*string_of_file_path "./github.private-key.pem"*)
   match
     let private_k = Sys.getenv_exn "GITHUB_PRIVATE_KEY" in
