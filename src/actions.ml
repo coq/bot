@@ -2383,35 +2383,25 @@ let pull_request_updated_action ~bot_info
     ~(action : GitHub_types.pull_request_action)
     ~(pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
     ~gitlab_mapping ~github_mapping =
-  ( match (action, pr_info.base.branch.repo_url) with
+  (let open Lwt.Syntax in
+  let* _ = update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping in
+  Lwt.return_unit )
+  <&>
+  match (action, pr_info.base.branch.repo_url) with
   | PullRequestOpened, "https://github.com/coq/coq"
     when String.equal pr_info.base.branch.name pr_info.head.branch.name ->
-      (fun () ->
-        GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
-          ~message:
-            (f
-               "Hello, thanks for your pull request!\n\
-                In the future, we strongly recommend that you *do not* use %s \
-                as the name of your branch when submitting a pull request.\n\
-                By the way, you may be interested in reading [our contributing \
-                guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
-               pr_info.base.branch.name )
-        >>= GitHub_mutations.report_on_posting_comment )
-      |> Lwt.async
+      GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
+        ~message:
+          (f
+             "Hello, thanks for your pull request!\n\
+              In the future, we strongly recommend that you *do not* use %s as \
+              the name of your branch when submitting a pull request.\n\
+              By the way, you may be interested in reading [our contributing \
+              guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
+             pr_info.base.branch.name )
+      >>= GitHub_mutations.report_on_posting_comment
   | _ ->
-      () ) ;
-  (fun () ->
-    update_pr pr_info ~bot_info ~gitlab_mapping ~github_mapping
-    >>= fun _ -> Lwt.return_unit )
-  |> Lwt.async ;
-  Server.respond_string ~status:`OK
-    ~body:
-      (f
-         "Pull request %s/%s#%d was (re)opened / synchronized: (force-)pushing \
-          to GitLab."
-         pr_info.issue.issue.owner pr_info.issue.issue.repo
-         pr_info.issue.issue.number )
-    ()
+      Lwt.return_unit
 
 let rec adjust_milestone ~bot_info ~issue ~sleep_time =
   (* We implement an exponential backoff strategy to try again after
@@ -2692,7 +2682,8 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
   match (allowed_to_bench, process_summary) with
   | Ok true, Ok (build_id, project_id) ->
       (* Permission to bench has been granted *)
-      GitLab_mutations.play_job ~bot_info ~project_id ~build_id ?key_value_pairs ()
+      GitLab_mutations.play_job ~bot_info ~project_id ~build_id ?key_value_pairs
+        ()
   | Error err, _ | _, Error err ->
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
       >>= GitHub_mutations.report_on_posting_comment

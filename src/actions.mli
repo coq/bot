@@ -60,7 +60,7 @@ val pull_request_updated_action :
   -> pr_info:GitHub_types.issue_info GitHub_types.pull_request_info
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> github_mapping:(string, string) Base.Hashtbl.t
-  -> (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t
+  -> unit Lwt.t
 
 val adjust_milestone :
      bot_info:Bot_info.t
