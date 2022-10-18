@@ -671,11 +671,11 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                 ( extract_check_suites base_obj.checkSuites
                 , extract_check_suites head_obj.checkSuites )
               with
-              | None, _ ->
+              | (None | Some []), _ ->
                   Error
                     (f "No check suite %d for base commit %s/%s@%s." appId owner
                        repo base )
-              | _, None ->
+              | _, (None | Some []) ->
                   Error
                     (f "No check suite %d for head commit %s/%s@%s." appId owner
                        repo head )
