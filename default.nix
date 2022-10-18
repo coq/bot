@@ -30,6 +30,7 @@ pkgs.stdenv.mkDerivation rec {
     eqaf
     x509
     cstruct
+    ppx_expect
     odoc
   ];
 

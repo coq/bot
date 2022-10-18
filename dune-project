@@ -25,6 +25,7 @@
   (yojson (>= 1.7.0))
   (bot-components :dev)
   (toml (>= 7.0.0))
+  (ppx_expect (>= v0.15.1))
   (odoc (and (>= 1.5.2) :with-doc)))
 )
 (package

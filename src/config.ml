@@ -121,7 +121,7 @@ let parse_mappings mappings =
            | Some gh, Some gl ->
                Some (gh, gl)
            | _, _ ->
-               None ))
+               None ) )
   in
   let assoc_rev = List.map assoc ~f:(fun (gh, gl) -> (gl, gh)) in
   let get_table t =
