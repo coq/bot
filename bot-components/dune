@@ -6,9 +6,23 @@
  (private_modules GraphQL_query GitHub_GraphQL Utils)
  (modules_without_implementation GitHub_types GitLab_types)
  (preprocess
-  (pps graphql_ppx -- -native -schema bot-components/schema.json))
+  (per_module
+   ((pps graphql_ppx -- -native -schema bot-components/github-schema.json)
+    GitHub_GraphQL)
+   ((pps graphql_ppx -- -native -schema bot-components/gitlab-schema.json)
+    GitLab_GraphQL)))
  (preprocessor_deps
-  (file schema.json)))
+  (file github-schema.json)
+  (file gitlab-schema.json)))
+
+(rule
+ (targets gitlab-schema.json)
+ (deps (universe))
+ (action
+  (with-stdout-to
+   %{targets}
+   (run get-graphql-schema https://gitlab.com/api/graphql --json)))
+ (mode promote))
 
 ; This rule needs access to the user's Private Access Token for github
 ; (see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
@@ -18,7 +32,7 @@
 ; `read-strings` is preferred to read since it won't read the newline
 
 (rule
- (targets schema.json)
+ (targets github-schema.json)
  (deps .github-token (universe))
  (action
   (with-stdout-to

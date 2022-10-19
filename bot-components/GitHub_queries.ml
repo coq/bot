@@ -4,6 +4,8 @@ open GitHub_types
 open Lwt
 open Utils
 
+let send_graphql_query = GraphQL_query.send_graphql_query ~api:`GitHub
+
 let extract_backport_info ~(bot_info : Bot_info.t) description :
     full_backport_info option =
   let project_column_regexp =
@@ -68,7 +70,7 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   let open BackportInfo in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok result -> (
@@ -143,7 +145,7 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(fun result ->
           match result.repository with
@@ -180,7 +182,7 @@ let get_pull_request_id ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(fun result ->
           match result.repository with
@@ -220,7 +222,7 @@ let get_team_membership ~bot_info ~org ~team ~user =
   let open GitHub_GraphQL.TeamMembership in
   makeVariables ~org ~team ~user ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
           f "Query get_team_membership failed with %s" err )
@@ -277,7 +279,7 @@ let get_pull_request_refs ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_Refs in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_info failed with %s" err )
@@ -385,7 +387,7 @@ let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequestReviewsInfo.MergePullRequestInfo in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
           f "Query pull_request_reviews_info failed with %s" err )
@@ -409,7 +411,7 @@ let get_file_content ~bot_info ~owner ~repo ~branch ~file_name =
   let open GitHub_GraphQL.FileContent in
   makeVariables ~owner ~repo ~file:(branch ^ ":" ^ file_name) ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err -> f "Query file_content failed with %s" err)
   >|= Result.bind ~f:(file_content_of_resp ~owner ~repo)
@@ -430,7 +432,7 @@ let get_default_branch ~bot_info ~owner ~repo =
   let open GitHub_GraphQL.DefaultBranch in
   makeVariables ~owner ~repo ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
           f "Query get_default_branch failed with %s" err )
@@ -544,7 +546,7 @@ let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
   in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
           f "Query issue_milestone failed with %s" err )
@@ -562,7 +564,7 @@ let get_repository_id ~bot_info ~owner ~repo =
   let open GitHub_GraphQL.RepoId in
   makeVariables ~owner ~repo ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
           f "Query get_repository_id failed with %s" err )
@@ -572,7 +574,7 @@ let get_status_check ~bot_info ~owner ~repo ~commit ~context =
   let open GitHub_GraphQL.GetCheckRuns in
   makeVariables ~owner ~repo ~commit ~context ~appId:bot_info.app_id ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
           f "Query get_status_check failed with %s" err )
@@ -642,7 +644,7 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
   let open GetChecks in
   makeVariables ~appId ~owner ~repo ~prNumber:pr_number ~base ~head ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(fun resp ->
           resp.repository
@@ -797,7 +799,7 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
   let open GitHub_GraphQL.GetPipelineSummary in
   makeVariables ~appId ~owner ~repo ~head ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(fun resp ->
           resp.repository
@@ -891,7 +893,7 @@ let get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label =
   let getter cursor =
     makeVariables ~owner ~repo ~label ~len:100 ?cursor ()
     |> serializeVariables |> variablesToJson
-    |> GraphQL_query.send_graphql_query ~bot_info ~query
+    |> send_graphql_query ~bot_info ~query
          ~parse:(Fn.compose parse unsafe_fromJson)
     >>= function
     | Ok result -> (
@@ -929,7 +931,7 @@ let get_pull_request_label_timeline ~bot_info ~owner ~repo ~pr_number =
   let getter cursor =
     makeVariables ~owner ~repo ~prNumber:pr_number ~len:100 ?cursor ()
     |> serializeVariables |> variablesToJson
-    |> GraphQL_query.send_graphql_query ~bot_info ~query
+    |> send_graphql_query ~bot_info ~query
          ~parse:(Fn.compose parse unsafe_fromJson)
     >>= function
     | Ok result -> (
@@ -978,7 +980,7 @@ let get_label ~bot_info ~owner ~repo ~label =
   let open GitHub_GraphQL.GetLabel in
   makeVariables ~owner ~repo ~label ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err -> f "Query label failed with %s" err)
   >|= Result.bind ~f:(fun result ->
@@ -996,7 +998,7 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
     let open GitHub_GraphQL.GetPullRequestLabels in
     makeVariables ~owner ~repo ~prNumber:pr_number ?cursor ~len:100 ()
     |> serializeVariables |> variablesToJson
-    |> GraphQL_query.send_graphql_query ~bot_info ~query
+    |> send_graphql_query ~bot_info ~query
          ~parse:(Fn.compose parse unsafe_fromJson)
     >>= function
     | Ok result -> (

@@ -453,7 +453,9 @@ let launch =
 let () =
   Lwt.async_exception_hook :=
     fun exn ->
-      Stdio.printf "Error: Unhandled exception: %s\n" (Exn.to_string exn)
+      (fun () ->
+        Lwt_io.printlf "Error: Unhandled exception: %s" (Exn.to_string exn) )
+      |> Lwt.async
 
 (* RNG seeding: https://github.com/mirage/mirage-crypto#faq *)
 let () = Mirage_crypto_rng_lwt.initialize ()

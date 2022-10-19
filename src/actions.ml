@@ -466,63 +466,48 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
           | _ ->
               Lwt_io.printlf "Unknown state for bench job: %s" state ) )
 
-type build_failure = Warn of string | Retry | Ignore
+type build_failure = Warn of string | Retry of string | Ignore of string
 
 let trace_action ~repo_full_name trace =
-  let trace_size = String.length trace in
-  Stdio.printf "Trace size: %d.\n" trace_size ;
-  let test regexp = string_match ~regexp trace in
-  if test "Job failed: exit code 137" then (
-    Stdio.printf "Exit code 137. Retrying...\n" ;
-    Retry )
-  else if test "Job failed: exit status 255" then (
-    Stdio.printf "Exit status 255. Retrying...\n" ;
-    Retry )
-  else if test "Job failed (system failure)" then (
-    Stdio.printf "System failure. Retrying...\n" ;
-    Retry )
-  else if
-    ( test "Uploading artifacts.*to coordinator... failed"
-    || test "Uploading artifacts.*to coordinator... error" )
-    && not (test "Uploading artifacts.*to coordinator... ok")
-  then (
-    Stdio.printf "Artifact uploading failure. Retrying...\n" ;
-    Retry )
-  else if
-    test "ERROR: Downloading artifacts.*from coordinator... error"
-    && test "FATAL: invalid argument"
-  then (
-    Stdio.printf "Artifact downloading failure. Retrying...\n" ;
-    Retry )
-  else if
-    test "transfer closed with outstanding read data remaining"
-    || test "HTTP request sent, awaiting response... 50[0-9]"
-    || test "The requested URL returned error: 502"
-    (*|| test "[Tt]he remote end hung up unexpectedly"*)
-    (* Can happen with (actual) issues with overlays. *)
-    || test "error: unable to download 'https://cache.nixos.org/"
-    || test "fatal: unable to access .* Couldn't connect to server"
-    || test "fatal: unable to access .* Could not resolve host"
-    || test "Resolving .* failed: Temporary failure in name resolution"
-  then (
-    Stdio.printf "Connectivity issue. Retrying...\n" ;
-    Retry )
-  else if test "fatal: reference is not a tree" then (
-    Stdio.printf "Normal failure: pull request was force-pushed.\n" ;
-    Ignore )
-  else if
-    test "fatal: Remote branch pr-[0-9]* not found in upstream origin"
-    || test "fatal: [Cc]ouldn't find remote ref refs/heads/pr-"
-  then (
-    Stdio.printf "Normal failure: pull request was closed.\n" ;
-    Ignore )
-  else if
-    String.equal repo_full_name "coq/coq"
-    && test "Error response from daemon: manifest for .* not found"
-  then (
-    Stdio.printf "Docker image not found. Do not report anything specific.\n" ;
-    Ignore )
-  else Warn trace
+  trace |> String.length
+  |> Lwt_io.printlf "Trace size: %d."
+  >>= fun () ->
+  Lwt.return
+    (let test regexp = string_match ~regexp trace in
+     if test "Job failed: exit code 137" then Retry "Exit code 137"
+     else if test "Job failed: exit status 255" then Retry "Exit status 255"
+     else if test "Job failed (system failure)" then Retry "System failure"
+     else if
+       ( test "Uploading artifacts.*to coordinator... failed"
+       || test "Uploading artifacts.*to coordinator... error" )
+       && not (test "Uploading artifacts.*to coordinator... ok")
+     then Retry "Artifact uploading failure"
+     else if
+       test "ERROR: Downloading artifacts.*from coordinator... error"
+       && test "FATAL: invalid argument"
+     then Retry "Artifact downloading failure"
+     else if
+       test "transfer closed with outstanding read data remaining"
+       || test "HTTP request sent, awaiting response... 50[0-9]"
+       || test "The requested URL returned error: 502"
+       (*|| test "[Tt]he remote end hung up unexpectedly"*)
+       (* Can happen with (actual) issues with overlays. *)
+       || test "error: unable to download 'https://cache.nixos.org/"
+       || test "fatal: unable to access .* Couldn't connect to server"
+       || test "fatal: unable to access .* Could not resolve host"
+       || test "Resolving .* failed: Temporary failure in name resolution"
+     then Retry "Connectivity issue"
+     else if test "fatal: reference is not a tree" then
+       Ignore "Normal failure: pull request was force-pushed."
+     else if
+       test "fatal: Remote branch pr-[0-9]* not found in upstream origin"
+       || test "fatal: [Cc]ouldn't find remote ref refs/heads/pr-"
+     then Ignore "Normal failure: pull request was closed."
+     else if
+       String.equal repo_full_name "coq/coq"
+       && test "Error response from daemon: manifest for .* not found"
+     then Ignore "Docker image not found. Do not report anything specific."
+     else Warn trace )
 
 let job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     ~github_repo_full_name ~gitlab_repo_full_name ~context ~failure_reason
@@ -532,25 +517,41 @@ let job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
   Lwt_io.printf "Failed job %d of project %d.\nFailure reason: %s\n" build_id
     project_id failure_reason
   >>= fun () ->
-  if String.equal failure_reason "runner_system_failure" then
-    Lwt_io.printf "Runner failure reported by GitLab CI. Retrying...\n"
-    <&> GitLab_mutations.retry_job ~project_id ~build_id ~bot_info
+  ( if String.equal failure_reason "runner_system_failure" then
+    Lwt.return (Retry "Runner failure reported by GitLab CI")
   else
-    Lwt_io.printf
-      "Failure reason reported by GitLab CI: %s.\nRetrieving the trace...\n"
+    Lwt_io.printlf
+      "Failure reason reported by GitLab CI: %s.\nRetrieving the trace..."
       failure_reason
-    <&> ( GitLab_queries.get_build_trace ~bot_info ~project_id ~build_id
-        >|= trace_action ~repo_full_name:gitlab_repo_full_name
-        >>= function
-        | Warn trace ->
-            Lwt_io.printf "Actual failure.\n"
-            <&> send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
-                  ~github_repo_full_name ~gitlab_repo_full_name ~context
-                  ~failure_reason ~external_id ~trace
-        | Retry ->
-            GitLab_mutations.retry_job ~bot_info ~project_id ~build_id
-        | Ignore ->
-            Lwt.return_unit )
+    >>= fun () ->
+    GitLab_queries.get_build_trace ~bot_info ~project_id ~build_id
+    >>= trace_action ~repo_full_name:gitlab_repo_full_name )
+  >>= function
+  | Warn trace ->
+      Lwt_io.printf "Actual failure.\n"
+      <&> send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
+            ~github_repo_full_name ~gitlab_repo_full_name ~context
+            ~failure_reason ~external_id ~trace
+  | Retry reason -> (
+      Lwt_io.printlf "%s... Checking whether to retry the job." reason
+      >>= fun () ->
+      GitLab_queries.get_retry_nb ~bot_info ~full_name:gitlab_repo_full_name
+        ~build_id ~build_name:job_info.build_name
+      >>= function
+      | Ok retry_nb when retry_nb < 3 ->
+          Lwt_io.printlf
+            "The job has been retried less than three times before (number of \
+             retries = %d). Retrying..."
+            retry_nb
+          >>= fun () ->
+          GitLab_mutations.retry_job ~bot_info ~project_id ~build_id
+      | Ok retry_nb ->
+          Lwt_io.printlf
+            "The job has been retried %d times before. Not retrying." retry_nb
+      | Error e ->
+          Lwt_io.printlf "Error while getting the number of retries: %s" e )
+  | Ignore reason ->
+      Lwt_io.printl reason
 
 let job_success_or_pending ~bot_info (gh_owner, gh_repo)
     ({build_id} as job_info) ~github_repo_full_name ~gitlab_repo_full_name
@@ -2692,7 +2693,8 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
   match (allowed_to_bench, process_summary) with
   | Ok true, Ok (build_id, project_id) ->
       (* Permission to bench has been granted *)
-      GitLab_mutations.play_job ~bot_info ~project_id ~build_id ?key_value_pairs ()
+      GitLab_mutations.play_job ~bot_info ~project_id ~build_id ?key_value_pairs
+        ()
   | Error err, _ | _, Error err ->
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
       >>= GitHub_mutations.report_on_posting_comment

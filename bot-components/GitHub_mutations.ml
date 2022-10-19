@@ -4,6 +4,8 @@ open Cohttp_lwt_unix
 open Lwt
 open Utils
 
+let send_graphql_query = GraphQL_query.send_graphql_query ~api:`GitHub
+
 let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     =
   let open GitHub_GraphQL.MoveCardToColumn in
@@ -12,7 +14,7 @@ let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     ~column_id:(GitHub_ID.to_string column_id)
     ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
@@ -24,7 +26,7 @@ let post_comment ~bot_info ~id ~message =
   let open GitHub_GraphQL.PostComment in
   makeVariables ~id:(GitHub_ID.to_string id) ~message ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(function
         | {payload= Some {commentEdge= Some {node= Some {url}}}} ->
@@ -45,7 +47,7 @@ let update_milestone ~bot_info ~issue ~milestone =
     ~milestone:(GitHub_ID.to_string milestone)
     ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
@@ -57,7 +59,7 @@ let close_pull_request ~bot_info ~pr_id =
   let open GitHub_GraphQL.ClosePullRequest in
   makeVariables ~pr_id:(GitHub_ID.to_string pr_id) ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
@@ -81,7 +83,7 @@ let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
     ~pr_id:(GitHub_ID.to_string pr_id)
     ?commit_headline ?commit_body ?merge_method ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
@@ -160,7 +162,7 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
     ~headSha:head_sha ~status ~title ?text ~summary ~url:details_url ?conclusion
     ?externalId:external_id ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(function
         | {createCheckRun= Some {checkRun= Some {url}}} ->
@@ -177,7 +179,7 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
     ~repoId:(GitHub_ID.to_string repo_id)
     ~conclusion ?url:details_url ~title ?text ~summary ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= function
   | Ok _ ->
@@ -192,7 +194,7 @@ let add_labels ~bot_info ~labels ~issue =
     ~label_ids:(List.map ~f:GitHub_ID.to_string labels |> Array.of_list)
     ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >>= fun _ -> Lwt.return_unit
 
@@ -203,7 +205,7 @@ let remove_labels ~bot_info ~labels ~issue =
     ~label_ids:(List.map ~f:GitHub_ID.to_string labels |> Array.of_list)
     ()
   |> serializeVariables |> variablesToJson
-  |> GraphQL_query.send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >>= fun _ -> Lwt.return_unit
 

@@ -3,12 +3,28 @@ open Bot_info
 open Lwt.Infix
 open Utils
 
-let send_graphql_query ~bot_info ?(extra_headers = []) ~query ~parse variables =
-  let uri = Uri.of_string "https://api.github.com/graphql" in
+let send_graphql_query ~bot_info ?(extra_headers = []) ~api ~query ~parse
+    variables =
+  let uri =
+    ( match api with
+    | `GitLab ->
+        "https://gitlab.com/api/graphql"
+    | `GitHub ->
+        "https://api.github.com/graphql" )
+    |> Uri.of_string
+  in
   let headers =
     Cohttp.Header.of_list
-      ( [ ("Authorization", "bearer " ^ github_token bot_info)
-        ; ("User-Agent", bot_info.name) ]
+      ( [ ( "Authorization"
+          , "Bearer "
+            ^
+            match api with
+            | `GitLab ->
+                bot_info.gitlab_token
+            | `GitHub ->
+                github_token bot_info )
+        ; ("User-Agent", bot_info.name)
+        ; ("Content-Type", "application/json") ]
       @ extra_headers )
   in
   let request_json =
