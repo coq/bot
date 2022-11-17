@@ -42,6 +42,8 @@ val git_coq_bug_minimizer :
   -> comment_author:string
   -> owner:string
   -> repo:string
+  -> coq_version:string
+  -> ocaml_version:string
   -> (unit, string) result Lwt.t
 
 val git_run_ci_minimization :

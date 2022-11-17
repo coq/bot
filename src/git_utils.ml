@@ -130,12 +130,10 @@ let git_test_modified ~base ~head pattern =
       Error (f "%s stopped by signal %d." command signal)
 
 let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo =
+    ~owner ~repo ~coq_version ~ocaml_version =
   (* To push a new branch we need to identify as coqbot the GitHub
      user, who is a collaborator on the run-coq-bug-minimizer repo,
      not coqbot the GitHub App *)
-  let coq_version = "" in
-  let ocaml_version = "" in
   Stdlib.Filename.quote_command "./coq_bug_minimizer.sh"
     [ script
     ; GitHub_ID.to_string comment_thread_id

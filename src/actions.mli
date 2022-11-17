@@ -19,6 +19,7 @@ val run_coq_minimizer :
   -> comment_author:string
   -> owner:string
   -> repo:string
+  -> options:string
   -> unit Lwt.t
 
 val coq_bug_minimizer_results_action :
