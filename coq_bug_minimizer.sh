@@ -29,7 +29,7 @@ printf "%s\n" "$script" > coqbot.sh
 sed -i 's/\r$//g' coqbot.sh
 echo "https://$bot_domain/coq-bug-minimizer" > coqbot.url
 git add .
-git commit -m "Added user script for ${comment_thread_id} in coqbot.sh for ${comment_author}"
+git commit -m "$(printf "Added user script in coqbot.sh for %s in %s/%s\n\nComment Thread ID: %s\n" "$comment_author" "$owner" "$repo" "$comment_thread_id")"
 git push --set-upstream "https://$bot_name:$token@github.com/$repo_name.git" "$branch_name"
 
 popd
