@@ -61,9 +61,11 @@ let callback _conn req body =
           @@ Str.quote bot_name )
         body
     then
-      Some
-        ( Str.matched_group 1 body
-        , Str.matched_group 2 body |> extract_minimize_file )
+      (* avoid internal server errors from unclear execution order *)
+      let options, body =
+        (Str.matched_group 1 body, Str.matched_group 2 body)
+      in
+      Some (options, body |> extract_minimize_file)
     else None
   in
   let strip_quoted_bot_name body =
