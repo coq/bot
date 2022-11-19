@@ -309,11 +309,14 @@ let fetch_bench_results ~job_info () =
   let* failures = artifact_url "bench_failures" |> fetch_artifact in
   let* slow_table = artifact_url "slow_table" |> fetch_artifact in
   let* fast_table = artifact_url "fast_table" |> fetch_artifact in
-  match (summary_table, failures, slow_table, fast_table) with
-  | Error e, _, _, _ | _, Error e, _, _ | _, _, Error e, _ | _, _, _, Error e ->
+  match summary_table with
+  | Error e ->
       Lwt.return_error
         (f "Could not fetch table artifacts for bench summary: %s\n" e)
-  | Ok summary_table, Ok failures, Ok slow_table, Ok fast_table -> (
+  | Ok summary_table -> (
+      let failures = match failures with Ok s -> s | Error _ -> "" in
+      let slow_table = match slow_table with Ok s -> s | Error _ -> "" in
+      let fast_table = match fast_table with Ok s -> s | Error _ -> "" in
       (* The tables include how many entries there are, this is useful
          information to know. *)
       let parse_quantity table table_name =
