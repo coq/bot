@@ -57,10 +57,15 @@ let callback _conn req body =
     if
       string_match
         ~regexp:
-          ( f "@%s:? [Mm]inimize[^`]*```[^\n]*\n\\(\\(.\\|\n\\)+\\)"
+          ( f "@%s:? [Mm]inimize\\([^`]*\\)```[^\n]*\n\\(\\(.\\|\n\\)+\\)"
           @@ Str.quote bot_name )
         body
-    then Some (Str.matched_group 1 body |> extract_minimize_file)
+    then
+      (* avoid internal server errors from unclear execution order *)
+      let options, body =
+        (Str.matched_group 1 body, Str.matched_group 2 body)
+      in
+      Some (options, body |> extract_minimize_file)
     else None
   in
   let strip_quoted_bot_name body =
@@ -184,7 +189,7 @@ let callback _conn req body =
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) -> (
           let body = body |> Helpers.trim_comments |> strip_quoted_bot_name in
           match coqbot_minimize_text_of_body body with
-          | Some script ->
+          | Some (options, script) ->
               (fun () ->
                 init_git_bare_repository ~bot_info
                 >>= fun () ->
@@ -192,8 +197,8 @@ let callback _conn req body =
                   ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
                   (run_coq_minimizer ~script ~comment_thread_id:issue_info.id
                      ~comment_author:issue_info.user
-                     ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo )
-                )
+                     ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
+                     ~options ) )
               |> Lwt.async ;
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
@@ -206,7 +211,7 @@ let callback _conn req body =
             comment_info.body |> Helpers.trim_comments |> strip_quoted_bot_name
           in
           match coqbot_minimize_text_of_body body with
-          | Some script ->
+          | Some (options, script) ->
               (fun () ->
                 init_git_bare_repository ~bot_info
                 >>= fun () ->
@@ -217,7 +222,7 @@ let callback _conn req body =
                      ~comment_thread_id:comment_info.issue.id
                      ~comment_author:comment_info.author
                      ~owner:comment_info.issue.issue.owner
-                     ~repo:comment_info.issue.issue.repo ) )
+                     ~repo:comment_info.issue.issue.repo ~options ) )
               |> Lwt.async ;
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
@@ -344,8 +349,7 @@ let callback _conn req body =
                   action_as_github_app ~bot_info ~key ~app_id
                     ~owner:comment_info.issue.issue.owner
                     ~repo:comment_info.issue.issue.repo
-                    (run_bench
-                       ~key_value_pairs:[("coq_native", "yes")]
+                    (run_bench ~key_value_pairs:[("coq_native", "yes")]
                        comment_info ) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK

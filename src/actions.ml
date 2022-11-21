@@ -1836,9 +1836,29 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
                   Lwt.return_unit ) ) )
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo =
+    ~owner ~repo ~options =
+  let options =
+    " " ^ options ^ " " |> Str.global_replace (Str.regexp "[\n\r\t]") " "
+  in
+  let getopt opt =
+    if
+      string_match
+        ~regexp:(f " %s\\(\\.\\|[ =:-]\\|: \\)[vV]?\\([^ ]+\\) " opt)
+        options
+    then Str.matched_group 2 options
+    else ""
+  in
+  let coq_version = getopt "[Cc]oq" in
+  let ocaml_version = getopt "[Oo][Cc]aml" in
+  Lwt_io.printlf
+    "Parsed options for the bug minimizer at %s/%s@%s from '%s' into \
+     {coq_version: '%s'; ocaml_version: '%s'}"
+    owner repo
+    (GitHub_ID.to_string comment_thread_id)
+    options coq_version ocaml_version
+  >>= fun () ->
   git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo
+    ~owner ~repo ~coq_version ~ocaml_version
   >>= function
   | Ok () ->
       GitHub_mutations.post_comment ~id:comment_thread_id
@@ -1898,8 +1918,11 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
       ; pr_number ] -> (
         message |> String.split ~on:'\n'
         |> function
-        | docker_image :: target :: opam_switch :: failing_urls :: passing_urls
-          :: base :: head :: bug_file_lines ->
+        | docker_image
+          :: target
+             :: opam_switch
+                :: failing_urls
+                   :: passing_urls :: base :: head :: bug_file_lines ->
             (let bug_file_contents = String.concat ~sep:"\n" bug_file_lines in
              fun () ->
                init_git_bare_repository ~bot_info
@@ -2351,7 +2374,7 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
             Lwt_io.printl "Unauthorized user: doing nothing." |> Lwt_result.ok
           )
     |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-           Lwt_io.printf "Error: %s\n" err ) )
+           Lwt_io.printf "Error: %s\n" err ))
     >>= fun _ -> Lwt.return_unit )
   |> Lwt.async ;
   Server.respond_string ~status:`OK
