@@ -1843,7 +1843,7 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   let getopt opt =
     if
       string_match
-        ~regexp:(f " %s\\(\\.\\|[ -]\\|: \\)\\([^ ]+\\) " opt)
+        ~regexp:(f " %s\\(\\.\\|[ =:-]\\|: \\)[vV]?\\([^ ]+\\) " opt)
         options
     then Str.matched_group 2 options
     else ""
