@@ -306,17 +306,38 @@ let fetch_bench_results ~job_info () =
       job_info.build_id file
   in
   let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
-  let* failures = artifact_url "bench_failures" |> fetch_artifact in
-  let* slow_table = artifact_url "slow_table" |> fetch_artifact in
-  let* fast_table = artifact_url "fast_table" |> fetch_artifact in
+  let* failures =
+    let* failures_or_err = artifact_url "bench_failures" |> fetch_artifact in
+    match failures_or_err with
+    | Ok s ->
+        Lwt.return s
+    | Error err ->
+        Lwt_io.printlf "Error fetching bench_failures: %s" err
+        >>= fun () -> Lwt.return ""
+  in
+  let* slow_table =
+    let* slow_table_or_err = artifact_url "slow_table" |> fetch_artifact in
+    match slow_table_or_err with
+    | Ok s ->
+        Lwt.return s
+    | Error err ->
+        Lwt_io.printlf "Error fetching slow_table: %s" err
+        >>= fun () -> Lwt.return ""
+  in
+  let* fast_table =
+    let* fast_table_or_err = artifact_url "fast_table" |> fetch_artifact in
+    match fast_table_or_err with
+    | Ok s ->
+        Lwt.return s
+    | Error err ->
+        Lwt_io.printlf "Error fetching fast_table: %s" err
+        >>= fun () -> Lwt.return ""
+  in
   match summary_table with
   | Error e ->
       Lwt.return_error
         (f "Could not fetch table artifacts for bench summary: %s\n" e)
   | Ok summary_table -> (
-      let failures = match failures with Ok s -> s | Error _ -> "" in
-      let slow_table = match slow_table with Ok s -> s | Error _ -> "" in
-      let fast_table = match fast_table with Ok s -> s | Error _ -> "" in
       (* The tables include how many entries there are, this is useful
          information to know. *)
       let parse_quantity table table_name =
@@ -332,7 +353,12 @@ let fetch_bench_results ~job_info () =
           Lwt.return_error (f "Fetch bench regex issue: %s" e)
       | Ok slow_number, Ok fast_number ->
           Lwt.return_ok
-            {summary_table; failures; slow_table; slow_number; fast_table; fast_number} )
+            { summary_table
+            ; failures
+            ; slow_table
+            ; slow_number
+            ; fast_table
+            ; fast_number } )
 
 let bench_text = function
   | Ok results ->
@@ -2358,7 +2384,7 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
             Lwt_io.printl "Unauthorized user: doing nothing." |> Lwt_result.ok
           )
     |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-           Lwt_io.printf "Error: %s\n" err ) )
+           Lwt_io.printf "Error: %s\n" err ))
     >>= fun _ -> Lwt.return_unit )
   |> Lwt.async ;
   Server.respond_string ~status:`OK
