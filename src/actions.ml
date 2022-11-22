@@ -283,6 +283,7 @@ let send_doc_url ~bot_info ~github_repo_full_name job_info =
 module BenchResults = struct
   type t =
     { summary_table: string
+    ; failures: string
     ; slow_table: string
     ; slow_number: int
     ; fast_table: string
@@ -305,13 +306,38 @@ let fetch_bench_results ~job_info () =
       job_info.build_id file
   in
   let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
-  let* slow_table = artifact_url "slow_table" |> fetch_artifact in
-  let* fast_table = artifact_url "fast_table" |> fetch_artifact in
-  match (summary_table, slow_table, fast_table) with
-  | Error e, _, _ | _, Error e, _ | _, _, Error e ->
+  let* failures =
+    let* failures_or_err = artifact_url "bench_failures" |> fetch_artifact in
+    match failures_or_err with
+    | Ok s ->
+        Lwt.return s
+    | Error err ->
+        Lwt_io.printlf "Error fetching bench_failures: %s" err
+        >>= fun () -> Lwt.return ""
+  in
+  let* slow_table =
+    let* slow_table_or_err = artifact_url "slow_table" |> fetch_artifact in
+    match slow_table_or_err with
+    | Ok s ->
+        Lwt.return s
+    | Error err ->
+        Lwt_io.printlf "Error fetching slow_table: %s" err
+        >>= fun () -> Lwt.return ""
+  in
+  let* fast_table =
+    let* fast_table_or_err = artifact_url "fast_table" |> fetch_artifact in
+    match fast_table_or_err with
+    | Ok s ->
+        Lwt.return s
+    | Error err ->
+        Lwt_io.printlf "Error fetching fast_table: %s" err
+        >>= fun () -> Lwt.return ""
+  in
+  match summary_table with
+  | Error e ->
       Lwt.return_error
         (f "Could not fetch table artifacts for bench summary: %s\n" e)
-  | Ok summary_table, Ok slow_table, Ok fast_table -> (
+  | Ok summary_table -> (
       (* The tables include how many entries there are, this is useful
          information to know. *)
       let parse_quantity table table_name =
@@ -327,7 +353,12 @@ let fetch_bench_results ~job_info () =
           Lwt.return_error (f "Fetch bench regex issue: %s" e)
       | Ok slow_number, Ok fast_number ->
           Lwt.return_ok
-            {summary_table; slow_table; slow_number; fast_table; fast_number} )
+            { summary_table
+            ; failures
+            ; slow_table
+            ; slow_number
+            ; fast_table
+            ; fast_number } )
 
 let bench_text = function
   | Ok results ->
@@ -338,6 +369,7 @@ let bench_text = function
       let open BenchResults in
       [ header2 ":checkered_flag: Bench Summary:"
       ; code_wrap results.summary_table
+      ; results.failures
       ; header2 @@ f ":turtle: Top %d slow downs:" results.slow_number
       ; code_wrap results.slow_table
       ; header2 @@ f ":rabbit2: Top %d speed ups:" results.fast_number
@@ -362,6 +394,7 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url ?check_url
         let link text url = f "[%s](%s)" text url in
         [ ":checkered_flag: Bench results:"
         ; code_wrap results.summary_table
+        ; results.failures
         ; details (f ":turtle: Top %d slow downs" results.slow_number)
           @@ code_wrap results.slow_table
         ; details (f ":rabbit2: Top %d speed ups" results.fast_number)
