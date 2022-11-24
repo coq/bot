@@ -1868,6 +1868,10 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
               | _ ->
                   Lwt.return_unit ) ) )
 
+type coqbot_minimize_script_data =
+  | MinimizeScript of {quote_kind: string; body: string}
+  | MinimizeAttachment of {description: string; url: string}
+
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo ~options =
   let options =
@@ -1890,6 +1894,23 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     (GitHub_ID.to_string comment_thread_id)
     options coq_version ocaml_version
   >>= fun () ->
+  ( match script with
+  | MinimizeScript {quote_kind; body} ->
+      if
+        List.mem ~equal:String.equal ["sh"; "bash"]
+          (String.lowercase quote_kind)
+        || String.is_prefix ~prefix:"#!" body
+      then body
+      else
+        (* assume body is a .v file *)
+        let fname = "thebug.v" in
+        f "#!/usr/bin/env bash\ncat > %s <<'EOF'\n%s\nEOF\ncoqc -q %s" fname
+          body fname
+  | MinimizeAttachment {description; url} ->
+      "#!/usr/bin/env bash\n"
+      ^ Stdlib.Filename.quote_command "./handle-web-file.sh" [description; url]
+  )
+  |> fun script ->
   git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo ~coq_version ~ocaml_version
   >>= function

@@ -12,9 +12,13 @@ val pipeline_action :
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
   -> unit Lwt.t
 
+type coqbot_minimize_script_data =
+  | MinimizeScript of {quote_kind: string; body: string}
+  | MinimizeAttachment of {description: string; url: string}
+
 val run_coq_minimizer :
      bot_info:Bot_info.t
-  -> script:string
+  -> script:coqbot_minimize_script_data
   -> comment_thread_id:GitHub_ID.t
   -> comment_author:string
   -> owner:string
