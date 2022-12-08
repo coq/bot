@@ -450,7 +450,6 @@ let callback _conn req body =
       Server.respond_not_found ()
 
 let launch =
-  Stdio.printf "Starting server.\n" ;
   let mode = `TCP (`Port port) in
   Server.create ~mode (Server.make ~callback ())
 
