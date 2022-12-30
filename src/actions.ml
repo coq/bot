@@ -2251,18 +2251,20 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
         && String.equal pr_info.issue.issue.repo "coq"
         && not skip_author_check
       then
-        let* config_modified, dev_dir_modified =
-          Lwt_result.both
-            (git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
-               ".gitlab-ci.yml" )
-            (git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
-               "dev/bench/gitlab-bench.yml" )
+        let* config_modified =
+          git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
+            ".*gitlab.*\\.yml"
         in
-        if config_modified || dev_dir_modified then
-          GitHub_queries.get_team_membership ~bot_info ~org:"coq"
-            ~team:"contributors" ~user:pr_info.issue.user
+        if config_modified then (
+          Lwt.async (fun () ->
+              Lwt_io.printlf
+                "CI configuration modified in PR coq/coq#%d, checking if %s is \
+                 a member of @coq/contributors..."
+                pr_info.issue.number pr_info.issue.user ) ;
           (* This is an approximation:
              we are checking who the PR author is and not who is pushing. *)
+          GitHub_queries.get_team_membership ~bot_info ~org:"coq"
+            ~team:"contributors" ~user:pr_info.issue.user )
         else Lwt.return_ok true
       else Lwt.return_ok true
     in
@@ -2273,8 +2275,8 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
       GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
         ~message:
           "I am not triggering a CI run on this PR because the CI \
-           configuration or the bench suite has been modified. CI can be \
-           triggered manually by an authorized contributor."
+           configuration has been modified. CI can be triggered manually by an \
+           authorized contributor."
       >>= GitHub_mutations.report_on_posting_comment
       >>= fun () -> Lwt.return_ok () )
     else
