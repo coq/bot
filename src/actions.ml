@@ -736,7 +736,8 @@ type ci_minimization_info =
   ; passing_urls: string }
 
 let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
-    ~base ~head ~ci_minimization_infos ~bug_file_contents =
+    ~base ~head ~ci_minimization_infos ~bug_file_contents
+    ~minimizer_extra_arguments =
   (* for convenience of control flow, we always create the temporary
      file, but we only pass in the file name if the bug file contents
      is non-None *)
@@ -752,7 +753,7 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
         (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
           git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
             ~pr_number ~docker_image ~target ~opam_switch ~failing_urls
-            ~passing_urls ~base ~head ~bug_file_name
+            ~passing_urls ~base ~head ~minimizer_extra_arguments ~bug_file_name
           >>= fun result -> Lwt.return (target, result) )
         ci_minimization_infos )
   >>= fun results ->
@@ -1190,7 +1191,15 @@ let getopt options ~opt =
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary ~request ~comment_on_error ~bug_file_contents
-    ?base_sha ?head_sha () =
+    ~options ?base_sha ?head_sha () =
+  let options = format_options_for_getopts options in
+  let minimizer_extra_arguments = [] in
+  Lwt_io.printlf
+    "Parsed options for the bug minimizer at %s/%s#%d from '%s' into \
+     {minimizer_extra_arguments: '%s'}"
+    owner repo pr_number options
+    (String.concat ~sep:" " minimizer_extra_arguments)
+  >>= fun () ->
   fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary ?base_sha ?head_sha ()
   >>= function
@@ -1276,7 +1285,8 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       >>= fun () ->
       run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
         ~pr_number:(Int.to_string pr_number) ~base ~head
-        ~ci_minimization_infos:jobs_to_minimize ~bug_file_contents
+        ~ci_minimization_infos:jobs_to_minimize ~minimizer_extra_arguments
+        ~bug_file_contents
       >>= fun (jobs_minimized, jobs_that_could_not_be_minimized) ->
       let pluralize word ?plural ls =
         match (ls, plural) with
@@ -1729,7 +1739,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         "Error while attempting to find jobs to minimize from PR #%d:\n%s"
         pr_number err
 
-let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error
+let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error ~options
     ~bug_file_contents =
   minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
     ~repo:comment_info.issue.issue.repo ~pr_number:comment_info.issue.number
@@ -1742,7 +1752,7 @@ let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error
           RequestAll
       | requests ->
           RequestExplicit requests )
-    ~comment_on_error ~bug_file_contents ()
+    ~comment_on_error ~options ~bug_file_contents ()
 
 let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
   let gitlab_full_name = pipeline_info.project_path in
@@ -1874,7 +1884,7 @@ let pipeline_action ~bot_info pipeline_info ~gitlab_mapping : unit Lwt.t =
               | "coq", "coq", "failed", Some pr_number ->
                   minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                     ~head_pipeline_summary:(Some summary) ~request:Auto
-                    ~comment_on_error:false ~bug_file_contents:None
+                    ~comment_on_error:false ~options:"" ~bug_file_contents:None
                     ?base_sha:pipeline_info.common_info.base_commit
                     ~head_sha:pipeline_info.common_info.head_commit ()
               | _ ->
@@ -1890,14 +1900,16 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   let getopt_version opt =
     options |> getopt ~opt |> Str.replace_first (Str.regexp "^[vV]") ""
   in
+  let minimizer_extra_arguments = [] in
   let coq_version = getopt_version "[Cc]oq" in
   let ocaml_version = getopt_version "[Oo][Cc]aml" in
   Lwt_io.printlf
     "Parsed options for the bug minimizer at %s/%s@%s from '%s' into \
-     {coq_version: '%s'; ocaml_version: '%s'}"
+     {coq_version: '%s'; ocaml_version: '%s'; minimizer_extra_arguments: '%s'}"
     owner repo
     (GitHub_ID.to_string comment_thread_id)
     options coq_version ocaml_version
+    (String.concat ~sep:" " minimizer_extra_arguments)
   >>= fun () ->
   ( match script with
   | MinimizeScript {quote_kind; body} ->
@@ -1917,7 +1929,7 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   )
   |> fun script ->
   git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo ~coq_version ~ocaml_version
+    ~owner ~repo ~coq_version ~ocaml_version ~minimizer_extra_arguments
   >>= function
   | Ok () ->
       GitHub_mutations.post_comment ~id:comment_thread_id
@@ -1977,12 +1989,12 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
       ; pr_number ] -> (
         message |> String.split ~on:'\n'
         |> function
-        | docker_image
-          :: target
-             :: opam_switch
-                :: failing_urls
-                   :: passing_urls :: base :: head :: bug_file_lines ->
-            (let bug_file_contents = String.concat ~sep:"\n" bug_file_lines in
+        | docker_image :: target :: opam_switch :: failing_urls :: passing_urls
+          :: base :: head :: extra_arguments_joined :: bug_file_lines ->
+            (let minimizer_extra_arguments =
+               String.split ~on:' ' extra_arguments_joined
+             in
+             let bug_file_contents = String.concat ~sep:"\n" bug_file_lines in
              fun () ->
                init_git_bare_repository ~bot_info
                >>= fun () ->
@@ -1991,6 +2003,7 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                  (run_ci_minimization
                     ~comment_thread_id:(GitHub_ID.of_string comment_thread_id)
                     ~owner ~repo ~base ~pr_number ~head
+                    ~minimizer_extra_arguments
                     ~ci_minimization_infos:
                       [ { target
                         ; opam_switch
@@ -2435,7 +2448,7 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
             Lwt_io.printl "Unauthorized user: doing nothing." |> Lwt_result.ok
           )
     |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
-           Lwt_io.printf "Error: %s\n" err ))
+           Lwt_io.printf "Error: %s\n" err ) )
     >>= fun _ -> Lwt.return_unit )
   |> Lwt.async ;
   Server.respond_string ~status:`OK

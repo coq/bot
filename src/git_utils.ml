@@ -130,7 +130,7 @@ let git_test_modified ~base ~head pattern =
       Error (f "%s stopped by signal %d." command signal)
 
 let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
-    ~owner ~repo ~coq_version ~ocaml_version =
+    ~owner ~repo ~coq_version ~ocaml_version ~minimizer_extra_arguments =
   (* To push a new branch we need to identify as coqbot the GitHub
      user, who is a collaborator on the run-coq-bug-minimizer repo,
      not coqbot the GitHub App *)
@@ -144,12 +144,13 @@ let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ; owner
     ; repo
     ; coq_version
-    ; ocaml_version ]
+    ; ocaml_version
+    ; minimizer_extra_arguments |> String.concat ~sep:" " ]
   |> execute_cmd
 
 let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
     ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base ~head
-    ~bug_file_name =
+    ~minimizer_extra_arguments ~bug_file_name =
   (* To push a new branch we need to identify as coqbot the GitHub
      user, who is a collaborator on the run-coq-bug-minimizer repo,
      not coqbot the GitHub App *)
@@ -166,7 +167,8 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
     ; failing_urls
     ; passing_urls
     ; base
-    ; head ]
+    ; head
+    ; minimizer_extra_arguments |> String.concat ~sep:" " ]
   @
   match bug_file_name with Some bug_file_name -> [bug_file_name] | None -> [] )
   |> Stdlib.Filename.quote_command "./run_ci_minimization.sh"

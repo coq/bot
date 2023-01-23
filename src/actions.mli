@@ -87,6 +87,7 @@ val ci_minimize :
   -> comment_info:GitHub_types.comment_info
   -> requests:string list
   -> comment_on_error:bool
+  -> options:string
   -> bug_file_contents:string option
   -> unit Lwt.t
 

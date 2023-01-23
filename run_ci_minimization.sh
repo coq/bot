@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target opam_switch failing_urls passing_urls base head [bug_file]
+# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target opam_switch failing_urls passing_urls base head minimizer_extra_arguments [bug_file]
 
 set -ex
 
-if [ $# != 14 ] && [ $# != 15 ]; then >&2 echo Bad argument count; exit 1; fi
+if [ $# != 15 ] && [ $# != 16 ]; then >&2 echo Bad argument count; exit 1; fi
 
 comment_thread_id=$1
 token=$2
@@ -20,7 +20,8 @@ failing_urls=${11}
 passing_urls=${12}
 base=${13}
 head=${14}
-bug_file=${15}
+minimizer_extra_arguments=${15}
+bug_file=${16}
 branch_id=$(($(od -A n -t uI -N 5 /dev/urandom | tr -d ' ')))
 repo_name="coq-community/run-coq-bug-minimizer"
 branch_name="run-coq-bug-minimizer-$branch_id"
@@ -33,6 +34,7 @@ resumption_args=(
     "${passing_urls}"
     "${base}"
     "${head}"
+    "${minimizer_extra_arguments}"
 )
 
 if [ -f "${bug_file}" ]; then
@@ -56,6 +58,7 @@ echo "${passing_urls}" >  coqbot.passing-artifact-urls
 echo "${head}" > coqbot.failing-sha
 echo "${base}" > coqbot.passing-sha
 echo "${pr_number}" > coqbot.issue-number
+printf "%s" "${minimizer_extra_arguments}" | tr ' ' '\n' > coqbot.extra-args
 echo "https://$bot_domain/ci-minimization" > coqbot.url
 echo "https://$bot_domain/resume-ci-minimization" > coqbot.resume-minimization-url
 rm -f coqbot.resumption-args
