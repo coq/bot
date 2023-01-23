@@ -1176,6 +1176,18 @@ let suggest_ci_minimization_for_pr = function
   | _ ->
       Suggest
 
+let format_options_for_getopts options =
+  " " ^ options ^ " " |> Str.global_replace (Str.regexp "[\n\r\t]") " "
+
+let getopts options ~opt =
+  map_string_matches
+    ~regexp:(f " %s\\(\\.\\|[ =:-]\\|: \\)\\([^ ]+\\) " opt)
+    ~f:(fun () -> Str.matched_group 2 options)
+    options
+
+let getopt options ~opt =
+  options |> getopts ~opt |> List.hd |> Option.value ~default:""
+
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary ~request ~comment_on_error ~bug_file_contents
     ?base_sha ?head_sha () =
@@ -1874,19 +1886,12 @@ type coqbot_minimize_script_data =
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo ~options =
-  let options =
-    " " ^ options ^ " " |> Str.global_replace (Str.regexp "[\n\r\t]") " "
+  let options = format_options_for_getopts options in
+  let getopt_version opt =
+    options |> getopt ~opt |> Str.replace_first (Str.regexp "^[vV]") ""
   in
-  let getopt opt =
-    if
-      string_match
-        ~regexp:(f " %s\\(\\.\\|[ =:-]\\|: \\)[vV]?\\([^ ]+\\) " opt)
-        options
-    then Str.matched_group 2 options
-    else ""
-  in
-  let coq_version = getopt "[Cc]oq" in
-  let ocaml_version = getopt "[Oo][Cc]aml" in
+  let coq_version = getopt_version "[Cc]oq" in
+  let ocaml_version = getopt_version "[Oo][Cc]aml" in
   Lwt_io.printlf
     "Parsed options for the bug minimizer at %s/%s@%s from '%s' into \
      {coq_version: '%s'; ocaml_version: '%s'}"
