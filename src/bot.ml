@@ -47,44 +47,96 @@ let string_of_installation_tokens =
 (* TODO: deprecate unsigned webhooks *)
 
 let callback _conn req body =
-  let body = Cohttp_lwt.Body.to_string body in
-  let extract_minimize_file body =
-    body
-    |> Str.split (Str.regexp_string "\n```")
-    |> List.hd |> Option.value ~default:""
-  in
-  let coqbot_minimize_text_of_body body =
-    if
-      string_match
-        ~regexp:
-          ( f "@%s:? [Mm]inimize\\([^`]*\\)```\\([^\n]*\\)\n\\(\\(.\\|\n\\)+\\)"
-          @@ Str.quote bot_name )
-        body
-    then
-      (* avoid internal server errors from unclear execution order *)
-      let options, quote_kind, body =
-        ( Str.matched_group 1 body
-        , Str.matched_group 2 body
-        , Str.matched_group 3 body )
-      in
-      Some
-        ( options
-        , MinimizeScript {quote_kind; body= body |> extract_minimize_file} )
-    else if
-      string_match
-        ~regexp:
-          ( f "@%s? [Mm]inimize\\([^`]*\\)\\[\\([^]]*\\)\\] *(\\([^)]*\\))"
-          @@ Str.quote bot_name )
-        body
-    then
-      (* avoid internal server errors from unclear execution order *)
-      let options, description, url =
-        ( Str.matched_group 1 body
-        , Str.matched_group 2 body
-        , Str.matched_group 3 body )
-      in
-      Some (options, MinimizeAttachment {description; url})
-    else None
+  let ( coqbot_minimize_text_of_body
+      , coqbot_ci_minimize_text_of_body
+      , coqbot_resume_ci_minimize_text_of_body ) =
+    let extract_minimize_file body =
+      body
+      |> Str.split (Str.regexp_string "\n```")
+      |> List.hd |> Option.value ~default:""
+    in
+    let parse_minimiation_requests requests =
+      requests
+      |> Str.global_replace (Str.regexp "[ ,]+") " "
+      |> String.split ~on:' '
+      |> List.map ~f:Stdlib.String.trim
+      (* remove trailing : in case the user stuck a : at the end of the line *)
+      |> List.map ~f:(Str.global_replace (Str.regexp ":$") "")
+      |> List.filter ~f:(fun r -> not (String.is_empty r))
+    in
+    let coqbot_minimize_text_of_body body =
+      if
+        string_match
+          ~regexp:
+            ( f
+                "@%s:? [Mm]inimize\\([^`]*\\)```\\([^\n\
+                 ]*\\)\n\
+                 \\(\\(.\\|\n\
+                 \\)+\\)"
+            @@ Str.quote bot_name )
+          body
+      then
+        (* avoid internal server errors from unclear execution order *)
+        let options, quote_kind, body =
+          ( Str.matched_group 1 body
+          , Str.matched_group 2 body
+          , Str.matched_group 3 body )
+        in
+        Some
+          ( options
+          , MinimizeScript {quote_kind; body= body |> extract_minimize_file} )
+      else if
+        string_match
+          ~regexp:
+            ( f "@%s? [Mm]inimize\\([^`]*\\)\\[\\([^]]*\\)\\] *(\\([^)]*\\))"
+            @@ Str.quote bot_name )
+          body
+      then
+        (* avoid internal server errors from unclear execution order *)
+        let options, description, url =
+          ( Str.matched_group 1 body
+          , Str.matched_group 2 body
+          , Str.matched_group 3 body )
+        in
+        Some (options, MinimizeAttachment {description; url})
+      else None
+    in
+    let coqbot_ci_minimize_text_of_body body =
+      if
+        string_match
+          ~regexp:
+            ( f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)"
+            @@ Str.quote bot_name )
+          body
+      then
+        let requests = Str.matched_group 1 body in
+        Some (requests |> parse_minimiation_requests)
+      else None
+    in
+    let coqbot_resume_ci_minimize_text_of_body body =
+      if
+        string_match
+          ~regexp:
+            ( f
+                "@%s:? resume [Cc][Ii][- ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
+                 ]*\\)\n\
+                 +```[^\n\
+                 ]*\n\
+                 \\(\\(.\\|\n\
+                 \\)+\\)"
+            @@ Str.quote bot_name )
+          body
+      then
+        let requests, body =
+          (Str.matched_group 2 body, Str.matched_group 3 body)
+        in
+        Some
+          (requests |> parse_minimiation_requests, body |> extract_minimize_file)
+      else None
+    in
+    ( coqbot_minimize_text_of_body
+    , coqbot_ci_minimize_text_of_body
+    , coqbot_resume_ci_minimize_text_of_body )
   in
   let strip_quoted_bot_name body =
     (* If someone says "`@coqbot minimize foo`", (with backticks), we
@@ -96,6 +148,7 @@ let callback _conn req body =
       (f "@\\1%s " @@ Str.quote bot_name)
       body
   in
+  let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
   match Uri.path (Request.uri req) with
   | "/job" | "/pipeline" (* legacy endpoints *) | "/gitlab" -> (
@@ -244,26 +297,9 @@ let callback _conn req body =
               |> Lwt.async ;
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
-          | None ->
-              let parse_minimiation_requests requests =
-                requests
-                |> Str.global_replace (Str.regexp "[ ,]+") " "
-                |> String.split ~on:' '
-                |> List.map ~f:Stdlib.String.trim
-                (* remove trailing : in case the user stuck a : at the end of the line *)
-                |> List.map ~f:(Str.global_replace (Str.regexp ":$") "")
-                |> List.filter ~f:(fun r -> not (String.is_empty r))
-              in
-              if
-                string_match
-                  ~regexp:
-                    ( f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)"
-                    @@ Str.quote bot_name )
-                  body
-              then (
-                let requests =
-                  Str.matched_group 1 body |> parse_minimiation_requests
-                in
+          | None -> (
+            match coqbot_ci_minimize_text_of_body body with
+            | Some requests ->
                 (fun () ->
                   init_git_bare_repository ~bot_info
                   >>= fun () ->
@@ -274,127 +310,112 @@ let callback _conn req body =
                        ~bug_file_contents:None ) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
-                  ~body:"Handling CI minimization." () )
-              else if
-                string_match
-                  ~regexp:
-                    ( f
-                        "@%s:? resume [Cc][Ii][- \
-                         ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
-                         ]*\\)\n\
-                         +```[^\n\
-                         ]*\n\
-                         \\(\\(.\\|\n\
-                         \\)+\\)"
-                    @@ Str.quote bot_name )
-                  body
-              then (
-                let requests, bug_file_contents =
-                  (Str.matched_group 2 body, Str.matched_group 3 body)
-                in
-                let requests, bug_file_contents =
-                  ( parse_minimiation_requests requests
-                  , extract_minimize_file bug_file_contents )
-                in
-                (fun () ->
-                  init_git_bare_repository ~bot_info
-                  >>= fun () ->
-                  action_as_github_app ~bot_info ~key ~app_id
-                    ~owner:comment_info.issue.issue.owner
-                    ~repo:comment_info.issue.issue.repo
-                    (ci_minimize ~comment_info ~requests ~comment_on_error:true
-                       ~bug_file_contents:(Some bug_file_contents) ) )
-                |> Lwt.async ;
-                Server.respond_string ~status:`OK
-                  ~body:"Handling CI minimization resumption." () )
-              else if
-                string_match
-                  ~regexp:
-                    ( f "@%s:? [Rr]un \\(full\\|light\\|\\) ?[Cc][Ii]"
-                    @@ Str.quote bot_name )
-                  body
-                && comment_info.issue.pull_request
-                && String.equal comment_info.issue.issue.owner "coq"
-                && String.equal comment_info.issue.issue.repo "coq"
-                && signed
-              then
-                let full_ci =
-                  match Str.matched_group 1 body with
-                  | "full" ->
-                      Some true
-                  | "light" ->
-                      Some false
-                  | "" ->
-                      None
-                  | _ ->
-                      failwith "Impossible group value."
-                in
-                init_git_bare_repository ~bot_info
-                >>= fun () ->
-                action_as_github_app ~bot_info ~key ~app_id
-                  ~owner:comment_info.issue.issue.owner
-                  ~repo:comment_info.issue.issue.repo
-                  (run_ci_action ~comment_info ?full_ci ~gitlab_mapping
-                     ~github_mapping () )
-              else if
-                string_match
-                  ~regexp:(f "@%s:? [Mm]erge now" @@ Str.quote bot_name)
-                  body
-                && comment_info.issue.pull_request
-                && String.equal comment_info.issue.issue.owner "coq"
-                && String.equal comment_info.issue.issue.repo "coq"
-                && signed
-              then (
-                (fun () ->
-                  action_as_github_app ~bot_info ~key ~app_id
-                    ~owner:comment_info.issue.issue.owner
-                    ~repo:comment_info.issue.issue.repo
-                    (merge_pull_request_action comment_info) )
-                |> Lwt.async ;
-                Server.respond_string ~status:`OK
-                  ~body:(f "Received a request to merge the PR.")
-                  () )
-              else if
-                string_match
-                  ~regexp:(f "@%s:? [Bb]ench native" @@ Str.quote bot_name)
-                  body
-                && comment_info.issue.pull_request
-                && String.equal comment_info.issue.issue.owner "coq"
-                && String.equal comment_info.issue.issue.repo "coq"
-                && signed
-              then (
-                (fun () ->
-                  action_as_github_app ~bot_info ~key ~app_id
-                    ~owner:comment_info.issue.issue.owner
-                    ~repo:comment_info.issue.issue.repo
-                    (run_bench ~key_value_pairs:[("coq_native", "yes")]
-                       comment_info ) )
-                |> Lwt.async ;
-                Server.respond_string ~status:`OK
-                  ~body:(f "Received a request to start the bench.")
-                  () )
-              else if
-                string_match
-                  ~regexp:(f "@%s:? [Bb]ench" @@ Str.quote bot_name)
-                  body
-                && comment_info.issue.pull_request
-                && String.equal comment_info.issue.issue.owner "coq"
-                && String.equal comment_info.issue.issue.repo "coq"
-                && signed
-              then (
-                (fun () ->
-                  action_as_github_app ~bot_info ~key ~app_id
-                    ~owner:comment_info.issue.issue.owner
-                    ~repo:comment_info.issue.issue.repo (run_bench comment_info)
-                  )
-                |> Lwt.async ;
-                Server.respond_string ~status:`OK
-                  ~body:(f "Received a request to start the bench.")
-                  () )
-              else
-                Server.respond_string ~status:`OK
-                  ~body:(f "Unhandled comment: %s" body)
-                  () )
+                  ~body:"Handling CI minimization." ()
+            | None -> (
+              match coqbot_resume_ci_minimize_text_of_body body with
+              | Some (requests, bug_file_contents) ->
+                  (fun () ->
+                    init_git_bare_repository ~bot_info
+                    >>= fun () ->
+                    action_as_github_app ~bot_info ~key ~app_id
+                      ~owner:comment_info.issue.issue.owner
+                      ~repo:comment_info.issue.issue.repo
+                      (ci_minimize ~comment_info ~requests
+                         ~comment_on_error:true
+                         ~bug_file_contents:(Some bug_file_contents) ) )
+                  |> Lwt.async ;
+                  Server.respond_string ~status:`OK
+                    ~body:"Handling CI minimization resumption." ()
+              | None ->
+                  if
+                    string_match
+                      ~regexp:
+                        ( f "@%s:? [Rr]un \\(full\\|light\\|\\) ?[Cc][Ii]"
+                        @@ Str.quote bot_name )
+                      body
+                    && comment_info.issue.pull_request
+                    && String.equal comment_info.issue.issue.owner "coq"
+                    && String.equal comment_info.issue.issue.repo "coq"
+                    && signed
+                  then
+                    let full_ci =
+                      match Str.matched_group 1 body with
+                      | "full" ->
+                          Some true
+                      | "light" ->
+                          Some false
+                      | "" ->
+                          None
+                      | _ ->
+                          failwith "Impossible group value."
+                    in
+                    init_git_bare_repository ~bot_info
+                    >>= fun () ->
+                    action_as_github_app ~bot_info ~key ~app_id
+                      ~owner:comment_info.issue.issue.owner
+                      ~repo:comment_info.issue.issue.repo
+                      (run_ci_action ~comment_info ?full_ci ~gitlab_mapping
+                         ~github_mapping () )
+                  else if
+                    string_match
+                      ~regexp:(f "@%s:? [Mm]erge now" @@ Str.quote bot_name)
+                      body
+                    && comment_info.issue.pull_request
+                    && String.equal comment_info.issue.issue.owner "coq"
+                    && String.equal comment_info.issue.issue.repo "coq"
+                    && signed
+                  then (
+                    (fun () ->
+                      action_as_github_app ~bot_info ~key ~app_id
+                        ~owner:comment_info.issue.issue.owner
+                        ~repo:comment_info.issue.issue.repo
+                        (merge_pull_request_action comment_info) )
+                    |> Lwt.async ;
+                    Server.respond_string ~status:`OK
+                      ~body:(f "Received a request to merge the PR.")
+                      () )
+                  else if
+                    string_match
+                      ~regexp:(f "@%s:? [Bb]ench native" @@ Str.quote bot_name)
+                      body
+                    && comment_info.issue.pull_request
+                    && String.equal comment_info.issue.issue.owner "coq"
+                    && String.equal comment_info.issue.issue.repo "coq"
+                    && signed
+                  then (
+                    (fun () ->
+                      action_as_github_app ~bot_info ~key ~app_id
+                        ~owner:comment_info.issue.issue.owner
+                        ~repo:comment_info.issue.issue.repo
+                        (run_bench
+                           ~key_value_pairs:[("coq_native", "yes")]
+                           comment_info ) )
+                    |> Lwt.async ;
+                    Server.respond_string ~status:`OK
+                      ~body:(f "Received a request to start the bench.")
+                      () )
+                  else if
+                    string_match
+                      ~regexp:(f "@%s:? [Bb]ench" @@ Str.quote bot_name)
+                      body
+                    && comment_info.issue.pull_request
+                    && String.equal comment_info.issue.issue.owner "coq"
+                    && String.equal comment_info.issue.issue.repo "coq"
+                    && signed
+                  then (
+                    (fun () ->
+                      action_as_github_app ~bot_info ~key ~app_id
+                        ~owner:comment_info.issue.issue.owner
+                        ~repo:comment_info.issue.issue.repo
+                        (run_bench comment_info) )
+                    |> Lwt.async ;
+                    Server.respond_string ~status:`OK
+                      ~body:(f "Received a request to start the bench.")
+                      () )
+                  else
+                    Server.respond_string ~status:`OK
+                      ~body:(f "Unhandled comment: %s" body)
+                      () ) ) )
       | Ok (signed, CheckRunReRequested {external_id}) ->
           if not signed then
             Server.respond_string ~status:(Code.status_of_code 401)
