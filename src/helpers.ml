@@ -2,11 +2,23 @@ open Base
 
 let f = Printf.sprintf
 
-let string_match ~regexp string =
+let string_match ~regexp ?(pos = 0) string =
   try
-    let _ = Str.search_forward (Str.regexp regexp) string 0 in
+    let (_ : int) = Str.search_forward (Str.regexp regexp) string pos in
     true
   with Stdlib.Not_found -> false
+
+let rec fold_string_matches ~regexp ~f ~init ?(pos = 0) string =
+  if string_match ~regexp ~pos string then
+    let pos = Str.match_end () in
+    f (fun () -> fold_string_matches ~regexp ~f ~init ~pos string)
+  else init
+
+let map_string_matches ~regexp ~f string =
+  fold_string_matches ~regexp ~f:(fun rest -> let v = f () in v :: rest ()) ~init:[] string
+
+let iter_string_matches ~regexp ~f string =
+  fold_string_matches ~regexp ~f:(fun rest -> f () ; rest ()) ~init:() string
 
 let pr_from_branch branch =
   if string_match ~regexp:"^pr-\\([0-9]*\\)$" branch then
