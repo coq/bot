@@ -15,7 +15,7 @@ let rec fold_string_matches ~regexp ~f ~init ?(pos = 0) string =
   else init
 
 let map_string_matches ~regexp ~f string =
-  fold_string_matches ~regexp ~f:(fun rest -> f () :: rest ()) ~init:[] string
+  fold_string_matches ~regexp ~f:(fun rest -> let v = f () in v :: rest ()) ~init:[] string
 
 let iter_string_matches ~regexp ~f string =
   fold_string_matches ~regexp ~f:(fun rest -> f () ; rest ()) ~init:() string
