@@ -57,15 +57,33 @@ let callback _conn req body =
     if
       string_match
         ~regexp:
-          ( f "@%s:? [Mm]inimize\\([^`]*\\)```[^\n]*\n\\(\\(.\\|\n\\)+\\)"
+          ( f "@%s:? [Mm]inimize\\([^`]*\\)```\\([^\n]*\\)\n\\(\\(.\\|\n\\)+\\)"
           @@ Str.quote bot_name )
         body
     then
       (* avoid internal server errors from unclear execution order *)
-      let options, body =
-        (Str.matched_group 1 body, Str.matched_group 2 body)
+      let options, quote_kind, body =
+        ( Str.matched_group 1 body
+        , Str.matched_group 2 body
+        , Str.matched_group 3 body )
       in
-      Some (options, body |> extract_minimize_file)
+      Some
+        ( options
+        , MinimizeScript {quote_kind; body= body |> extract_minimize_file} )
+    else if
+      string_match
+        ~regexp:
+          ( f "@%s? [Mm]inimize\\([^`]*\\)\\[\\([^]]*\\)\\] *(\\([^)]*\\))"
+          @@ Str.quote bot_name )
+        body
+    then
+      (* avoid internal server errors from unclear execution order *)
+      let options, description, url =
+        ( Str.matched_group 1 body
+        , Str.matched_group 2 body
+        , Str.matched_group 3 body )
+      in
+      Some (options, MinimizeAttachment {description; url})
     else None
   in
   let strip_quoted_bot_name body =
