@@ -1189,11 +1189,25 @@ let getopts options ~opt =
 let getopt options ~opt =
   options |> getopts ~opt |> List.hd |> Option.value ~default:""
 
+let accumulate_extra_minimizer_arguments options =
+  let extra_args = getopts ~opt:"extra-arg" options in
+  let inline_stdlib = getopt ~opt:"inline-stdlib" options in
+  ( if String.equal inline_stdlib "yes" then Lwt.return ["--inline-coqlib"]
+  else
+    ( if not (String.equal inline_stdlib "") then
+      Lwt_io.printlf
+        "Ignoring invalid option to inline-stdlib '%s' not equal to 'yes'"
+        inline_stdlib
+    else Lwt.return_unit )
+    >>= fun () -> Lwt.return_nil )
+  >>= fun inline_stdlib_args -> inline_stdlib_args @ extra_args |> Lwt.return
+
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
     ~head_pipeline_summary ~request ~comment_on_error ~bug_file_contents
     ~options ?base_sha ?head_sha () =
   let options = format_options_for_getopts options in
-  let minimizer_extra_arguments = [] in
+  accumulate_extra_minimizer_arguments options
+  >>= fun minimizer_extra_arguments ->
   Lwt_io.printlf
     "Parsed options for the bug minimizer at %s/%s#%d from '%s' into \
      {minimizer_extra_arguments: '%s'}"
@@ -1900,7 +1914,8 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   let getopt_version opt =
     options |> getopt ~opt |> Str.replace_first (Str.regexp "^[vV]") ""
   in
-  let minimizer_extra_arguments = [] in
+  accumulate_extra_minimizer_arguments options
+  >>= fun minimizer_extra_arguments ->
   let coq_version = getopt_version "[Cc]oq" in
   let ocaml_version = getopt_version "[Oo][Cc]aml" in
   Lwt_io.printlf
