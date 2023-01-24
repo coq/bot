@@ -305,8 +305,12 @@ let callback _conn req body =
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
           | None -> (
-            match coqbot_ci_minimize_text_of_body body with
-            | Some (options, requests) ->
+            (* Since both ci minimization resumption and ci
+               minimization will match the resumption string, and we
+               don't want to parse "resume" as an option, we test
+               resumption first *)
+            match coqbot_resume_ci_minimize_text_of_body body with
+            | Some (options, requests, bug_file_contents) ->
                 (fun () ->
                   init_git_bare_repository ~bot_info
                   >>= fun () ->
@@ -314,13 +318,13 @@ let callback _conn req body =
                     ~owner:comment_info.issue.issue.owner
                     ~repo:comment_info.issue.issue.repo
                     (ci_minimize ~comment_info ~requests ~comment_on_error:true
-                       ~options ~bug_file_contents:None ) )
+                       ~options ~bug_file_contents:(Some bug_file_contents) ) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
-                  ~body:"Handling CI minimization." ()
+                  ~body:"Handling CI minimization resumption." ()
             | None -> (
-              match coqbot_resume_ci_minimize_text_of_body body with
-              | Some (options, requests, bug_file_contents) ->
+              match coqbot_ci_minimize_text_of_body body with
+              | Some (options, requests) ->
                   (fun () ->
                     init_git_bare_repository ~bot_info
                     >>= fun () ->
@@ -328,11 +332,11 @@ let callback _conn req body =
                       ~owner:comment_info.issue.issue.owner
                       ~repo:comment_info.issue.issue.repo
                       (ci_minimize ~comment_info ~requests
-                         ~comment_on_error:true ~options
-                         ~bug_file_contents:(Some bug_file_contents) ) )
+                         ~comment_on_error:true ~options ~bug_file_contents:None )
+                    )
                   |> Lwt.async ;
                   Server.respond_string ~status:`OK
-                    ~body:"Handling CI minimization resumption." ()
+                    ~body:"Handling CI minimization." ()
               | None ->
                   if
                     string_match
