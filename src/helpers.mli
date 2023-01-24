@@ -1,13 +1,13 @@
 val f : ('a, unit, string) format -> 'a
 
+val string_match : regexp:string -> ?pos:int -> string -> bool
+
 val fold_string_matches :
   regexp:string -> f:((unit -> 'a) -> 'a) -> init:'a -> ?pos:int -> string -> 'a
 
 val map_string_matches : regexp:string -> f:(unit -> 'a) -> string -> 'a list
 
 val iter_string_matches : regexp:string -> f:(unit -> unit) -> string -> unit
-
-val string_match : regexp:string -> string -> bool
 
 val pr_from_branch : string -> int option * string
 
