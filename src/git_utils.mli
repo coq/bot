@@ -44,6 +44,7 @@ val git_coq_bug_minimizer :
   -> repo:string
   -> coq_version:string
   -> ocaml_version:string
+  -> minimizer_extra_arguments:string list
   -> (unit, string) result Lwt.t
 
 val git_run_ci_minimization :
@@ -59,5 +60,6 @@ val git_run_ci_minimization :
   -> passing_urls:string
   -> base:string
   -> head:string
+  -> minimizer_extra_arguments:string list
   -> bug_file_name:string option
   -> (unit, string) result Lwt.t

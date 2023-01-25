@@ -105,12 +105,14 @@ let callback _conn req body =
       if
         string_match
           ~regexp:
-            ( f "@%s:? [Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)"
+            ( f "@%s:?\\( [^\n]*\\)\\b[Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)"
             @@ Str.quote bot_name )
           body
       then
-        let requests = Str.matched_group 1 body in
-        Some (requests |> parse_minimiation_requests)
+        let options, requests =
+          (Str.matched_group 1 body, Str.matched_group 2 body)
+        in
+        Some (options, requests |> parse_minimiation_requests)
       else None
     in
     let coqbot_resume_ci_minimize_text_of_body body =
@@ -118,7 +120,8 @@ let callback _conn req body =
         string_match
           ~regexp:
             ( f
-                "@%s:? resume [Cc][Ii][- ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
+                "@%s:?\\( [^\n\
+                 ]*\\)\\bresume [Cc][Ii][- ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
                  ]*\\)\n\
                  +```[^\n\
                  ]*\n\
@@ -127,11 +130,15 @@ let callback _conn req body =
             @@ Str.quote bot_name )
           body
       then
-        let requests, body =
-          (Str.matched_group 2 body, Str.matched_group 3 body)
+        let options, requests, body =
+          ( Str.matched_group 1 body
+          , Str.matched_group 3 body
+          , Str.matched_group 4 body )
         in
         Some
-          (requests |> parse_minimiation_requests, body |> extract_minimize_file)
+          ( options
+          , requests |> parse_minimiation_requests
+          , body |> extract_minimize_file )
       else None
     in
     ( coqbot_minimize_text_of_body
@@ -298,8 +305,12 @@ let callback _conn req body =
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
           | None -> (
-            match coqbot_ci_minimize_text_of_body body with
-            | Some requests ->
+            (* Since both ci minimization resumption and ci
+               minimization will match the resumption string, and we
+               don't want to parse "resume" as an option, we test
+               resumption first *)
+            match coqbot_resume_ci_minimize_text_of_body body with
+            | Some (options, requests, bug_file_contents) ->
                 (fun () ->
                   init_git_bare_repository ~bot_info
                   >>= fun () ->
@@ -307,13 +318,13 @@ let callback _conn req body =
                     ~owner:comment_info.issue.issue.owner
                     ~repo:comment_info.issue.issue.repo
                     (ci_minimize ~comment_info ~requests ~comment_on_error:true
-                       ~bug_file_contents:None ) )
+                       ~options ~bug_file_contents:(Some bug_file_contents) ) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
-                  ~body:"Handling CI minimization." ()
+                  ~body:"Handling CI minimization resumption." ()
             | None -> (
-              match coqbot_resume_ci_minimize_text_of_body body with
-              | Some (requests, bug_file_contents) ->
+              match coqbot_ci_minimize_text_of_body body with
+              | Some (options, requests) ->
                   (fun () ->
                     init_git_bare_repository ~bot_info
                     >>= fun () ->
@@ -321,11 +332,11 @@ let callback _conn req body =
                       ~owner:comment_info.issue.issue.owner
                       ~repo:comment_info.issue.issue.repo
                       (ci_minimize ~comment_info ~requests
-                         ~comment_on_error:true
-                         ~bug_file_contents:(Some bug_file_contents) ) )
+                         ~comment_on_error:true ~options ~bug_file_contents:None )
+                    )
                   |> Lwt.async ;
                   Server.respond_string ~status:`OK
-                    ~body:"Handling CI minimization resumption." ()
+                    ~body:"Handling CI minimization." ()
               | None ->
                   if
                     string_match
