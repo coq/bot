@@ -1929,20 +1929,28 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   ( match script with
   | MinimizeScript {quote_kind; body} ->
       if
-        List.mem ~equal:String.equal ["shell"; "sh"; "shell-script"; "bash"; "zsh"]
+        List.mem ~equal:String.equal
+          ["shell"; "sh"; "shell-script"; "bash"; "zsh"]
           (String.lowercase quote_kind)
         || String.is_prefix ~prefix:"#!" body
-      then body
+      then
+        Lwt_io.printlf "Assuming script (quote_kind: %s) is a shell script"
+          quote_kind
+        >>= fun () -> Lwt.return body
       else
-        (* assume body is a .v file *)
+        Lwt_io.printlf "Assuming script (quote_kind: %s) is a .v file"
+          quote_kind
+        >>= fun () ->
         let fname = "thebug.v" in
-        f "#!/usr/bin/env bash\ncat > %s <<'EOF'\n%s\nEOF\ncoqc -q %s" fname
-          body fname
+        Lwt.return
+          (f "#!/usr/bin/env bash\ncat > %s <<'EOF'\n%s\nEOF\ncoqc -q %s" fname
+             body fname )
   | MinimizeAttachment {description; url} ->
-      "#!/usr/bin/env bash\n"
-      ^ Stdlib.Filename.quote_command "./handle-web-file.sh" [description; url]
-  )
-  |> fun script ->
+      Lwt.return
+        ( "#!/usr/bin/env bash\n"
+        ^ Stdlib.Filename.quote_command "./handle-web-file.sh" [description; url]
+        ) )
+  >>= fun script ->
   git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo ~coq_version ~ocaml_version ~minimizer_extra_arguments
   >>= function
