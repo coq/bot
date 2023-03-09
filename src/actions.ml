@@ -1929,7 +1929,8 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   ( match script with
   | MinimizeScript {quote_kind; body} ->
       if
-        List.mem ~equal:String.equal ["shell"; "sh"; "shell-script"; "bash"; "zsh"]
+        List.mem ~equal:String.equal
+          ["shell"; "sh"; "shell-script"; "bash"; "zsh"]
           (String.lowercase quote_kind)
         || String.is_prefix ~prefix:"#!" body
       then body
