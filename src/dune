@@ -1,7 +1,7 @@
 (library
  (name botlib)
  (libraries base bot-components cohttp-lwt-unix mirage-crypto
-   mirage-crypto-rng mirage-crypto-rng.lwt stdio toml yojson)
+   mirage-crypto-rng mirage-crypto-rng-lwt stdio toml yojson)
  (modules :standard \ bot)
  (inline_tests)
  (preprocess

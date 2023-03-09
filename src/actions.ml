@@ -2462,7 +2462,7 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
           else
             Lwt_io.printl "Unauthorized user: doing nothing." |> Lwt_result.ok
           )
-    |> Fn.flip Lwt_result.bind_lwt_err (fun err ->
+    |> Fn.flip Lwt_result.bind_lwt_error (fun err ->
            Lwt_io.printf "Error: %s\n" err ) )
     >>= fun _ -> Lwt.return_unit )
   |> Lwt.async ;

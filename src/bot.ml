@@ -511,6 +511,6 @@ let () =
       |> Lwt.async
 
 (* RNG seeding: https://github.com/mirage/mirage-crypto#faq *)
-let () = Mirage_crypto_rng_lwt.initialize ()
+let () = Mirage_crypto_rng_lwt.initialize (module Mirage_crypto_rng.Fortuna)
 
 let () = Lwt_main.run launch
