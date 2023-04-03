@@ -84,7 +84,10 @@ let callback _conn req body =
         in
         Some
           ( options
-          , MinimizeScript {quote_kind; body= body |> extract_minimize_file} )
+          , MinimizeScript
+              { quote_kind=
+                  quote_kind |> Str.global_replace (Str.regexp "[ \r]") ""
+              ; body= body |> extract_minimize_file } )
       else if
         string_match
           ~regexp:
