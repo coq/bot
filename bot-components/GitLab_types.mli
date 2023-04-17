@@ -2,7 +2,7 @@ type ci_common_info =
   { head_commit: string
   ; base_commit: string option
   ; branch: string
-  ; repo_url: string
+  ; http_repo_url: string
   ; project_id: int }
 
 type 'a job_info =
@@ -17,7 +17,6 @@ type 'a job_info =
 type pipeline_info =
   { state: string
   ; pipeline_id: int
-  ; project_path: string
   ; common_info: ci_common_info
   ; variables: (string * string) list
   ; stages: string list

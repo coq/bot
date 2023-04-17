@@ -1,29 +1,31 @@
 open Base
 open Bot_info
-open Lwt.Infix
 open Utils
+
+type api = GitHub | GitLab of string
 
 let send_graphql_query ~bot_info ?(extra_headers = []) ~api ~query ~parse
     variables =
   let uri =
     ( match api with
-    | `GitLab ->
-        "https://gitlab.com/api/graphql"
-    | `GitHub ->
+    | GitLab gitlab_domain ->
+        f "https://%s/api/graphql" gitlab_domain
+    | GitHub ->
         "https://api.github.com/graphql" )
     |> Uri.of_string
   in
+  let open Lwt_result.Infix in
+  ( match api with
+  | GitLab gitlab_domain ->
+      gitlab_name_and_token bot_info gitlab_domain
+  | GitHub ->
+      Ok (bot_info.github_name, github_token bot_info) )
+  |> Lwt.return
+  >>= fun (name, token) ->
   let headers =
     Cohttp.Header.of_list
-      ( [ ( "Authorization"
-          , "Bearer "
-            ^
-            match api with
-            | `GitLab ->
-                bot_info.gitlab_token
-            | `GitHub ->
-                github_token bot_info )
-        ; ("User-Agent", bot_info.name)
+      ( [ ("Authorization", "Bearer " ^ token)
+        ; ("User-Agent", name)
         ; ("Content-Type", "application/json") ]
       @ extra_headers )
   in
@@ -31,6 +33,7 @@ let send_graphql_query ~bot_info ?(extra_headers = []) ~api ~query ~parse
     `Assoc [("query", `String query); ("variables", variables)]
   in
   let request = Yojson.Basic.to_string request_json in
+  let open Lwt.Infix in
   Cohttp_lwt_unix.Client.post ~headers ~body:(`String request) uri
   >>= fun (rsp, body) ->
   Cohttp_lwt.Body.to_string body
@@ -49,7 +52,8 @@ let send_graphql_query ~bot_info ?(extra_headers = []) ~api ~query ~parse
       | errors ->
           let errors =
             to_list errors
-            |> List.map ~f:(fun error -> error |> member "message" |> to_string)
+            |> List.map ~f:(fun error ->
+                   error |> member "message" |> to_string )
           in
           Error
             ( "Server responded to GraphQL request with errors: "

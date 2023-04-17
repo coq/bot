@@ -4,7 +4,7 @@ open Cohttp_lwt_unix
 open Lwt
 open Utils
 
-let send_graphql_query = GraphQL_query.send_graphql_query ~api:`GitHub
+let send_graphql_query = GraphQL_query.send_graphql_query ~api:GitHub
 
 let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     =
@@ -213,7 +213,7 @@ let remove_labels ~bot_info ~labels ~issue =
 (* TODO: use GraphQL API *)
 
 let update_milestone ~bot_info new_milestone (issue : issue) =
-  let headers = headers (github_header bot_info) ~bot_info in
+  let headers = headers (github_header bot_info) bot_info.github_name in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
       issue.number
@@ -245,7 +245,7 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
     "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
     |> Uri.of_string
   in
-  send_request ~body ~uri (github_header bot_info) ~bot_info
+  send_request ~body ~uri (github_header bot_info) bot_info.github_name
 
 let add_pr_to_column ~bot_info ~pr_id ~column_id =
   let body =
@@ -265,4 +265,4 @@ let add_pr_to_column ~bot_info ~pr_id ~column_id =
   in
   send_request ~body ~uri
     (project_api_preview_header @ github_header bot_info)
-    ~bot_info
+    bot_info.github_name

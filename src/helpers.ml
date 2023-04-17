@@ -52,28 +52,67 @@ let trim_comments comment =
   in
   aux comment 0 false
 
-let github_repo_of_gitlab_project_path ~gitlab_mapping gitlab_full_name =
+let github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
+    ~gitlab_repo_full_name =
+  let full_name_with_domain = gitlab_domain ^ "/" ^ gitlab_repo_full_name in
   let github_full_name =
-    match Hashtbl.find gitlab_mapping gitlab_full_name with
+    match Hashtbl.find gitlab_mapping full_name_with_domain with
     | Some value ->
         value
     | None ->
         Stdio.printf
           "Warning: No correspondence found for GitLab repository %s.\n"
-          gitlab_full_name ;
-        gitlab_full_name
+          full_name_with_domain ;
+        gitlab_repo_full_name
   in
   match Str.split (Str.regexp "/") github_full_name with
   | [owner; repo] ->
       (owner, repo)
   | _ ->
-      failwith "Could not split github_full_name into (owner, repo)."
+      failwith
+        (f "Could not split repository full name %s into (owner, repo)."
+           github_full_name )
 
-let github_repo_of_gitlab_url ~gitlab_mapping gitlab_repo_url =
-  let owner, repo =
-    if not (string_match ~regexp:".*:\\(.*\\)/\\(.*\\).git" gitlab_repo_url)
-    then Stdio.printf "Could not match project name on repository url.\n" ;
-    (Str.matched_group 1 gitlab_repo_url, Str.matched_group 2 gitlab_repo_url)
+let parse_gitlab_repo_url ~http_repo_url =
+  if not (string_match ~regexp:"https?://\\([^/]*\\)/\\(.*/.*\\)" http_repo_url)
+  then failwith "Could not match project name on repository url.\n" ;
+  (Str.matched_group 1 http_repo_url, Str.matched_group 2 http_repo_url)
+
+let%expect_test "http_repo_url_parsing_coq" =
+  let gitlab_domain, gitlab_repo_full_name =
+    parse_gitlab_repo_url ~http_repo_url:"https://gitlab.com/coq/coq"
   in
-  let repo_full_name = owner ^ "/" ^ repo in
-  github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name
+  Stdio.print_endline gitlab_domain ;
+  Stdio.print_endline gitlab_repo_full_name ;
+  [%expect {|
+     gitlab.com
+     coq/coq |}]
+
+let%expect_test "http_repo_url_parsing_mathcomp" =
+  let gitlab_domain, gitlab_repo_full_name =
+    parse_gitlab_repo_url
+      ~http_repo_url:"https://gitlab.inria.fr/math-comp/math-comp"
+  in
+  Stdio.print_endline gitlab_domain ;
+  Stdio.print_endline gitlab_repo_full_name ;
+  [%expect {|
+    gitlab.inria.fr
+    math-comp/math-comp |}]
+
+let%expect_test "http_repo_url_parsing_example_from_gitlab_docs" =
+  let gitlab_domain, gitlab_repo_full_name =
+    parse_gitlab_repo_url
+      ~http_repo_url:"http://192.168.64.1:3005/gitlab-org/gitlab-test"
+  in
+  Stdio.print_endline gitlab_domain ;
+  Stdio.print_endline gitlab_repo_full_name ;
+  [%expect {|
+    192.168.64.1:3005
+    gitlab-org/gitlab-test |}]
+
+let github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url =
+  let gitlab_domain, gitlab_repo_full_name =
+    parse_gitlab_repo_url ~http_repo_url
+  in
+  github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
+    ~gitlab_repo_full_name

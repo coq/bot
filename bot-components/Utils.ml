@@ -12,10 +12,10 @@ let string_match ~regexp string =
     true
   with Stdlib.Not_found -> false
 
-let headers ~bot_info header_list =
+let headers header_list user_agent =
   Header.init ()
   |> (fun headers -> Header.add_list headers header_list)
-  |> fun headers -> Header.add headers "User-Agent" bot_info.name
+  |> fun headers -> Header.add headers "User-Agent" user_agent
 
 let print_response (resp, body) =
   let code = resp |> Response.status |> Code.code_of_status in
@@ -28,8 +28,8 @@ let print_response (resp, body) =
     body |> Cohttp_lwt.Body.to_string >>= Lwt_io.printf "Body:\n%s\n"
   else Lwt.return_unit
 
-let send_request ~bot_info ~body ~uri header_list =
-  let headers = headers header_list ~bot_info in
+let send_request ~body ~uri header_list user_agent =
+  let headers = headers header_list user_agent in
   Client.post ~body ~headers uri >>= print_response
 
 let handle_json action body =
@@ -56,7 +56,9 @@ let github_header bot_info =
 
 let generic_get ~bot_info relative_uri ?(header_list = []) json_handler =
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
-  let headers = headers (header_list @ github_header bot_info) ~bot_info in
+  let headers =
+    headers (header_list @ github_header bot_info) bot_info.github_name
+  in
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
   >|= handle_json json_handler

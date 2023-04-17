@@ -253,14 +253,21 @@ Once you finish the installation, follow these steps:
   By default, **@coqbot** considers that both GitHub and GitLab repositories
   share the same URL except for the "lab" replacing the "hub" part. If
   that is not the case, assuming you created a GitLab repository whose
-  URL is <https://gitlab.com/owner/repo/>, add a file `coqbot.toml` at
+  URL is <https://mygitlab.example.com/owner/repo/>, add a file `coqbot.toml` at
   the root of your GitHub repository and in its default branch (most often
   named `master`), containing:
   ```
   [mapping]
   gitlab = "owner/repo"
+  gitlab_domain = "mygitlab.example.com"
   ```
-  If you use other instance of **@coqbot**, this repository-specific
+  If omitted, the `gitlab_domain` value defaults to `"gitlab.com"`.
+  Note that the value of `gitlab_domain` must be a supported GitLab
+  instance, i.e., it needs to be defined in the bot's own configuration
+  file (check [coqbot-config.toml](coqbot-config.toml) for the coqbot
+  instance configuration).
+
+  If you use another instance of **@coqbot**, this repository-specific
   configuration file becomes `BOT_NAME.toml` where `BOT_NAME` is the name
   of the bot.
 
@@ -345,11 +352,14 @@ to [Heroku](https://www.heroku.com/). Simply follow the official
 The bot will need to read a few environment variables so make sure
 these are configured in your Heroku app:
 
-- `GITLAB_ACCESS_TOKEN`
-- `GITHUB_ACCESS_TOKEN`
-- `GITHUB_WEBHOOK_SECRET`
+- `GITHUB_ACCESS_TOKEN` (can also be defined in the configuration file as `github.api_token`)
+- `GITLAB_ACCESS_TOKEN` (can also be defined for each GitLab instance through the configuration file as `api_token` or through an environment variable whose name is defined in the configuration file as `api_token_env_var`)
+- `GITHUB_WEBHOOK_SECRET` (can also be defined in the configuration file as `github.webhook_secret`)
+- `GITLAB_WEBHOOK_SECRET` (can also be defined in the configuration file as `gitlab.webhook_secret`, will default to `GITHUB_WEBHOOK_SECRET` if not defined)
+- `DAILY_SCHEDULE_SECRET` (can also be defined in the configuration file as `github.daily_schedule_secret`, will default to `GITHUB_WEBHOOK_SECRET` if not defined)
+- `GITHUB_APP_ID` (can also be defined in the configuration file as `github.app_id`)
 - `GITHUB_PRIVATE_KEY` (a private key of your GitHub app)
-- `GITHUB_APP_ID` (your GitHub App ID)
+- `PORT` (can also be defined in the configuration file as `server.port`)
 
 Then, you must configure the bot with a configuration file. Here is an example
 to adapt to your needs [`example-config.toml`](example-config.toml)).

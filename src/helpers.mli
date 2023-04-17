@@ -21,7 +21,14 @@ val remove_between : string -> int -> int -> string
 val trim_comments : string -> string
 
 val github_repo_of_gitlab_project_path :
-  gitlab_mapping:(string, string) Base.Hashtbl.t -> string -> string * string
+     gitlab_mapping:(string, string) Base.Hashtbl.t
+  -> gitlab_domain:string
+  -> gitlab_repo_full_name:string
+  -> string * string
+
+val parse_gitlab_repo_url : http_repo_url:string -> string * string
 
 val github_repo_of_gitlab_url :
-  gitlab_mapping:(string, string) Base.Hashtbl.t -> string -> string * string
+     gitlab_mapping:(string, string) Base.Hashtbl.t
+  -> http_repo_url:string
+  -> string * string

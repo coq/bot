@@ -5,13 +5,16 @@ open Bot_components.GitHub_types
 open Helpers
 open Lwt.Infix
 
-let gitlab_repo ~bot_info ~gitlab_full_name =
-  f "https://oauth2:%s@gitlab.com/%s.git" bot_info.gitlab_token gitlab_full_name
+let gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name =
+  gitlab_token bot_info gitlab_domain
+  |> Result.map ~f:(fun token ->
+         f "https://oauth2:%s@%s/%s.git" token gitlab_domain gitlab_full_name )
 
 let report_status command report code =
   Error (f {|Command "%s" %s %d\n|} command report code)
 
 let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
+  let default_gitlab_domain = "gitlab.com" in
   let gh_repo = issue.owner ^ "/" ^ issue.repo in
   let open Lwt.Infix in
   (* First, we check our hashtable for a key named after the GitHub
@@ -19,6 +22,7 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
      key is not found, we load the config file from the default branch.
      Last (backward-compatibility) we assume the GitLab and GitHub
      projects are named the same. *)
+  let default_value = (default_gitlab_domain, gh_repo) in
   ( match Hashtbl.find github_mapping gh_repo with
   | None -> (
       Stdio.printf "No correspondence found for GitHub repository %s/%s.\n"
@@ -29,9 +33,16 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
       | Ok branch -> (
           GitHub_queries.get_file_content ~bot_info ~owner:issue.owner
             ~repo:issue.repo ~branch
-            ~file_name:(f "%s.toml" bot_info.name)
+            ~file_name:(f "%s.toml" bot_info.github_name)
           >>= function
           | Ok (Some content) ->
+              let gl_domain =
+                Option.value
+                  (Config.subkey_value
+                     (Config.toml_of_string content)
+                     "mapping" "gitlab_domain" )
+                  ~default:default_gitlab_domain
+              in
               let gl_repo =
                 Option.value
                   (Config.subkey_value
@@ -39,26 +50,34 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
                      "mapping" "gitlab" )
                   ~default:gh_repo
               in
-              ( match Hashtbl.add gitlab_mapping ~key:gl_repo ~data:gh_repo with
+              ( match
+                  Hashtbl.add gitlab_mapping
+                    ~key:(gl_domain ^ "/" ^ gl_repo)
+                    ~data:gh_repo
+                with
               | `Duplicate ->
                   ()
               | `Ok ->
                   () ) ;
-              ( match Hashtbl.add github_mapping ~key:gh_repo ~data:gl_repo with
+              ( match
+                  Hashtbl.add github_mapping ~key:gh_repo
+                    ~data:(gl_domain, gl_repo)
+                with
               | `Duplicate ->
                   ()
               | `Ok ->
                   () ) ;
-              Lwt.return gl_repo
+              Lwt.return (gl_domain, gl_repo)
           | _ ->
-              Lwt.return gh_repo )
+              Lwt.return default_value )
       | _ ->
-          Lwt.return gh_repo )
+          Lwt.return default_value )
   | Some r ->
       Lwt.return r )
-  >|= fun gitlab_full_name ->
-  { name= f "refs/heads/pr-%d" issue.number
-  ; repo_url= gitlab_repo ~gitlab_full_name ~bot_info }
+  >|= fun (gitlab_domain, gitlab_full_name) ->
+  gitlab_repo ~gitlab_domain ~gitlab_full_name ~bot_info
+  |> Result.map ~f:(fun gl_repo ->
+         {name= f "refs/heads/pr-%d" issue.number; repo_url= gl_repo} )
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
@@ -139,7 +158,7 @@ let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ; GitHub_ID.to_string comment_thread_id
     ; comment_author
     ; bot_info.github_pat
-    ; bot_info.name
+    ; bot_info.github_name
     ; bot_info.domain
     ; owner
     ; repo
@@ -156,7 +175,7 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
      not coqbot the GitHub App *)
   ( [ GitHub_ID.to_string comment_thread_id
     ; bot_info.github_pat
-    ; bot_info.name
+    ; bot_info.github_name
     ; bot_info.domain
     ; owner
     ; repo
@@ -178,7 +197,7 @@ let init_git_bare_repository ~bot_info =
   Stdio.printf "Initializing repository...\n" ;
   "git init --bare"
   |&& f {|git config user.email "%s"|} bot_info.email
-  |&& f {|git config user.name "%s"|} bot_info.name
+  |&& f {|git config user.name "%s"|} bot_info.github_name
   |> execute_cmd
   >|= function
   | Ok _ ->

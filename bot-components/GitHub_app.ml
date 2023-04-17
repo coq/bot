@@ -39,13 +39,13 @@ let make_jwt ~key ~app_id =
 
 let get ~bot_info ~token ~url =
   Stdio.print_endline ("Making get request to " ^ url) ;
-  let headers = headers ~bot_info (github_headers token) in
+  let headers = headers (github_headers token) bot_info.Bot_info.github_name in
   Client.get ~headers (Uri.of_string url)
   >>= fun (_response, body) -> Cohttp_lwt.Body.to_string body
 
 let post ~bot_info ~body ~token ~url =
   Stdio.print_endline ("Making post request to " ^ url) ;
-  let headers = headers ~bot_info (github_headers token) in
+  let headers = headers (github_headers token) bot_info.Bot_info.github_name in
   let body =
     (match body with None -> "{}" | Some json -> Yojson.to_string json)
     |> Cohttp_lwt.Body.of_string

@@ -13,17 +13,16 @@ let toml_data = Config.toml_of_file (Sys.get_argv ()).(1)
 
 let port = Config.port toml_data
 
-let gitlab_access_token = Config.gitlab_access_token toml_data
-
 let github_access_token = Config.github_access_token toml_data
 
 let github_webhook_secret = Config.github_webhook_secret toml_data
 
+(* TODO: make webhook secret project-specific *)
 let gitlab_webhook_secret = Config.gitlab_webhook_secret toml_data
 
 let daily_schedule_secret = Config.daily_schedule_secret toml_data
 
-let bot_name = Config.bot_name toml_data
+let github_bot_name = Config.github_bot_name toml_data
 
 let key = Config.github_private_key ()
 
@@ -32,8 +31,8 @@ let app_id = Config.github_app_id toml_data
 let bot_info : Bot_components.Bot_info.t =
   { github_pat= github_access_token
   ; github_install_token= None
-  ; gitlab_token= gitlab_access_token
-  ; name= bot_name
+  ; gitlab_instances= Config.gitlab_instances toml_data
+  ; github_name= github_bot_name
   ; email= Config.bot_email toml_data
   ; domain= Config.bot_domain toml_data
   ; app_id }
@@ -73,7 +72,7 @@ let callback _conn req body =
                  ]*\\)\n\
                  \\(\\(.\\|\n\
                  \\)+\\)"
-            @@ Str.quote bot_name )
+            @@ Str.quote github_bot_name )
           body
       then
         (* avoid internal server errors from unclear execution order *)
@@ -92,7 +91,7 @@ let callback _conn req body =
         string_match
           ~regexp:
             ( f "@%s? [Mm]inimize\\([^`]*\\)\\[\\([^]]*\\)\\] *(\\([^)]*\\))"
-            @@ Str.quote bot_name )
+            @@ Str.quote github_bot_name )
           body
       then
         (* avoid internal server errors from unclear execution order *)
@@ -109,7 +108,7 @@ let callback _conn req body =
         string_match
           ~regexp:
             ( f "@%s:?\\( [^\n]*\\)\\b[Cc][Ii][- ][Mm]inimize:?\\([^\n]*\\)"
-            @@ Str.quote bot_name )
+            @@ Str.quote github_bot_name )
           body
       then
         let options, requests =
@@ -130,7 +129,7 @@ let callback _conn req body =
                  ]*\n\
                  \\(\\(.\\|\n\
                  \\)+\\)"
-            @@ Str.quote bot_name )
+            @@ Str.quote github_bot_name )
           body
       then
         let options, requests, body =
@@ -154,8 +153,8 @@ let callback _conn req body =
        the tagging to "@`coqbot minimize foo`" so that the matching
        below doesn't pick up the name *)
     Str.global_replace
-      (Str.regexp (f "\\(`\\|<code>\\)@%s " @@ Str.quote bot_name))
-      (f "@\\1%s " @@ Str.quote bot_name)
+      (Str.regexp (f "\\(`\\|<code>\\)@%s " @@ Str.quote github_bot_name))
+      (f "@\\1%s " @@ Str.quote github_bot_name)
       body
   in
   let body = Cohttp_lwt.Body.to_string body in
@@ -168,22 +167,21 @@ let callback _conn req body =
         GitLab_subscriptions.receive_gitlab ~secret:gitlab_webhook_secret
           (Request.headers req) body
       with
-      | Ok (_, JobEvent job_info) ->
+      | Ok (_, JobEvent ({common_info= {http_repo_url}} as job_info)) ->
           (fun () ->
             let gh_owner, gh_repo =
-              github_repo_of_gitlab_url ~gitlab_mapping
-                job_info.common_info.repo_url
+              github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
               ~repo:gh_repo
               (job_action ~gitlab_mapping job_info) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK ~body:"Job event." ()
-      | Ok (_, PipelineEvent pipeline_info) ->
+      | Ok (_, PipelineEvent ({common_info= {http_repo_url}} as pipeline_info))
+        ->
           (fun () ->
             let owner, repo =
-              github_repo_of_gitlab_project_path ~gitlab_mapping
-                pipeline_info.project_path
+              github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url
             in
             action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
               (pipeline_action ~gitlab_mapping pipeline_info) )
@@ -222,13 +220,28 @@ let callback _conn req body =
             ()
       | Ok (true, PushEvent {owner; repo; base_ref; head_sha; _}) -> (
         match (owner, repo) with
-        | "coq-community", ("docker-base" | "docker-coq")
-        (*| "math-comp", ("docker-mathcomp" | "math-comp")*) ->
+        | "coq-community", ("docker-base" | "docker-coq") ->
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-                (mirror_action ~owner ~repo ~base_ref ~head_sha ()) )
+                (mirror_action ~gitlab_domain:"gitlab.com" ~owner ~repo
+                   ~base_ref ~head_sha () ) )
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Processing push event on %s/%s repository: mirroring \
+                    branch on GitLab."
+                   owner repo )
+              ()
+        | "math-comp", ("docker-mathcomp" | "math-comp") ->
+            (fun () ->
+              init_git_bare_repository ~bot_info
+              >>= fun () ->
+              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+                (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner ~repo
+                   ~base_ref ~head_sha () ) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
@@ -369,7 +382,7 @@ let callback _conn req body =
                     string_match
                       ~regexp:
                         ( f "@%s:? [Rr]un \\(full\\|light\\|\\) ?[Cc][Ii]"
-                        @@ Str.quote bot_name )
+                        @@ Str.quote github_bot_name )
                       body
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
@@ -396,7 +409,8 @@ let callback _conn req body =
                          ~github_mapping () )
                   else if
                     string_match
-                      ~regexp:(f "@%s:? [Mm]erge now" @@ Str.quote bot_name)
+                      ~regexp:
+                        (f "@%s:? [Mm]erge now" @@ Str.quote github_bot_name)
                       body
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
@@ -414,7 +428,8 @@ let callback _conn req body =
                       () )
                   else if
                     string_match
-                      ~regexp:(f "@%s:? [Bb]ench native" @@ Str.quote bot_name)
+                      ~regexp:
+                        (f "@%s:? [Bb]ench native" @@ Str.quote github_bot_name)
                       body
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
@@ -434,7 +449,7 @@ let callback _conn req body =
                       () )
                   else if
                     string_match
-                      ~regexp:(f "@%s:? [Bb]ench" @@ Str.quote bot_name)
+                      ~regexp:(f "@%s:? [Bb]ench" @@ Str.quote github_bot_name)
                       body
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
@@ -454,24 +469,45 @@ let callback _conn req body =
                     Server.respond_string ~status:`OK
                       ~body:(f "Unhandled comment: %s" body)
                       () ) ) )
-      | Ok (signed, CheckRunReRequested {external_id}) ->
+      | Ok (signed, CheckRunReRequested {external_id}) -> (
           if not signed then
             Server.respond_string ~status:(Code.status_of_code 401)
               ~body:"Request to rerun check run must be signed." ()
           else if String.is_empty external_id then
             Server.respond_string ~status:(Code.status_of_code 400)
               ~body:"Request to rerun check run but empty external ID." ()
-          else (
-            (fun () ->
-              GitLab_mutations.generic_retry ~bot_info ~url_part:external_id )
-            |> Lwt.async ;
-            Server.respond_string ~status:`OK
-              ~body:
-                (f
-                   "Received a request to re-run a job / pipeline (GitLab ID : \
-                    %s)."
-                   external_id )
-              () )
+          else
+            let external_id_parsed =
+              match String.split ~on:',' external_id with
+              | [gitlab_domain; url_part] ->
+                  Some (gitlab_domain, url_part)
+              | [url_part] ->
+                  (* Backward compatibility *)
+                  Some ("gitlab.com", url_part)
+              | _ ->
+                  None
+            in
+            match external_id_parsed with
+            | None ->
+                Server.respond_string ~status:(Code.status_of_code 400)
+                  ~body:
+                    (f
+                       "Request to rerun check run but external ID is not \
+                        well-formed: %s"
+                       external_id )
+                  ()
+            | Some (gitlab_domain, url_part) ->
+                (fun () ->
+                  GitLab_mutations.generic_retry ~bot_info ~gitlab_domain
+                    ~url_part )
+                |> Lwt.async ;
+                Server.respond_string ~status:`OK
+                  ~body:
+                    (f
+                       "Received a request to re-run a job / pipeline \
+                        (External ID : %s)."
+                       external_id )
+                  () )
       | Ok (_, UnsupportedEvent s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
       | Ok _ ->
