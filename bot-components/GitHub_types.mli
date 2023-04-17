@@ -85,7 +85,11 @@ type comment_info =
   ; id: GitHub_ID.t }
 
 type push_info =
-  {owner: string; repo: string; base_ref: string; commits_msg: string list}
+  { owner: string
+  ; repo: string
+  ; base_ref: string
+  ; head_sha: string
+  ; commits_msg: string list }
 
 type check_run_status = COMPLETED | IN_PROGRESS | QUEUED
 

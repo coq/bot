@@ -221,14 +221,24 @@ Once you finish the installation, follow these steps:
 
 - Create a repository on GitLab.com which will be used to run CI jobs.
 
-  The bot will only take care of mirroring the PRs and reporting
-  status checks back so you may still want to activate the mirroring
-  feature for the main branches.  To do so, the easiest way is to
-  choose the "CI/CD for external repo" option when creating the GitLab
-  repository.  However, you should opt to give the repo by URL rather
-  than with the GitHub button, because we won't need GitLab's own
-  status check reporting feature. (If it is already activated, you can
-  disable this integration in the "Settings" / "Integration" menu).
+  By default, the bot will only take care of mirroring the PRs and
+  reporting status checks back. So you may still want to activate:
+
+  - either GitLab's mirroring feature for the main branches.
+    (A drawback is the
+    [sync lag](https://docs.gitlab.com/ee/user/project/repository/mirror/#update-a-mirror)
+    (between 5' and 30') that occurs with this pull-based mirroring.)
+    If you do so, the easiest way is to choose the "CI/CD for external
+    repo" option when creating the GitLab repository.  However, you
+    should opt to give the repo by URL rather than with the GitHub
+    button, because we won't need GitLab's own status check reporting
+    feature. (If it is already activated, you can disable this
+    integration in the "Settings" / "Integration" menu).
+
+  - or **@coqbot**'s mirroring feature (it is a push-based mirroring).
+    For now, this requires hardcoding the GitHub / GitLab mapping in
+    the bot's source code.  Please open an issue if you would like to
+    use this feature. We plan to make this configurable in the future.
 
 - In your GitLab repository:
 

@@ -76,10 +76,20 @@ val adjust_milestone :
 val project_action :
   bot_info:Bot_info.t -> issue:GitHub_types.issue -> column_id:int -> unit Lwt.t
 
-val push_action :
+val coq_push_action :
      bot_info:Bot_info.t
   -> base_ref:string
   -> commits_msg:string list
+  -> unit Lwt.t
+
+val mirror_action :
+     bot_info:Bot_info.t
+  -> ?force:bool
+  -> owner:string
+  -> repo:string
+  -> base_ref:string
+  -> head_sha:string
+  -> unit
   -> unit Lwt.t
 
 val ci_minimize :

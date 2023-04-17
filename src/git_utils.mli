@@ -1,3 +1,6 @@
+val gitlab_repo :
+  bot_info:Bot_components.Bot_info.t -> gitlab_full_name:string -> string
+
 val gitlab_ref :
      bot_info:Bot_components.Bot_info.t
   -> issue:Bot_components.GitHub_types.issue

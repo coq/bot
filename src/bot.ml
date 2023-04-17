@@ -207,14 +207,38 @@ let callback _conn req body =
         GitHub_subscriptions.receive_github ~secret:github_webhook_secret
           (Request.headers req) body
       with
-      | Ok (_, PushEvent {owner; repo; base_ref; commits_msg}) ->
+      | Ok (true, PushEvent {owner= "coq"; repo= "coq"; base_ref; commits_msg})
+        ->
           (fun () ->
             init_git_bare_repository ~bot_info
             >>= fun () ->
-            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (push_action ~base_ref ~commits_msg) )
+            action_as_github_app ~bot_info ~key ~app_id ~owner:"coq" ~repo:"coq"
+              (coq_push_action ~base_ref ~commits_msg) )
           |> Lwt.async ;
-          Server.respond_string ~status:`OK ~body:"Processing push event." ()
+          Server.respond_string ~status:`OK
+            ~body:
+              "Processing push event on Coq repository: analyzing merge / \
+               backporting info."
+            ()
+      | Ok (true, PushEvent {owner; repo; base_ref; head_sha; _}) -> (
+        match (owner, repo) with
+        | "coq-community", ("docker-base" | "docker-coq")
+        (*| "math-comp", ("docker-mathcomp" | "math-comp")*) ->
+            (fun () ->
+              init_git_bare_repository ~bot_info
+              >>= fun () ->
+              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+                (mirror_action ~owner ~repo ~base_ref ~head_sha ()) )
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Processing push event on %s/%s repository: mirroring \
+                    branch on GitLab."
+                   owner repo )
+              ()
+        | _ ->
+            Server.respond_string ~status:`OK ~body:"Ignoring push event." () )
       | Ok (_, PullRequestUpdated (PullRequestClosed, pr_info)) ->
           (fun () ->
             init_git_bare_repository ~bot_info

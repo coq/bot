@@ -57,7 +57,7 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
   | Some r ->
       Lwt.return r )
   >|= fun gitlab_full_name ->
-  { name= f "pr-%d" issue.number
+  { name= f "refs/heads/pr-%d" issue.number
   ; repo_url= gitlab_repo ~gitlab_full_name ~bot_info }
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
@@ -83,7 +83,7 @@ let git_fetch ?(force = true) remote_ref local_branch_name =
     (Stdlib.Filename.quote local_branch_name)
 
 let git_push ?(force = true) ?(options = "") ~remote_ref ~local_ref () =
-  f "git push %s %s%s:refs/heads/%s %s" remote_ref.repo_url
+  f "git push %s %s%s:%s %s" remote_ref.repo_url
     (if force then " +" else " ")
     (Stdlib.Filename.quote local_ref)
     (Stdlib.Filename.quote remote_ref.name)
