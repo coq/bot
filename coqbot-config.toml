@@ -30,7 +30,6 @@ app_id="31373"
   [mappings.math-comp]
   github="math-comp/math-comp"
   gitlab="math-comp/math-comp"
-  gitlab_domain="gitlab.inria.fr"
 
   [mappings.docker-mathcomp]
   github="math-comp/docker-mathcomp"

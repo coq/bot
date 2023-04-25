@@ -238,7 +238,7 @@ let callback _conn req body =
                     branch on GitLab."
                    owner repo )
               ()
-        | "math-comp", ("docker-mathcomp" | "math-comp") ->
+        | "math-comp", "docker-mathcomp" (* | "math-comp" *) ->
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
