@@ -117,22 +117,17 @@ let bot_email toml_data =
 let github_app_id toml_data =
   match subkey_value toml_data "github" "app_id" with
   | None ->
-      let id = Sys.getenv_exn "GITHUB_APP_ID" |> Int.of_string in
-      Stdio.printf "Found github app id: %d\n" id ;
-      id
+      Sys.getenv_exn "GITHUB_APP_ID" |> Int.of_string
   | Some app_id ->
       app_id |> Int.of_string
 
 let github_private_key () =
   (*string_of_file_path "./github.private-key.pem"*)
   match
-    let private_k = Sys.getenv_exn "GITHUB_PRIVATE_KEY" in
-    Stdio.printf "Found private key: %s\n" private_k ;
-    private_k |> Cstruct.of_string |> X509.Private_key.decode_pem
+    Sys.getenv_exn "GITHUB_PRIVATE_KEY"
+    |> Cstruct.of_string |> X509.Private_key.decode_pem
   with
   | Ok (`RSA priv) ->
-      Stdio.printf "Private key bit size: %d\n"
-        (Mirage_crypto_pk.Rsa.priv_bits priv) ;
       priv
   | Ok _ ->
       failwith "Not an RSA key"

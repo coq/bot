@@ -1,6 +1,7 @@
 open Base
 open Cohttp_lwt_unix
 open Lwt
+open Lwt.Syntax
 open Utils
 
 let github_headers token =
@@ -38,20 +39,22 @@ let make_jwt ~key ~app_id =
       Error "Couldn't create JWT token"
 
 let get ~bot_info ~token ~url =
-  Stdio.print_endline ("Making get request to " ^ url) ;
+  let* () = Lwt_io.printl ("Making get request to " ^ url) in
   let headers = headers (github_headers token) bot_info.Bot_info.github_name in
-  Client.get ~headers (Uri.of_string url)
-  >>= fun (_response, body) -> Cohttp_lwt.Body.to_string body
+  let* _response, body = Client.get ~headers (Uri.of_string url) in
+  Cohttp_lwt.Body.to_string body
 
 let post ~bot_info ~body ~token ~url =
-  Stdio.print_endline ("Making post request to " ^ url) ;
+  let* () = Lwt_io.printl ("Making post request to " ^ url) in
   let headers = headers (github_headers token) bot_info.Bot_info.github_name in
   let body =
     (match body with None -> "{}" | Some json -> Yojson.to_string json)
     |> Cohttp_lwt.Body.of_string
   in
-  Cohttp_lwt_unix.Client.post ~body ~headers (Uri.of_string url)
-  >>= fun (_response, body) -> Cohttp_lwt.Body.to_string body
+  let* _response, body =
+    Cohttp_lwt_unix.Client.post ~body ~headers (Uri.of_string url)
+  in
+  Cohttp_lwt.Body.to_string body
 
 let get_installation_token ~bot_info ~owner ~repo ~jwt :
     (string * float, string) Result.t Lwt.t =

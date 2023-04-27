@@ -4,6 +4,7 @@ open Bot_components.Bot_info
 open Bot_components.GitHub_types
 open Helpers
 open Lwt.Infix
+open Lwt.Syntax
 
 let gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name =
   gitlab_token bot_info gitlab_domain
@@ -194,13 +195,13 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
   |> execute_cmd
 
 let init_git_bare_repository ~bot_info =
-  Stdio.printf "Initializing repository...\n" ;
+  let* () = Lwt_io.printl "Initializing repository..." in
   "git init --bare"
   |&& f {|git config user.email "%s"|} bot_info.email
   |&& f {|git config user.name "%s"|} bot_info.github_name
   |> execute_cmd
-  >|= function
+  >>= function
   | Ok _ ->
-      Stdio.printf "Bare repository initialized.\n"
+      Lwt_io.printl "Bare repository initialized."
   | Error e ->
-      Stdio.printf "%s.\n" e
+      Lwt_io.printlf "Error while initializing bare repository: %s." e

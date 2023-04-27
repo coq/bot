@@ -192,7 +192,7 @@ let callback _conn req body =
             ~body:(f "Unsupported event %s." e)
             ()
       | Error ("Webhook password mismatch." as e) ->
-          Stdio.print_string e ;
+          (fun () -> Lwt_io.printl e) |> Lwt.async ;
           Server.respond_string ~status:(Code.status_of_code 401)
             ~body:(f "Error: %s" e) ()
       | Error e ->
@@ -514,7 +514,7 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"No action taken: event or action is not yet supported." ()
       | Error ("Webhook signed but with wrong signature." as e) ->
-          Stdio.print_string e ;
+          (fun () -> Lwt_io.printl e) |> Lwt.async ;
           Server.respond_string ~status:(Code.status_of_code 401)
             ~body:(f "Error: %s" e) ()
       | Error e ->

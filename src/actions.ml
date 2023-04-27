@@ -8,6 +8,7 @@ open Cohttp_lwt_unix
 open Git_utils
 open Helpers
 open Lwt.Infix
+open Lwt.Syntax
 
 type coq_job_info =
   { docker_image: string
@@ -97,8 +98,8 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
       ; opam_variant
       ; opam_switch }
   in
-  let summary_tail =
-    ( match coq_job_info with
+  let* summary_tail_prefix =
+    match coq_job_info with
     | Some
         { docker_image
         ; build_dependency
@@ -117,17 +118,18 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
           )
           ^ opam_variant
         in
-        f
-          "This job ran on the Docker image `%s`, depended on the build job \
-           `%s` with OCaml `%s`.\n\n"
-          docker_image build_dependency switch_name
+        Lwt.return
+          (f
+             "This job ran on the Docker image `%s`, depended on the build job \
+              `%s` with OCaml `%s`.\n\n"
+             docker_image build_dependency switch_name )
     | Some {opam_switch} ->
-        Stdio.printf "Unrecognized OPAM_SWITCH: %s.\n" opam_switch ;
-        ""
+        let* () = Lwt_io.printlf "Unrecognized OPAM_SWITCH: %s." opam_switch in
+        Lwt.return ""
     | None ->
-        "" )
-    ^ trace_description
+        Lwt.return ""
   in
+  let summary_tail = summary_tail_prefix ^ trace_description in
   let text = "```\n" ^ short_trace ^ "\n```" in
   if job_info.allow_fail then
     Lwt_io.printf "Job is allowed to fail.\n"
@@ -2627,7 +2629,7 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
       Lwt_io.printf "This was not a request inclusion column: ignoring.\n"
 
 let coq_push_action ~bot_info ~base_ref ~commits_msg =
-  Stdio.printf "Merge and backport commit messages:\n" ;
+  let* () = Lwt_io.printl "Merge and backport commit messages:" in
   let commit_action commit_msg =
     if string_match ~regexp:"^Merge PR #\\([0-9]*\\):" commit_msg then
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
