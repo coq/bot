@@ -293,6 +293,7 @@ end
 let fetch_bench_results ~job_info () =
   let open BenchResults in
   let open Lwt.Syntax in
+  let code_wrap str = f "```\n%s\n```" str in
   let fetch_artifact url =
     url |> Uri.of_string |> Client.get
     >>= fun (resp, body) ->
@@ -316,19 +317,29 @@ let fetch_bench_results ~job_info () =
         >>= fun () -> Lwt.return ""
   in
   let* slow_table =
+    let* slow_table_or_err = artifact_url "slow_table.html" |> fetch_artifact in
+    match slow_table_or_err with
+    | Ok s ->
+      Lwt.return s
+    | Error _ ->
     let* slow_table_or_err = artifact_url "slow_table" |> fetch_artifact in
     match slow_table_or_err with
     | Ok s ->
-        Lwt.return s
+        Lwt.return (code_wrap s)
     | Error err ->
         Lwt_io.printlf "Error fetching slow_table: %s" err
         >>= fun () -> Lwt.return ""
   in
   let* fast_table =
-    let* fast_table_or_err = artifact_url "fast_table" |> fetch_artifact in
+    let* fast_table_or_err = artifact_url "fast_table.html" |> fetch_artifact in
     match fast_table_or_err with
     | Ok s ->
         Lwt.return s
+    | Error _ ->
+    let* fast_table_or_err = artifact_url "fast_table" |> fetch_artifact in
+    match fast_table_or_err with
+    | Ok s ->
+        Lwt.return (code_wrap s)
     | Error err ->
         Lwt_io.printlf "Error fetching fast_table: %s" err
         >>= fun () -> Lwt.return ""
@@ -371,9 +382,9 @@ let bench_text = function
       ; code_wrap results.summary_table
       ; results.failures
       ; header2 @@ f ":turtle: Top %d slow downs:" results.slow_number
-      ; code_wrap results.slow_table
+      ; results.slow_table
       ; header2 @@ f ":rabbit2: Top %d speed ups:" results.fast_number
-      ; code_wrap results.fast_table ]
+      ; results.fast_table ]
       |> String.concat ~sep:"\n" |> Lwt.return
   | Error e ->
       f "Error occured when creating bench summary: %s\n" e |> Lwt.return
@@ -396,9 +407,9 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url ?check_url
         ; code_wrap results.summary_table
         ; results.failures
         ; details (f ":turtle: Top %d slow downs" results.slow_number)
-          @@ code_wrap results.slow_table
+            results.slow_table
         ; details (f ":rabbit2: Top %d speed ups" results.fast_number)
-          @@ code_wrap results.fast_table
+            results.fast_table
         ; "- " ^ link ":chair: GitLab Bench Job" gitlab_url ]
         @ Option.value_map
             ~f:(fun x -> ["- " ^ link ":spiral_notepad: Bench Check Summary" x])
