@@ -167,26 +167,29 @@ let callback _conn req body =
         GitLab_subscriptions.receive_gitlab ~secret:gitlab_webhook_secret
           (Request.headers req) body
       with
-      | Ok (_, JobEvent ({common_info= {http_repo_url}} as job_info)) ->
-          (fun () ->
-            let gh_owner, gh_repo =
-              github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url
-            in
-            action_as_github_app ~bot_info ~key ~app_id ~owner:gh_owner
-              ~repo:gh_repo
-              (job_action ~gitlab_mapping job_info) )
-          |> Lwt.async ;
-          Server.respond_string ~status:`OK ~body:"Job event." ()
+      | Ok (_, JobEvent ({common_info= {http_repo_url}} as job_info)) -> (
+        match github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url with
+        | Error error_msg ->
+            (fun () -> Lwt_io.printl error_msg) |> Lwt.async ;
+            Server.respond_string ~status:`Bad_request ~body:error_msg ()
+        | Ok (owner, repo) ->
+            (fun () ->
+              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+                (job_action ~gitlab_mapping job_info) )
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK ~body:"Job event." () )
       | Ok (_, PipelineEvent ({common_info= {http_repo_url}} as pipeline_info))
-        ->
-          (fun () ->
-            let owner, repo =
-              github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url
-            in
-            action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
-              (pipeline_action ~gitlab_mapping pipeline_info) )
-          |> Lwt.async ;
-          Server.respond_string ~status:`OK ~body:"Pipeline event." ()
+        -> (
+        match github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url with
+        | Error error_msg ->
+            (fun () -> Lwt_io.printl error_msg) |> Lwt.async ;
+            Server.respond_string ~status:`Bad_request ~body:error_msg ()
+        | Ok (owner, repo) ->
+            (fun () ->
+              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+                (pipeline_action ~gitlab_mapping pipeline_info) )
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK ~body:"Pipeline event." () )
       | Ok (_, UnsupportedEvent e) ->
           Server.respond_string ~status:`OK
             ~body:(f "Unsupported event %s." e)
@@ -479,8 +482,12 @@ let callback _conn req body =
           else
             let external_id_parsed =
               match String.split ~on:',' external_id with
-              | [gitlab_domain; url_part] ->
-                  Some (gitlab_domain, url_part)
+              | [http_repo_url; url_part] -> (
+                match Helpers.parse_gitlab_repo_url ~http_repo_url with
+                | Error _ ->
+                    None
+                | Ok (gitlab_domain, _) ->
+                    Some (gitlab_domain, url_part) )
               | [url_part] ->
                   (* Backward compatibility *)
                   Some ("gitlab.com", url_part)

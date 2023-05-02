@@ -26,9 +26,10 @@ val github_repo_of_gitlab_project_path :
   -> gitlab_repo_full_name:string
   -> string * string
 
-val parse_gitlab_repo_url : http_repo_url:string -> string * string
+val parse_gitlab_repo_url :
+  http_repo_url:string -> (string * string, string) result
 
 val github_repo_of_gitlab_url :
      gitlab_mapping:(string, string) Base.Hashtbl.t
   -> http_repo_url:string
-  -> string * string
+  -> (string * string, string) result

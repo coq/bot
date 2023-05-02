@@ -672,47 +672,48 @@ let job_action ~bot_info
     ({build_name; common_info= {http_repo_url}} as job_info) ~gitlab_mapping =
   let pr_num, branch_or_pr = pr_from_branch job_info.common_info.branch in
   let context = f "GitLab CI job %s (%s)" build_name branch_or_pr in
-  let gitlab_domain, gitlab_repo_full_name =
-    parse_gitlab_repo_url ~http_repo_url
-  in
-  let gh_owner, gh_repo =
-    github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
-      ~gitlab_repo_full_name
-  in
-  let github_repo_full_name = gh_owner ^ "/" ^ gh_repo in
-  let external_id =
-    f "%s,projects/%d/jobs/%d" http_repo_url job_info.common_info.project_id
-      job_info.build_id
-  in
-  match (github_repo_full_name, job_info.build_name) with
-  | "coq/coq", "bench" ->
-      update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
-        ~number:pr_num
-  | _, _ -> (
-    match job_info.build_status with
-    | "failed" ->
-        let failure_reason = Option.value_exn job_info.failure_reason in
-        job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
-          ~github_repo_full_name ~gitlab_domain ~gitlab_repo_full_name ~context
-          ~failure_reason ~external_id
-    | "success" as state ->
-        job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
-          ~github_repo_full_name ~gitlab_domain ~gitlab_repo_full_name ~context
-          ~state ~external_id
-        <&> send_doc_url ~bot_info job_info ~github_repo_full_name
-    | ("created" | "running") as state ->
-        job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
-          ~github_repo_full_name ~gitlab_domain ~gitlab_repo_full_name ~context
-          ~state ~external_id
-    | "cancelled" | "canceled" | "pending" ->
-        (* Ideally we should check if a status was already reported for
-           this job.  But it is important to avoid making dozens of
-           requests at once when a pipeline is canceled.  So we should
-           have a caching mechanism to limit this case to a single
-           request. *)
-        Lwt.return_unit
-    | unknown_state ->
-        Lwt_io.printlf "Unknown job status: %s" unknown_state )
+  match parse_gitlab_repo_url ~http_repo_url with
+  | Error e ->
+      Lwt_io.printlf "Error in job_action: %s" e
+  | Ok (gitlab_domain, gitlab_repo_full_name) -> (
+      let gh_owner, gh_repo =
+        github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
+          ~gitlab_repo_full_name
+      in
+      let github_repo_full_name = gh_owner ^ "/" ^ gh_repo in
+      let external_id =
+        f "%s,projects/%d/jobs/%d" http_repo_url job_info.common_info.project_id
+          job_info.build_id
+      in
+      match (github_repo_full_name, job_info.build_name) with
+      | "coq/coq", "bench" ->
+          update_bench_status ~bot_info job_info (gh_owner, gh_repo)
+            ~external_id ~number:pr_num
+      | _, _ -> (
+        match job_info.build_status with
+        | "failed" ->
+            let failure_reason = Option.value_exn job_info.failure_reason in
+            job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
+              ~github_repo_full_name ~gitlab_domain ~gitlab_repo_full_name
+              ~context ~failure_reason ~external_id
+        | "success" as state ->
+            job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
+              ~github_repo_full_name ~gitlab_domain ~gitlab_repo_full_name
+              ~context ~state ~external_id
+            <&> send_doc_url ~bot_info job_info ~github_repo_full_name
+        | ("created" | "running") as state ->
+            job_success_or_pending ~bot_info (gh_owner, gh_repo) job_info
+              ~github_repo_full_name ~gitlab_domain ~gitlab_repo_full_name
+              ~context ~state ~external_id
+        | "cancelled" | "canceled" | "pending" ->
+            (* Ideally we should check if a status was already reported for
+               this job.  But it is important to avoid making dozens of
+               requests at once when a pipeline is canceled.  So we should
+               have a caching mechanism to limit this case to a single
+               request. *)
+            Lwt.return_unit
+        | unknown_state ->
+            Lwt_io.printlf "Unknown job status: %s" unknown_state ) )
 
 let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
   let variables =
@@ -1789,9 +1790,6 @@ let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error ~options
 
 let pipeline_action ~bot_info ({common_info= {http_repo_url}} as pipeline_info)
     ~gitlab_mapping : unit Lwt.t =
-  let gh_owner, gh_repo =
-    github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url
-  in
   let pr_number, _ = pr_from_branch pipeline_info.common_info.branch in
   match pipeline_info.state with
   | "skipped" ->
@@ -1804,116 +1802,123 @@ let pipeline_action ~bot_info ({common_info= {http_repo_url}} as pipeline_info)
         f "%s,projects/%d/pipelines/%d" http_repo_url
           pipeline_info.common_info.project_id pipeline_info.pipeline_id
       in
-      let state, status, conclusion, title, summary_top =
-        (* For the Coq repo only, we report whether this was a full or a light CI *)
-        let full_ci =
-          match (gh_owner, gh_repo) with
-          | "coq", "coq" -> (
-            try
-              List.find_map
-                ~f:(fun (key, value) ->
-                  if String.equal key "FULL_CI" then Some (Bool.of_string value)
-                  else None )
-                pipeline_info.variables
-            with _ -> None )
-          | _ ->
-              None
-        in
-        let qualified_pipeline =
-          match full_ci with
-          | Some true ->
-              "Full pipeline"
-          | Some false ->
-              "Light pipeline"
+      match github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url with
+      | Error err ->
+          Lwt_io.printlf "Error in pipeline action: %s" err
+      | Ok (gh_owner, gh_repo) -> (
+          let state, status, conclusion, title, summary_top =
+            (* For the Coq repo only, we report whether this was a full or a light CI *)
+            let full_ci =
+              match (gh_owner, gh_repo) with
+              | "coq", "coq" -> (
+                try
+                  List.find_map
+                    ~f:(fun (key, value) ->
+                      if String.equal key "FULL_CI" then
+                        Some (Bool.of_string value)
+                      else None )
+                    pipeline_info.variables
+                with _ -> None )
+              | _ ->
+                  None
+            in
+            let qualified_pipeline =
+              match full_ci with
+              | Some true ->
+                  "Full pipeline"
+              | Some false ->
+                  "Light pipeline"
+              | None ->
+                  "Pipeline"
+            in
+            match pipeline_info.state with
+            | "pending" ->
+                ( "pending"
+                , QUEUED
+                , None
+                , f "%s is pending on GitLab CI" qualified_pipeline
+                , None )
+            | "running" ->
+                ( "pending"
+                , IN_PROGRESS
+                , None
+                , f "%s is running on GitLab CI" qualified_pipeline
+                , None )
+            | "success" ->
+                ( "success"
+                , COMPLETED
+                , Some
+                    ( match full_ci with
+                    | Some false ->
+                        NEUTRAL
+                    | Some true | None ->
+                        SUCCESS )
+                , f "%s completed successfully on GitLab CI" qualified_pipeline
+                , None )
+            | "failed" ->
+                ( "failure"
+                , COMPLETED
+                , Some FAILURE
+                , f "%s completed with errors on GitLab CI" qualified_pipeline
+                , Some
+                    "*If you need to restart the entire pipeline, you may do \
+                     so directly in the GitHub interface using the \"Re-run\" \
+                     button.*" )
+            | "cancelled" | "canceled" ->
+                ( "error"
+                , COMPLETED
+                , Some CANCELLED
+                , f "%s was cancelled on GitLab CI" qualified_pipeline
+                , None )
+            | s ->
+                ( "error"
+                , COMPLETED
+                , Some FAILURE
+                , "Unknown pipeline status: " ^ s
+                , None )
+          in
+          match bot_info.github_install_token with
           | None ->
-              "Pipeline"
-        in
-        match pipeline_info.state with
-        | "pending" ->
-            ( "pending"
-            , QUEUED
-            , None
-            , f "%s is pending on GitLab CI" qualified_pipeline
-            , None )
-        | "running" ->
-            ( "pending"
-            , IN_PROGRESS
-            , None
-            , f "%s is running on GitLab CI" qualified_pipeline
-            , None )
-        | "success" ->
-            ( "success"
-            , COMPLETED
-            , Some
-                ( match full_ci with
-                | Some false ->
-                    NEUTRAL
-                | Some true | None ->
-                    SUCCESS )
-            , f "%s completed successfully on GitLab CI" qualified_pipeline
-            , None )
-        | "failed" ->
-            ( "failure"
-            , COMPLETED
-            , Some FAILURE
-            , f "%s completed with errors on GitLab CI" qualified_pipeline
-            , Some
-                "*If you need to restart the entire pipeline, you may do so \
-                 directly in the GitHub interface using the \"Re-run\" \
-                 button.*" )
-        | "cancelled" | "canceled" ->
-            ( "error"
-            , COMPLETED
-            , Some CANCELLED
-            , f "%s was cancelled on GitLab CI" qualified_pipeline
-            , None )
-        | s ->
-            ( "error"
-            , COMPLETED
-            , Some FAILURE
-            , "Unknown pipeline status: " ^ s
-            , None )
-      in
-      match bot_info.github_install_token with
-      | None ->
-          GitHub_mutations.send_status_check
-            ~repo_full_name:(gh_owner ^ "/" ^ gh_repo)
-            ~commit:pipeline_info.common_info.head_commit ~state
-            ~url:pipeline_url
-            ~context:
-              (f "GitLab CI pipeline (%s)"
-                 (pr_from_branch pipeline_info.common_info.branch |> snd) )
-            ~description:title ~bot_info
-      | Some _ -> (
-          GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
-            ~repo:gh_repo
-          >>= function
-          | Error e ->
-              Lwt_io.printf "No repo id: %s\n" e
-          | Ok repo_id -> (
-              let summary =
-                create_pipeline_summary ?summary_top pipeline_info pipeline_url
-              in
-              GitHub_mutations.create_check_run ~bot_info
-                ~name:
+              GitHub_mutations.send_status_check
+                ~repo_full_name:(gh_owner ^ "/" ^ gh_repo)
+                ~commit:pipeline_info.common_info.head_commit ~state
+                ~url:pipeline_url
+                ~context:
                   (f "GitLab CI pipeline (%s)"
                      (pr_from_branch pipeline_info.common_info.branch |> snd) )
-                ~repo_id ~head_sha:pipeline_info.common_info.head_commit ~status
-                ?conclusion ~title ~details_url:pipeline_url ~summary
-                ~external_id ()
-              >>= fun _ ->
-              Lwt_unix.sleep 5.
-              >>= fun () ->
-              match (gh_owner, gh_repo, pipeline_info.state, pr_number) with
-              | "coq", "coq", "failed", Some pr_number ->
-                  minimize_failed_tests ~bot_info ~owner:gh_owner ~repo:gh_repo
-                    ~pr_number ~head_pipeline_summary:(Some summary)
-                    ~request:Auto ~comment_on_error:false ~options:""
-                    ~bug_file_contents:None
-                    ?base_sha:pipeline_info.common_info.base_commit
-                    ~head_sha:pipeline_info.common_info.head_commit ()
-              | _ ->
-                  Lwt.return_unit ) ) )
+                ~description:title ~bot_info
+          | Some _ -> (
+              GitHub_queries.get_repository_id ~bot_info ~owner:gh_owner
+                ~repo:gh_repo
+              >>= function
+              | Error e ->
+                  Lwt_io.printf "No repo id: %s\n" e
+              | Ok repo_id -> (
+                  let summary =
+                    create_pipeline_summary ?summary_top pipeline_info
+                      pipeline_url
+                  in
+                  GitHub_mutations.create_check_run ~bot_info
+                    ~name:
+                      (f "GitLab CI pipeline (%s)"
+                         (pr_from_branch pipeline_info.common_info.branch |> snd) )
+                    ~repo_id ~head_sha:pipeline_info.common_info.head_commit
+                    ~status ?conclusion ~title ~details_url:pipeline_url
+                    ~summary ~external_id ()
+                  >>= fun _ ->
+                  Lwt_unix.sleep 5.
+                  >>= fun () ->
+                  match (gh_owner, gh_repo, pipeline_info.state, pr_number) with
+                  | "coq", "coq", "failed", Some pr_number ->
+                      minimize_failed_tests ~bot_info ~owner:gh_owner
+                        ~repo:gh_repo ~pr_number
+                        ~head_pipeline_summary:(Some summary) ~request:Auto
+                        ~comment_on_error:false ~options:""
+                        ~bug_file_contents:None
+                        ?base_sha:pipeline_info.common_info.base_commit
+                        ~head_sha:pipeline_info.common_info.head_commit ()
+                  | _ ->
+                      Lwt.return_unit ) ) ) )
 
 type coqbot_minimize_script_data =
   | MinimizeScript of {quote_kind: string; body: string}
