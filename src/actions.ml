@@ -293,7 +293,6 @@ end
 let fetch_bench_results ~job_info () =
   let open BenchResults in
   let open Lwt.Syntax in
-  let code_wrap str = f "```\n%s\n```" str in
   let fetch_artifact url =
     url |> Uri.of_string |> Client.get
     >>= fun (resp, body) ->
@@ -375,7 +374,6 @@ let bench_text = function
   | Ok results ->
       (* Formatting helpers *)
       let header2 str = f "## %s" str in
-      let code_wrap str = f "```\n%s\n```" str in
       (* Document *)
       let open BenchResults in
       [ header2 ":checkered_flag: Bench Summary:"
@@ -401,7 +399,6 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url ?check_url
           f "<details>\n<summary>%s</summary>\n\n%s\n\n</details>\n" summary
             text
         in
-        let code_wrap str = f "```\n%s\n```" str in
         let link text url = f "[%s](%s)" text url in
         [ ":checkered_flag: Bench results:"
         ; code_wrap results.summary_table

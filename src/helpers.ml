@@ -2,6 +2,8 @@ open Base
 
 let f = Printf.sprintf
 
+let code_wrap str = f "```\n%s\n```" str
+
 let string_match ~regexp ?(pos = 0) string =
   try
     let (_ : int) = Str.search_forward (Str.regexp regexp) string pos in
