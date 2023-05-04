@@ -1,5 +1,8 @@
 val f : ('a, unit, string) format -> 'a
 
+val code_wrap : string -> string
+(** [code_wrap] = [f "```\n%s\n```"] *)
+
 val string_match : regexp:string -> ?pos:int -> string -> bool
 
 val fold_string_matches :
