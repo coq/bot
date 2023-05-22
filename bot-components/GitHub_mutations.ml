@@ -157,6 +157,7 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
      }\n\n\
      }\n"
   in
+  let open Lwt_result.Infix in
   makeVariables ~name
     ~repoId:(GitHub_ID.to_string repo_id)
     ~headSha:head_sha ~status ~title ?text ~summary ~url:details_url ?conclusion
@@ -164,11 +165,11 @@ let create_check_run ~bot_info ?conclusion ~name ~repo_id ~head_sha ~status
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
-  >|= Result.bind ~f:(function
-        | {createCheckRun= Some {checkRun= Some {url}}} ->
-            Ok url
-        | _ ->
-            Error (f "Warning: Could not retrieve new check run URL.") )
+  >>= function
+  | {createCheckRun= Some {checkRun= Some {url}}} ->
+      Lwt_result.return url
+  | _ ->
+      Lwt_result.fail (f "No new check run URL provided in GitHub answer.")
 
 let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
     ~title ?text ~summary () =
