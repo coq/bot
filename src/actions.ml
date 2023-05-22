@@ -1796,7 +1796,7 @@ let pipeline_action ~bot_info ({common_info= {http_repo_url}} as pipeline_info)
       Lwt.return_unit
   | _ -> (
       let pipeline_url =
-        f "%s/pipelines/%d" http_repo_url pipeline_info.pipeline_id
+        f "%s/-/pipelines/%d" http_repo_url pipeline_info.pipeline_id
       in
       let external_id =
         f "%s,projects/%d/pipelines/%d" http_repo_url
