@@ -319,29 +319,29 @@ let fetch_bench_results ~job_info () =
     let* slow_table_or_err = artifact_url "slow_table.html" |> fetch_artifact in
     match slow_table_or_err with
     | Ok s ->
-      Lwt.return s
-    | Error _ ->
-    let* slow_table_or_err = artifact_url "slow_table" |> fetch_artifact in
-    match slow_table_or_err with
-    | Ok s ->
-        Lwt.return (code_wrap s)
-    | Error err ->
-        Lwt_io.printlf "Error fetching slow_table: %s" err
-        >>= fun () -> Lwt.return ""
+        Lwt.return s
+    | Error _ -> (
+        let* slow_table_or_err = artifact_url "slow_table" |> fetch_artifact in
+        match slow_table_or_err with
+        | Ok s ->
+            Lwt.return (code_wrap s)
+        | Error err ->
+            Lwt_io.printlf "Error fetching slow_table: %s" err
+            >>= fun () -> Lwt.return "" )
   in
   let* fast_table =
     let* fast_table_or_err = artifact_url "fast_table.html" |> fetch_artifact in
     match fast_table_or_err with
     | Ok s ->
         Lwt.return s
-    | Error _ ->
-    let* fast_table_or_err = artifact_url "fast_table" |> fetch_artifact in
-    match fast_table_or_err with
-    | Ok s ->
-        Lwt.return (code_wrap s)
-    | Error err ->
-        Lwt_io.printlf "Error fetching fast_table: %s" err
-        >>= fun () -> Lwt.return ""
+    | Error _ -> (
+        let* fast_table_or_err = artifact_url "fast_table" |> fetch_artifact in
+        match fast_table_or_err with
+        | Ok s ->
+            Lwt.return (code_wrap s)
+        | Error err ->
+            Lwt_io.printlf "Error fetching fast_table: %s" err
+            >>= fun () -> Lwt.return "" )
   in
   match summary_table with
   | Error e ->
@@ -403,9 +403,11 @@ let bench_comment ~bot_info ~owner ~repo ~number ~gitlab_url ?check_url
         [ ":checkered_flag: Bench results:"
         ; code_wrap results.summary_table
         ; results.failures
-        ; details (f ":turtle: Top %d slow downs" results.slow_number)
+        ; details
+            (f ":turtle: Top %d slow downs" results.slow_number)
             results.slow_table
-        ; details (f ":rabbit2: Top %d speed ups" results.fast_number)
+        ; details
+            (f ":rabbit2: Top %d speed ups" results.fast_number)
             results.fast_table
         ; "- " ^ link ":chair: GitLab Bench Job" gitlab_url ]
         @ Option.value_map
