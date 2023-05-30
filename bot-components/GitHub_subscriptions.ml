@@ -143,11 +143,12 @@ let push_event_info_of_json json =
   in
   let repo = json |> member "repository" |> member "name" |> to_string in
   let base_ref = json |> member "ref" |> to_string in
+  let head_sha = json |> member "after" |> to_string in
   let commits = json |> member "commits" |> to_list in
   let commits_msg =
     List.map commits ~f:(fun c -> c |> member "message" |> to_string)
   in
-  {owner; repo; base_ref; commits_msg}
+  {owner; repo; base_ref; head_sha; commits_msg}
 
 type msg =
   | IssueOpened of issue_info

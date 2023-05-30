@@ -27,7 +27,7 @@ wtree=$(mktemp -d)
   # of $base merge will do nothing even with --no-ff.
   # We assume $base is never ahead of $head.
   git reset --hard "$basecommit"
-  if ! git merge --no-ff "$headcommit" \
+  if ! git merge --no-stat --no-ff "$headcommit" \
        -m "[CI merge] PR #$prnum: $pr_title" \
        -m "Bot merge $basecommit and $headcommit";
   then

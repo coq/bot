@@ -2,7 +2,7 @@
 
 # usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target opam_switch failing_urls passing_urls base head minimizer_extra_arguments [bug_file]
 
-set -ex
+set -e
 
 if [ $# != 15 ] && [ $# != 16 ]; then >&2 echo Bad argument count; exit 1; fi
 

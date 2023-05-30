@@ -4,7 +4,7 @@ open Cohttp_lwt_unix
 open Lwt
 open Utils
 
-let send_graphql_query = GraphQL_query.send_graphql_query ~api:`GitHub
+let send_graphql_query = GraphQL_query.send_graphql_query ~api:GitHub
 
 let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     =
@@ -16,11 +16,11 @@ let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
-  >|= function
+  >>= function
   | Ok _ ->
-      ()
+      Lwt.return_unit
   | Error err ->
-      Stdio.print_endline (f "Error while moving project card: %s" err)
+      Lwt_io.printlf "Error while moving project card: %s" err
 
 let post_comment ~bot_info ~id ~message =
   let open GitHub_GraphQL.PostComment in
@@ -49,11 +49,11 @@ let update_milestone ~bot_info ~issue ~milestone =
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
-  >|= function
+  >>= function
   | Ok _ ->
-      ()
+      Lwt.return_unit
   | Error err ->
-      Stdio.print_endline (f "Error while updating milestone: %s" err)
+      Lwt_io.printlf "Error while updating milestone: %s" err
 
 let close_pull_request ~bot_info ~pr_id =
   let open GitHub_GraphQL.ClosePullRequest in
@@ -61,11 +61,11 @@ let close_pull_request ~bot_info ~pr_id =
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
-  >|= function
+  >>= function
   | Ok _ ->
-      ()
+      Lwt.return_unit
   | Error err ->
-      Stdio.print_endline (f "Error while closing PR: %s" err)
+      Lwt_io.printlf "Error while closing PR: %s" err
 
 let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
     ~pr_id () =
@@ -85,11 +85,11 @@ let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
-  >|= function
+  >>= function
   | Ok _ ->
-      ()
+      Lwt.return_unit
   | Error err ->
-      Stdio.print_endline (f "Error while merging PR: %s" err)
+      Lwt_io.printlf "Error while merging PR: %s" err
 
 let reflect_pull_request_milestone ~bot_info issue_closer_info =
   match issue_closer_info.closer.milestone_id with
@@ -182,11 +182,11 @@ let update_check_run ~bot_info ~check_run_id ~repo_id ~conclusion ?details_url
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
-  >|= function
+  >>= function
   | Ok _ ->
-      ()
+      Lwt.return_unit
   | Error err ->
-      Stdio.print_endline (f "Error while updating check run: %s" err)
+      Lwt_io.printlf "Error while updating check run: %s" err
 
 let add_labels ~bot_info ~labels ~issue =
   let open GitHub_GraphQL.LabelIssue in
@@ -213,13 +213,10 @@ let remove_labels ~bot_info ~labels ~issue =
 (* TODO: use GraphQL API *)
 
 let update_milestone ~bot_info new_milestone (issue : issue) =
-  let headers = headers (github_header bot_info) ~bot_info in
+  let headers = headers (github_header bot_info) bot_info.github_name in
   let uri =
     f "https://api.github.com/repos/%s/%s/issues/%d" issue.owner issue.repo
       issue.number
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url )
     |> Uri.of_string
   in
   let body =
@@ -245,24 +242,18 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
     "https://api.github.com/repos/" ^ repo_full_name ^ "/statuses/" ^ commit
     |> Uri.of_string
   in
-  send_request ~body ~uri (github_header bot_info) ~bot_info
+  send_request ~body ~uri (github_header bot_info) bot_info.github_name
 
 let add_pr_to_column ~bot_info ~pr_id ~column_id =
   let body =
     f {|{"content_id":%d, "content_type": "PullRequest"}|} pr_id
-    |> (fun body ->
-         Stdio.printf "Body:\n%s\n" body ;
-         body )
     |> Cohttp_lwt.Body.of_string
   in
   let uri =
     "https://api.github.com/projects/columns/" ^ Int.to_string column_id
     ^ "/cards"
-    |> (fun url ->
-         Stdio.printf "URL: %s\n" url ;
-         url )
     |> Uri.of_string
   in
   send_request ~body ~uri
     (project_api_preview_header @ github_header bot_info)
-    ~bot_info
+    bot_info.github_name

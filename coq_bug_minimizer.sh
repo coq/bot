@@ -2,7 +2,7 @@
 
 # usage: coq_bug_minimizer.sh 'script' comment_thread_id comment_author github_token bot_name bot_domain owner repo coq_version ocaml_version minimizer_extra_arguments
 
-set -ex
+set -e
 
 if [ $# != 11 ]; then >&2 echo Bad argument count; exit 1; fi
 

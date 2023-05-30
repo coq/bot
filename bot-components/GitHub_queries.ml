@@ -4,7 +4,7 @@ open GitHub_types
 open Lwt
 open Utils
 
-let send_graphql_query = GraphQL_query.send_graphql_query ~api:`GitHub
+let send_graphql_query = GraphQL_query.send_graphql_query ~api:GitHub
 
 let extract_backport_info ~(bot_info : Bot_info.t) description :
     full_backport_info option =
@@ -12,7 +12,8 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
     "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
   in
   let regexp =
-    bot_info.name ^ ": backport to \\([^ ]*\\) (request inclusion column: "
+    bot_info.github_name
+    ^ ": backport to \\([^ ]*\\) (request inclusion column: "
     ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
     ^ "; move rejected PRs to: "
     ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
@@ -29,7 +30,7 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
           [{backport_to; request_inclusion_column; backported_column}]
       ; rejected_milestone }
   else
-    let begin_regexp = bot_info.name ^ ": \\(.*\\)$" in
+    let begin_regexp = bot_info.github_name ^ ": \\(.*\\)$" in
     let backport_info_unit =
       "backport to \\([^ ]*\\) (request inclusion column: "
       ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp

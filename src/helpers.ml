@@ -52,28 +52,62 @@ let trim_comments comment =
   in
   aux comment 0 false
 
-let github_repo_of_gitlab_project_path ~gitlab_mapping gitlab_full_name =
+let github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
+    ~gitlab_repo_full_name =
+  let full_name_with_domain = gitlab_domain ^ "/" ^ gitlab_repo_full_name in
   let github_full_name =
-    match Hashtbl.find gitlab_mapping gitlab_full_name with
+    match Hashtbl.find gitlab_mapping full_name_with_domain with
     | Some value ->
         value
     | None ->
         Stdio.printf
           "Warning: No correspondence found for GitLab repository %s.\n"
-          gitlab_full_name ;
-        gitlab_full_name
+          full_name_with_domain ;
+        gitlab_repo_full_name
   in
   match Str.split (Str.regexp "/") github_full_name with
   | [owner; repo] ->
       (owner, repo)
   | _ ->
-      failwith "Could not split github_full_name into (owner, repo)."
+      failwith
+        (f "Could not split repository full name %s into (owner, repo)."
+           github_full_name )
 
-let github_repo_of_gitlab_url ~gitlab_mapping gitlab_repo_url =
-  let owner, repo =
-    if not (string_match ~regexp:".*:\\(.*\\)/\\(.*\\).git" gitlab_repo_url)
-    then Stdio.printf "Could not match project name on repository url.\n" ;
-    (Str.matched_group 1 gitlab_repo_url, Str.matched_group 2 gitlab_repo_url)
-  in
-  let repo_full_name = owner ^ "/" ^ repo in
-  github_repo_of_gitlab_project_path ~gitlab_mapping repo_full_name
+let parse_gitlab_repo_url ~http_repo_url =
+  if not (string_match ~regexp:"https?://\\([^/]*\\)/\\(.*/.*\\)" http_repo_url)
+  then Error (f "Could not parse GitLab repository URL %s." http_repo_url)
+  else Ok (Str.matched_group 1 http_repo_url, Str.matched_group 2 http_repo_url)
+
+let parse_gitlab_repo_url_and_print ~http_repo_url =
+  match parse_gitlab_repo_url ~http_repo_url with
+  | Ok (gitlab_domain, gitlab_repo_full_name) ->
+      Stdio.printf "GitLab domain: \"%s\"\n" gitlab_domain ;
+      Stdio.printf "GitLab repository full name: \"%s\"\n" gitlab_repo_full_name
+  | Error msg ->
+      Stdio.print_endline msg
+
+let%expect_test "http_repo_url_parsing_coq" =
+  parse_gitlab_repo_url_and_print ~http_repo_url:"https://gitlab.com/coq/coq" ;
+  [%expect {|
+     GitLab domain: "gitlab.com"
+     GitLab repository full name: "coq/coq" |}]
+
+let%expect_test "http_repo_url_parsing_mathcomp" =
+  parse_gitlab_repo_url_and_print
+    ~http_repo_url:"https://gitlab.inria.fr/math-comp/math-comp" ;
+  [%expect {|
+    GitLab domain: "gitlab.inria.fr"
+    GitLab repository full name: "math-comp/math-comp" |}]
+
+let%expect_test "http_repo_url_parsing_example_from_gitlab_docs" =
+  parse_gitlab_repo_url_and_print
+    ~http_repo_url:"https://gitlab.example.com/gitlab-org/gitlab-test" ;
+  [%expect {|
+    GitLab domain: "gitlab.example.com"
+    GitLab repository full name: "gitlab-org/gitlab-test" |}]
+
+let github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url =
+  parse_gitlab_repo_url ~http_repo_url
+  |> Result.map ~f:(fun (gitlab_domain, gitlab_repo_full_name) ->
+         github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
+           ~gitlab_repo_full_name )

@@ -1,9 +1,15 @@
+val gitlab_repo :
+     bot_info:Bot_components.Bot_info.t
+  -> gitlab_domain:string
+  -> gitlab_full_name:string
+  -> (string, string) Result.t
+
 val gitlab_ref :
      bot_info:Bot_components.Bot_info.t
   -> issue:Bot_components.GitHub_types.issue
-  -> github_mapping:(string, string) Base.Hashtbl.t
+  -> github_mapping:(string, string * string) Base.Hashtbl.t
   -> gitlab_mapping:(string, string) Base.Hashtbl.t
-  -> Bot_components.GitHub_types.remote_ref_info Lwt.t
+  -> (Bot_components.GitHub_types.remote_ref_info, string) Lwt_result.t
 
 val ( |&& ) : string -> string -> string
 

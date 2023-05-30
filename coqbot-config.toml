@@ -8,6 +8,16 @@ domain="coqbot.herokuapp.com"
 [github]
 app_id="31373"
 
+[gitlab]
+  [gitlab.com]
+  domain="gitlab.com"
+  api_token_env_var="GITLAB_ACCESS_TOKEN"
+
+  [gitlab.inria]
+  domain="gitlab.inria.fr"
+  api_token_env_var="INRIA_GITLAB_ACCESS_TOKEN"
+  bot_name="x-CBot"
+
 [mappings]
   [mappings.coq]
   github="coq/coq"
@@ -16,3 +26,12 @@ app_id="31373"
   [mappings.opam-coq-archive]
   github="coq/opam-coq-archive"
   gitlab="coq/opam-coq-archive"
+
+  [mappings.math-comp]
+  github="math-comp/math-comp"
+  gitlab="math-comp/math-comp"
+
+  [mappings.docker-mathcomp]
+  github="math-comp/docker-mathcomp"
+  gitlab="math-comp/docker-mathcomp"
+  gitlab_domain="gitlab.inria.fr"

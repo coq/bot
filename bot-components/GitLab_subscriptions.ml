@@ -32,7 +32,9 @@ let job_info_of_json json =
   let project_id = json |> member "project_id" |> to_int in
   let base_commit, head_commit = json |> extract_commit in
   let branch = json |> member "ref" |> to_string in
-  let repo_url = json |> member "repository" |> member "url" |> to_string in
+  let http_repo_url =
+    json |> member "repository" |> member "homepage" |> to_string
+  in
   let stage = json |> member "build_stage" |> to_string in
   let failure_reason =
     json |> member "build_failure_reason" |> to_string |> Option.some
@@ -44,7 +46,8 @@ let job_info_of_json json =
   ; stage
   ; failure_reason
   ; allow_fail
-  ; common_info= {base_commit; head_commit; branch; repo_url; project_id} }
+  ; common_info= {base_commit; head_commit; branch; http_repo_url; project_id}
+  }
 
 (* For use to decode builds inside a pipeline webhook *)
 let build_info_of_json json =
@@ -70,8 +73,7 @@ let pipeline_info_of_json json =
   let base_commit, head_commit = json |> extract_commit in
   let branch = pipeline_json |> member "ref" |> to_string in
   let project = json |> member "project" in
-  let repo_url = project |> member "web_url" |> to_string in
-  let project_path = project |> member "path_with_namespace" |> to_string in
+  let http_repo_url = project |> member "web_url" |> to_string in
   let project_id = project |> member "id" |> to_int in
   let variables =
     pipeline_json |> member "variables" |> to_list
@@ -88,8 +90,7 @@ let pipeline_info_of_json json =
   in
   { state
   ; pipeline_id
-  ; project_path
-  ; common_info= {head_commit; base_commit; branch; repo_url; project_id}
+  ; common_info= {head_commit; base_commit; branch; http_repo_url; project_id}
   ; variables
   ; stages
   ; builds }
