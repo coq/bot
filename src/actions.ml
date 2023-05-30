@@ -2188,7 +2188,8 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                     Lwt.return_error
                       (f
                          "@%s: You can't merge this PR because you're not a \
-                          member of the `@coq/pushers` team."
+                          member of the `@coq/pushers` team. Look at the \
+                          contributing guide for how to join this team."
                          comment_info.author )
                 | Ok true -> (
                     GitHub_mutations.merge_pull_request ~bot_info ~pr_id:pr.id
@@ -2485,6 +2486,16 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
         | Error e ->
             Lwt.return (Error e) ) )
 
+let inform_user_not_in_contributors ~bot_info comment_info =
+  GitHub_mutations.post_comment ~bot_info ~id:comment_info.issue.id
+    ~message:
+      (f
+         "Sorry, @%s, I only accept requests from members of the \
+          `@coq/contributor` team. If you are a regular contributor, you can \
+          request to join the team by asking any core developer."
+         comment_info.author )
+  >>= GitHub_mutations.report_on_posting_comment
+
 let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
     ~github_mapping () =
   let team = "contributors" in
@@ -2509,8 +2520,9 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
                   {pr_info with issue= comment_info.issue}
                   ~bot_info ~gitlab_mapping ~github_mapping
           else
-            Lwt_io.printl "Unauthorized user: doing nothing." |> Lwt_result.ok
-          )
+            (* We inform the author of the request that they are not authorized. *)
+            inform_user_not_in_contributors ~bot_info comment_info
+            |> Lwt_result.ok )
     |> Fn.flip Lwt_result.bind_lwt_error (fun err ->
            Lwt_io.printf "Error: %s\n" err ) )
     >>= fun _ -> Lwt.return_unit )
@@ -2864,11 +2876,4 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
       >>= GitHub_mutations.report_on_posting_comment
   | Ok false, _ ->
       (* User not found in the team *)
-      let err =
-        f
-          "@%s: You can't request a bench because you're not a member of the \
-           `@coq/contributors` team."
-          comment_info.author
-      in
-      GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
-      >>= GitHub_mutations.report_on_posting_comment
+      inform_user_not_in_contributors ~bot_info comment_info
