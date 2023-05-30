@@ -88,21 +88,24 @@ let parse_gitlab_repo_url_and_print ~http_repo_url =
 
 let%expect_test "http_repo_url_parsing_coq" =
   parse_gitlab_repo_url_and_print ~http_repo_url:"https://gitlab.com/coq/coq" ;
-  [%expect {|
+  [%expect
+    {|
      GitLab domain: "gitlab.com"
      GitLab repository full name: "coq/coq" |}]
 
 let%expect_test "http_repo_url_parsing_mathcomp" =
   parse_gitlab_repo_url_and_print
     ~http_repo_url:"https://gitlab.inria.fr/math-comp/math-comp" ;
-  [%expect {|
+  [%expect
+    {|
     GitLab domain: "gitlab.inria.fr"
     GitLab repository full name: "math-comp/math-comp" |}]
 
 let%expect_test "http_repo_url_parsing_example_from_gitlab_docs" =
   parse_gitlab_repo_url_and_print
     ~http_repo_url:"https://gitlab.example.com/gitlab-org/gitlab-test" ;
-  [%expect {|
+  [%expect
+    {|
     GitLab domain: "gitlab.example.com"
     GitLab repository full name: "gitlab-org/gitlab-test" |}]
 
