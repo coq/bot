@@ -542,7 +542,7 @@ let trace_action ~repo_full_name trace =
        || test "fatal: unable to access .* Couldn't connect to server"
        || test "fatal: unable to access .* Could not resolve host"
        || test "Resolving .* failed: Temporary failure in name resolution"
-       || test "ERROR: unexpected status code [manifests latest]: 401 Unauthorized"
+       || test "unexpected status code .*: 401 Unauthorized"
      then Retry "Connectivity issue"
      else if test "fatal: reference is not a tree" then
        Ignore "Normal failure: pull request was force-pushed."
