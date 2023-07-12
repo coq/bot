@@ -52,6 +52,23 @@ let trim_comments comment =
   in
   aux comment 0 false
 
+let strip_quoted_bot_name ~github_bot_name body =
+  (* If someone says "`@coqbot minimize foo`", (with backticks), we
+     don't want to treat that as them tagging coqbot, so we adjust
+     the tagging to "@`coqbot minimize foo`" so that the matching
+     below doesn't pick up the name *)
+  Str.global_replace
+    (Str.regexp (f "\\(`\\|<code>\\)@%s:? " @@ Str.quote github_bot_name))
+    (f "@\\1%s " @@ Str.quote github_bot_name)
+    body
+
+let%expect_test "strip_quoted_bot_name" =
+  Stdio.printf "%s\n"
+    (strip_quoted_bot_name ~github_bot_name:"coqbot"
+       {|>this didn't produce a pipeline for some reason\r\n\r\nI think that this is normal. @herbelin was maybe expecting that adding the `request: full CI` label would trigger a new run immediately, but the semantics is that this label will produce such a full CI run at the next update (next push) of this PR. Cf. the [documentation](https://github.com/coq/coq/blob/master/CONTRIBUTING.md#understanding-automatic-feedback):\r\n\r\n>you can request a full run of the CI by putting the `request: full CI` label before pushing to your PR branch, or by commenting `@coqbot: run full CI` after having pushed. |}) ;
+  [%expect
+  {| >this didn't produce a pipeline for some reason\r\n\r\nI think that this is normal. @herbelin was maybe expecting that adding the `request: full CI` label would trigger a new run immediately, but the semantics is that this label will produce such a full CI run at the next update (next push) of this PR. Cf. the [documentation](https://github.com/coq/coq/blob/master/CONTRIBUTING.md#understanding-automatic-feedback):\r\n\r\n>you can request a full run of the CI by putting the `request: full CI` label before pushing to your PR branch, or by commenting @`coqbot run full CI` after having pushed. |}]
+
 let github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
     ~gitlab_repo_full_name =
   let full_name_with_domain = gitlab_domain ^ "/" ^ gitlab_repo_full_name in

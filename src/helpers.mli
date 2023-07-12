@@ -20,6 +20,8 @@ val remove_between : string -> int -> int -> string
 
 val trim_comments : string -> string
 
+val strip_quoted_bot_name : github_bot_name:string -> string -> string
+
 val github_repo_of_gitlab_project_path :
      gitlab_mapping:(string, string) Base.Hashtbl.t
   -> gitlab_domain:string

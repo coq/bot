@@ -147,16 +147,7 @@ let callback _conn req body =
     , coqbot_ci_minimize_text_of_body
     , coqbot_resume_ci_minimize_text_of_body )
   in
-  let strip_quoted_bot_name body =
-    (* If someone says "`@coqbot minimize foo`", (with backticks), we
-       don't want to treat that as them tagging coqbot, so we adjust
-       the tagging to "@`coqbot minimize foo`" so that the matching
-       below doesn't pick up the name *)
-    Str.global_replace
-      (Str.regexp (f "\\(`\\|<code>\\)@%s " @@ Str.quote github_bot_name))
-      (f "@\\1%s " @@ Str.quote github_bot_name)
-      body
-  in
+
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
   match Uri.path (Request.uri req) with
@@ -308,7 +299,7 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) -> (
-          let body = body |> Helpers.trim_comments |> strip_quoted_bot_name in
+          let body = body |> trim_comments |> strip_quoted_bot_name ~github_bot_name in
           match coqbot_minimize_text_of_body body with
           | Some (options, script) ->
               (fun () ->
@@ -329,7 +320,7 @@ let callback _conn req body =
                 () )
       | Ok (signed, CommentCreated comment_info) -> (
           let body =
-            comment_info.body |> Helpers.trim_comments |> strip_quoted_bot_name
+            comment_info.body |> trim_comments |> strip_quoted_bot_name ~github_bot_name
           in
           match coqbot_minimize_text_of_body body with
           | Some (options, script) ->
