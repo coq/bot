@@ -258,7 +258,7 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
     doc_key
   <&>
   let build_url artifact =
-    f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id
+    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id
       artifact
   in
   send_doc_url_aux ~bot_info job_info
@@ -305,7 +305,7 @@ let fetch_bench_results ~job_info () =
     else Lwt.return_error (f "Recieved status %d from %s." status_code url)
   in
   let artifact_url file =
-    f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
+    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
       job_info.build_id file
   in
   let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
