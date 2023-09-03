@@ -71,18 +71,21 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
   in
   let coq_job_info =
     let open Option in
-    let find regexp =
+    let find regexps =
       List.find_map trace_lines ~f:(fun line ->
-          if string_match ~regexp line then Some (Str.matched_group 1 line)
-          else None )
+          List.find_map regexps ~f:(fun regexp ->
+              if string_match ~regexp line then Some (Str.matched_group 1 line)
+              else None ) )
     in
-    find "^Using Docker executor with image \\([^ ]+\\)"
+    find
+      [ "^Using Docker executor with image \\([^ ]+\\)"
+      ; "options=Options(docker='\\([^']+\\)')" ]
     >>= fun docker_image ->
-    find "^Downloading artifacts for \\(build:[^ ]+\\)"
+    find ["^Downloading artifacts for \\(build:[^ ]+\\)"]
     >>= fun build_dependency ->
-    find "^COMPILER=\\(.*\\)"
+    find ["^COMPILER=\\(.*\\)"]
     >>= fun compiler ->
-    find "^OPAM_VARIANT=\\(.*\\)"
+    find ["^OPAM_VARIANT=\\(.*\\)"]
     >>= fun opam_variant ->
     Some {docker_image; build_dependency; compiler; opam_variant}
   in
