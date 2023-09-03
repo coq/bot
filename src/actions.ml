@@ -14,9 +14,7 @@ type coq_job_info =
   { docker_image: string
   ; build_dependency: string
   ; compiler: string
-  ; compiler_edge: string
-  ; opam_variant: string
-  ; opam_switch: string }
+  ; opam_variant: string }
 
 let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     ~github_repo_full_name ~gitlab_domain ~gitlab_repo_full_name ~context
@@ -73,59 +71,33 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
   in
   let coq_job_info =
     let open Option in
-    let find regexp =
+    let find regexps =
       List.find_map trace_lines ~f:(fun line ->
-          if string_match ~regexp line then Some (Str.matched_group 1 line)
-          else None )
+          List.find_map regexps ~f:(fun regexp ->
+              if string_match ~regexp line then Some (Str.matched_group 1 line)
+              else None ) )
     in
-    find "^Using Docker executor with image \\([^ ]+\\)"
+    find
+      [ "^Using Docker executor with image \\([^ ]+\\)"
+      ; "options=Options(docker='\\([^']+\\)')" ]
     >>= fun docker_image ->
-    find "^Downloading artifacts for \\(build:[^ ]+\\)"
+    find ["^Downloading artifacts for \\(build:[^ ]+\\)"]
     >>= fun build_dependency ->
-    find "^COMPILER=\\(.*\\)"
+    find ["^COMPILER=\\(.*\\)"]
     >>= fun compiler ->
-    find "^COMPILER_EDGE=\\(.*\\)"
-    >>= fun compiler_edge ->
-    find "^OPAM_VARIANT=\\(.*\\)"
+    find ["^OPAM_VARIANT=\\(.*\\)"]
     >>= fun opam_variant ->
-    find "^OPAM_SWITCH=\\(.*\\)"
-    >>= fun opam_switch ->
-    Some
-      { docker_image
-      ; build_dependency
-      ; compiler
-      ; compiler_edge
-      ; opam_variant
-      ; opam_switch }
+    Some {docker_image; build_dependency; compiler; opam_variant}
   in
   let* summary_tail_prefix =
     match coq_job_info with
-    | Some
-        { docker_image
-        ; build_dependency
-        ; compiler
-        ; compiler_edge
-        ; opam_variant
-        ; opam_switch= ("base" | "edge") as opam_switch } ->
-        let switch_name =
-          ( match opam_switch with
-          | "base" ->
-              compiler
-          | "edge" ->
-              compiler_edge
-          | _ ->
-              failwith "opam_switch was already determined to be base or edge"
-          )
-          ^ opam_variant
-        in
+    | Some {docker_image; build_dependency; compiler; opam_variant} ->
+        let switch_name = compiler ^ opam_variant in
         Lwt.return
           (f
              "This job ran on the Docker image `%s`, depended on the build job \
               `%s` with OCaml `%s`.\n\n"
              docker_image build_dependency switch_name )
-    | Some {opam_switch} ->
-        let* () = Lwt_io.printlf "Unrecognized OPAM_SWITCH: %s." opam_switch in
-        Lwt.return ""
     | None ->
         Lwt.return ""
   in
@@ -229,7 +201,9 @@ let rec send_doc_url_aux ~bot_info job_info ~fallback_urls (kind, url) =
   let fail_response code =
     Lwt_io.printf "But we got a %d code when checking the URL.\n" code
     <&>
-    let job_url = f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id in
+    let job_url =
+      f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id
+    in
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
       ~commit:job_info.common_info.head_commit ~state:"failure" ~url:job_url
       ~context
@@ -258,8 +232,8 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
     doc_key
   <&>
   let build_url artifact =
-    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id
-      artifact
+    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/%s"
+      job_info.build_id artifact
   in
   send_doc_url_aux ~bot_info job_info
     ~fallback_urls:(List.map ~f:build_url fallback_artifacts)
@@ -305,7 +279,8 @@ let fetch_bench_results ~job_info () =
     else Lwt.return_error (f "Recieved status %d from %s." status_code url)
   in
   let artifact_url file =
-    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
+    f
+      "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
       job_info.build_id file
   in
   let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
