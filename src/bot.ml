@@ -147,7 +147,6 @@ let callback _conn req body =
     , coqbot_ci_minimize_text_of_body
     , coqbot_resume_ci_minimize_text_of_body )
   in
-
   let body = Cohttp_lwt.Body.to_string body in
   (* print_endline "Request received."; *)
   match Uri.path (Request.uri req) with
@@ -199,13 +198,20 @@ let callback _conn req body =
         GitHub_subscriptions.receive_github ~secret:github_webhook_secret
           (Request.headers req) body
       with
-      | Ok (true, PushEvent {owner= "coq"; repo= "coq"; base_ref; commits_msg})
-        ->
+      | Ok
+          ( true
+          , PushEvent
+              {owner= "coq"; repo= "coq"; base_ref; head_sha; commits_msg} ) ->
           (fun () ->
             init_git_bare_repository ~bot_info
-            >>= fun () ->
-            action_as_github_app ~bot_info ~key ~app_id ~owner:"coq" ~repo:"coq"
-              (coq_push_action ~base_ref ~commits_msg) )
+            >>= (fun () ->
+                  action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
+                    ~repo:"coq"
+                    (coq_push_action ~base_ref ~commits_msg) )
+            <&> action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
+                  ~repo:"coq"
+                  (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner:"coq"
+                     ~repo:"coq" ~base_ref ~head_sha () ) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -299,7 +305,9 @@ let callback _conn req body =
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) -> (
-          let body = body |> trim_comments |> strip_quoted_bot_name ~github_bot_name in
+          let body =
+            body |> trim_comments |> strip_quoted_bot_name ~github_bot_name
+          in
           match coqbot_minimize_text_of_body body with
           | Some (options, script) ->
               (fun () ->
@@ -320,7 +328,8 @@ let callback _conn req body =
                 () )
       | Ok (signed, CommentCreated comment_info) -> (
           let body =
-            comment_info.body |> trim_comments |> strip_quoted_bot_name ~github_bot_name
+            comment_info.body |> trim_comments
+            |> strip_quoted_bot_name ~github_bot_name
           in
           match coqbot_minimize_text_of_body body with
           | Some (options, script) ->

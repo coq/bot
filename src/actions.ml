@@ -229,7 +229,7 @@ let rec send_doc_url_aux ~bot_info job_info ~fallback_urls (kind, url) =
   let fail_response code =
     Lwt_io.printf "But we got a %d code when checking the URL.\n" code
     <&>
-    let job_url = f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id in
+    let job_url = f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id in
     GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
       ~commit:job_info.common_info.head_commit ~state:"failure" ~url:job_url
       ~context
@@ -258,7 +258,7 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
     doc_key
   <&>
   let build_url artifact =
-    f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id
+    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/%s" job_info.build_id
       artifact
   in
   send_doc_url_aux ~bot_info job_info
@@ -305,7 +305,7 @@ let fetch_bench_results ~job_info () =
     else Lwt.return_error (f "Recieved status %d from %s." status_code url)
   in
   let artifact_url file =
-    f "https://coq.gitlab.io/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
+    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
       job_info.build_id file
   in
   let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
@@ -447,7 +447,7 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
           Lwt_io.printl "Pushing status check for bench job."
           <&>
           let gitlab_url =
-            f "https://gitlab.com/coq/coq/-/jobs/%d" job_info.build_id
+            f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id
           in
           let summary =
             f "## GitLab Job URL:\n[GitLab Bench Job](%s)\n" gitlab_url
@@ -2841,7 +2841,7 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
         let build_id =
           let regexp =
             f {|.*%s\([0-9]*\)|}
-              (Str.quote "[bench](https://gitlab.com/coq/coq/-/jobs/")
+              (Str.quote "[bench](https://gitlab.inria.fr/coq/coq/-/jobs/")
           in
           ( if Helpers.string_match ~regexp summary then
             Str.matched_group 1 summary
@@ -2870,7 +2870,7 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
   match (allowed_to_bench, process_summary) with
   | Ok true, Ok (build_id, project_id) ->
       (* Permission to bench has been granted *)
-      GitLab_mutations.play_job ~bot_info ~gitlab_domain:"gitlab.com"
+      GitLab_mutations.play_job ~bot_info ~gitlab_domain:"gitlab.inria.fr"
         ~project_id ~build_id ?key_value_pairs ()
   | Error err, _ | _, Error err ->
       GitHub_mutations.post_comment ~bot_info ~message:err ~id:pr.id
