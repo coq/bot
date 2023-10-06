@@ -204,10 +204,9 @@ let callback _conn req body =
               {owner= "coq"; repo= "coq"; base_ref; head_sha; commits_msg} ) ->
           (fun () ->
             init_git_bare_repository ~bot_info
-            >>= (fun () ->
-                  action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
-                    ~repo:"coq"
-                    (coq_push_action ~base_ref ~commits_msg) )
+            >>= fun () ->
+            action_as_github_app ~bot_info ~key ~app_id ~owner:"coq" ~repo:"coq"
+              (coq_push_action ~base_ref ~commits_msg)
             <&> action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
                   ~repo:"coq"
                   (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner:"coq"
