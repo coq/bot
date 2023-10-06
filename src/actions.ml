@@ -2277,7 +2277,7 @@ let remove_labels_if_present ~bot_info (issue : issue_info) labels =
 let mirror_action ~bot_info ?(force = true) ~gitlab_domain ~owner ~repo
     ~base_ref ~head_sha () =
   (let open Lwt_result.Infix in
-  let local_ref = head_sha in
+  let local_ref = base_ref ^ "-" ^ head_sha in
   let gh_ref =
     {repo_url= f "https://github.com/%s/%s" owner repo; name= base_ref}
   in
@@ -2293,7 +2293,7 @@ let mirror_action ~bot_info ?(force = true) ~gitlab_domain ~owner ~repo
   | Ok () ->
       Lwt.return_unit
   | Error e ->
-      Lwt_io.printlf "Error while mirroring branch %s of repository %s/%s: %s"
+      Lwt_io.printlf "Error while mirroring branch/tag %s of repository %s/%s: %s"
         base_ref owner repo e
 
 (* TODO: ensure there's no race condition for 2 push with very close timestamps *)
@@ -2302,10 +2302,10 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
-    f "head-%s-%s" pr_info.head.branch.name pr_info.head.sha
+    f "refs/heads/head-%s-%s" pr_info.head.branch.name pr_info.head.sha
   in
   let local_base_branch =
-    f "base-%s-%s" pr_info.base.branch.name pr_info.base.sha
+    f "refs/heads/base-%s-%s" pr_info.base.branch.name pr_info.base.sha
   in
   git_fetch pr_info.base.branch local_base_branch
   |&& git_fetch pr_info.head.branch local_head_branch

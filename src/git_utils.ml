@@ -97,7 +97,7 @@ let execute_cmd command =
       report_status command "was stopped by signal number" signal
 
 let git_fetch ?(force = true) remote_ref local_branch_name =
-  f "git fetch --quiet -fu %s %s%s:refs/heads/%s" remote_ref.repo_url
+  f "git fetch --quiet -fu %s %s%s:%s" remote_ref.repo_url
     (if force then "+" else "")
     (Stdlib.Filename.quote remote_ref.name)
     (Stdlib.Filename.quote local_branch_name)
