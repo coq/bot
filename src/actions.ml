@@ -2302,13 +2302,13 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
   let open Lwt_result.Infix in
   (* Try as much as possible to get unique refnames for local branches. *)
   let local_head_branch =
-    f "refs/heads/head-%s-%s" pr_info.head.branch.name pr_info.head.sha
+    f "head-%s-%s" pr_info.head.branch.name pr_info.head.sha
   in
   let local_base_branch =
-    f "refs/heads/base-%s-%s" pr_info.base.branch.name pr_info.base.sha
+    f "base-%s-%s" pr_info.base.branch.name pr_info.base.sha
   in
-  git_fetch pr_info.base.branch local_base_branch
-  |&& git_fetch pr_info.head.branch local_head_branch
+  git_fetch pr_info.base.branch ("refs/heads/" ^ local_base_branch)
+  |&& git_fetch pr_info.head.branch ("refs/heads/" ^ local_head_branch)
   |> execute_cmd
   >>= (fun () ->
         git_make_ancestor ~pr_title:pr_info.issue.title
