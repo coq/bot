@@ -540,19 +540,19 @@ let job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     project_id failure_reason
   >>= fun () ->
   ( if String.equal failure_reason "runner_system_failure" then
-    Lwt.return (Retry "Runner failure reported by GitLab CI")
-  else
-    Lwt_io.printlf
-      "Failure reason reported by GitLab CI: %s.\nRetrieving the trace..."
-      failure_reason
-    >>= fun () ->
-    GitLab_queries.get_build_trace ~bot_info ~gitlab_domain ~project_id
-      ~build_id
-    >>= function
-    | Ok trace ->
-        trace_action ~repo_full_name:gitlab_repo_full_name trace
-    | Error err ->
-        Lwt.return (Ignore (f "Error while retrieving the trace: %s." err)) )
+      Lwt.return (Retry "Runner failure reported by GitLab CI")
+    else
+      Lwt_io.printlf
+        "Failure reason reported by GitLab CI: %s.\nRetrieving the trace..."
+        failure_reason
+      >>= fun () ->
+      GitLab_queries.get_build_trace ~bot_info ~gitlab_domain ~project_id
+        ~build_id
+      >>= function
+      | Ok trace ->
+          trace_action ~repo_full_name:gitlab_repo_full_name trace
+      | Error err ->
+          Lwt.return (Ignore (f "Error while retrieving the trace: %s." err)) )
   >>= function
   | Warn trace ->
       Lwt_io.printf "Actual failure.\n"
@@ -1189,13 +1189,13 @@ let accumulate_extra_minimizer_arguments options =
   let extra_args = getopts ~opt:"extra-arg" options in
   let inline_stdlib = getopt ~opt:"inline-stdlib" options in
   ( if String.equal inline_stdlib "yes" then Lwt.return ["--inline-coqlib"]
-  else
-    ( if not (String.equal inline_stdlib "") then
-      Lwt_io.printlf
-        "Ignoring invalid option to inline-stdlib '%s' not equal to 'yes'"
-        inline_stdlib
-    else Lwt.return_unit )
-    >>= fun () -> Lwt.return_nil )
+    else
+      ( if not (String.equal inline_stdlib "") then
+          Lwt_io.printlf
+            "Ignoring invalid option to inline-stdlib '%s' not equal to 'yes'"
+            inline_stdlib
+        else Lwt.return_unit )
+      >>= fun () -> Lwt.return_nil )
   >>= fun inline_stdlib_args -> inline_stdlib_args @ extra_args |> Lwt.return
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
@@ -1452,7 +1452,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 "I am now %s minimization at commit %s on %s. I'll come back \
                  to you with the results once it's done.%s"
                 ( if Option.is_none bug_file_contents then "running"
-                else "resuming" )
+                  else "resuming" )
                 head
                 (jobs_minimized |> String.concat ~sep:", ")
                 note_some_head_unfinished_msg )
@@ -1560,7 +1560,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                  I'll come back to you with the results once it's done.%s\n\n\
                  %s"
                 ( if Option.is_none bug_file_contents then "running"
-                else "resuming" )
+                  else "resuming" )
                 head
                 (pluralize "target" successful_requests)
                 (successful_requests |> String.concat ~sep:", ")
@@ -2074,23 +2074,24 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
   let reasons_for_not_merging =
     List.filter_opt
       [ ( if String.equal comment_info.author pr.user then
-          Some "You are the author."
-        else if
-        List.exists
-          ~f:(String.equal comment_info.author)
-          comment_info.issue.assignees
-      then None
-        else Some "You are not among the assignees." )
+            Some "You are the author."
+          else if
+            List.exists
+              ~f:(String.equal comment_info.author)
+              comment_info.issue.assignees
+          then None
+          else Some "You are not among the assignees." )
       ; comment_info.issue.labels
         |> List.find ~f:(fun label -> string_match ~regexp:"needs:.*" label)
         |> Option.map ~f:(fun l -> f "There is still a `%s` label." l)
       ; ( if
-          comment_info.issue.labels
-          |> List.exists ~f:(fun label -> string_match ~regexp:"kind:.*" label)
-        then None
-        else Some "There is no `kind:` label." )
+            comment_info.issue.labels
+            |> List.exists ~f:(fun label ->
+                   string_match ~regexp:"kind:.*" label )
+          then None
+          else Some "There is no `kind:` label." )
       ; ( if comment_info.issue.milestoned then None
-        else Some "No milestone has been set." ) ]
+          else Some "No milestone has been set." ) ]
   in
   ( match reasons_for_not_merging with
   | _ :: _ ->
@@ -2174,9 +2175,9 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                            comment_info.issue.title )
                       ~commit_body:
                         ( List.fold_left reviews_info.approved_reviews ~init:""
-                            ~f:(fun s r -> s ^ f "Reviewed-by: %s\n" r)
+                            ~f:(fun s r -> s ^ f "Reviewed-by: %s\n" r )
                         ^ List.fold_left reviews_info.comment_reviews ~init:""
-                            ~f:(fun s r -> s ^ f "Ack-by: %s\n" r)
+                            ~f:(fun s r -> s ^ f "Ack-by: %s\n" r )
                         ^ f "Co-authored-by: %s <%s@users.noreply.github.com>\n"
                             comment_info.author comment_info.author )
                       ~merge_method:MERGE ()
@@ -2277,24 +2278,25 @@ let remove_labels_if_present ~bot_info (issue : issue_info) labels =
 let mirror_action ~bot_info ?(force = true) ~gitlab_domain ~owner ~repo
     ~base_ref ~head_sha () =
   (let open Lwt_result.Infix in
-  let local_ref = base_ref ^ "-" ^ head_sha in
-  let gh_ref =
-    {repo_url= f "https://github.com/%s/%s" owner repo; name= base_ref}
-  in
-  (* TODO: generalize to use repository mappings, with enhanced security *)
-  gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name:(owner ^ "/" ^ repo)
-  |> Lwt.return
-  >>= fun gl_repo ->
-  let gl_ref = {repo_url= gl_repo; name= base_ref} in
-  git_fetch gh_ref local_ref |> execute_cmd
-  >>= fun () -> git_push ~force ~remote_ref:gl_ref ~local_ref () |> execute_cmd
+   let local_ref = base_ref ^ "-" ^ head_sha in
+   let gh_ref =
+     {repo_url= f "https://github.com/%s/%s" owner repo; name= base_ref}
+   in
+   (* TODO: generalize to use repository mappings, with enhanced security *)
+   gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name:(owner ^ "/" ^ repo)
+   |> Lwt.return
+   >>= fun gl_repo ->
+   let gl_ref = {repo_url= gl_repo; name= base_ref} in
+   git_fetch gh_ref local_ref |> execute_cmd
+   >>= fun () -> git_push ~force ~remote_ref:gl_ref ~local_ref () |> execute_cmd
   )
   >>= function
   | Ok () ->
       Lwt.return_unit
   | Error e ->
-      Lwt_io.printlf "Error while mirroring branch/tag %s of repository %s/%s: %s"
-        base_ref owner repo e
+      Lwt_io.printlf
+        "Error while mirroring branch/tag %s of repository %s/%s: %s" base_ref
+        owner repo e
 
 (* TODO: ensure there's no race condition for 2 push with very close timestamps *)
 let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
@@ -2477,30 +2479,30 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
   let team = "contributors" in
   (fun () ->
     (let open Lwt_result.Infix in
-    GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team
-      ~user:comment_info.author
-    >>= (fun is_member ->
-          if is_member then
-            let open Lwt.Syntax in
-            let* () = Lwt_io.printl "Authorized user: pushing to GitLab." in
-            match comment_info.pull_request with
-            | Some pr_info ->
-                update_pr ~skip_author_check:true pr_info ~bot_info
-                  ~gitlab_mapping ~github_mapping
-            | None ->
-                let {owner; repo; number} = comment_info.issue.issue in
-                GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
-                  ~number
-                >>= fun pr_info ->
-                update_pr ?full_ci ~skip_author_check:true
-                  {pr_info with issue= comment_info.issue}
-                  ~bot_info ~gitlab_mapping ~github_mapping
-          else
-            (* We inform the author of the request that they are not authorized. *)
-            inform_user_not_in_contributors ~bot_info comment_info
-            |> Lwt_result.ok )
-    |> Fn.flip Lwt_result.bind_lwt_error (fun err ->
-           Lwt_io.printf "Error: %s\n" err ) )
+     GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team
+       ~user:comment_info.author
+     >>= (fun is_member ->
+           if is_member then
+             let open Lwt.Syntax in
+             let* () = Lwt_io.printl "Authorized user: pushing to GitLab." in
+             match comment_info.pull_request with
+             | Some pr_info ->
+                 update_pr ~skip_author_check:true pr_info ~bot_info
+                   ~gitlab_mapping ~github_mapping
+             | None ->
+                 let {owner; repo; number} = comment_info.issue.issue in
+                 GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
+                   ~number
+                 >>= fun pr_info ->
+                 update_pr ?full_ci ~skip_author_check:true
+                   {pr_info with issue= comment_info.issue}
+                   ~bot_info ~gitlab_mapping ~github_mapping
+           else
+             (* We inform the author of the request that they are not authorized. *)
+             inform_user_not_in_contributors ~bot_info comment_info
+             |> Lwt_result.ok )
+     |> Fn.flip Lwt_result.bind_lwt_error (fun err ->
+            Lwt_io.printf "Error: %s\n" err ) )
     >>= fun _ -> Lwt.return_unit )
   |> Lwt.async ;
   Server.respond_string ~status:`OK
@@ -2635,8 +2637,8 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
       | Ok (Some (_, pr_id, {backport_info})) ->
           backport_info
           |> Lwt_list.iter_p
-               (fun {backport_to; request_inclusion_column; backported_column}
-               ->
+               (fun
+                 {backport_to; request_inclusion_column; backported_column} ->
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
                    Lwt_io.printf
                      "PR was merged into the backportig branch directly.\n"
@@ -2819,15 +2821,15 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
               (Str.quote "[bench](https://gitlab.inria.fr/coq/coq/-/jobs/")
           in
           ( if Helpers.string_match ~regexp summary then
-            Str.matched_group 1 summary
-          else raise @@ Stdlib.Failure "Could not find GitLab bench job ID" )
+              Str.matched_group 1 summary
+            else raise @@ Stdlib.Failure "Could not find GitLab bench job ID" )
           |> Stdlib.int_of_string
         in
         let project_id =
           let regexp = {|.*GitLab Project ID: \([0-9]*\)|} in
           ( if Helpers.string_match ~regexp summary then
-            Str.matched_group 1 summary
-          else raise @@ Stdlib.Failure "Could not find GitLab Project ID" )
+              Str.matched_group 1 summary
+            else raise @@ Stdlib.Failure "Could not find GitLab Project ID" )
           |> Int.of_string
         in
         Lwt.return_ok (build_id, project_id)
