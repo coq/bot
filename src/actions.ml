@@ -25,7 +25,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
   in
   let trace_lines =
     trace
-    |> Str.global_replace (Str.regexp "\027\\[[0-9]*;[0-9]*m") ""
+    |> Str.global_replace (Str.regexp "\027\\[[0-9;]*m") ""
     |> Str.global_replace (Str.regexp "\027\\[0K") ""
     |> Str.global_replace (Str.regexp "section_start:[0-9]*:[a-z_]*\r") ""
     |> Str.global_replace (Str.regexp "section_end:[0-9]*:[a-z_]*\r") ""
