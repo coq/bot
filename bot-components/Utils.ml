@@ -3,6 +3,7 @@ open Bot_info
 open Cohttp
 open Cohttp_lwt_unix
 open Lwt
+open Zip
 
 let f = Printf.sprintf
 
@@ -43,6 +44,26 @@ let handle_json action body =
   | Yojson.Basic.Util.Type_error (err, _) ->
       Error (f "Json type error: %s\n" err)
 
+let handle_zip action body_stream =
+  Lwt_io.with_temp_file (fun (tmp_name, tmp_channel) ->
+      body_stream
+      |> Lwt_stream.iter_s (Lwt_io.write tmp_channel)
+      >>= fun () ->
+      Lwt_io.close tmp_channel
+      >>= Lwt_preemptive.detach (fun () ->
+              let zip_entries =
+                let zf = Zip.open_in tmp_name in
+                let entries =
+                  Zip.entries zf
+                  |> List.filter ~f:(fun entry -> not entry.is_directory)
+                  |> List.map ~f:(fun entry ->
+                         (entry, Zip.read_entry zf entry) )
+                in
+                Zip.close_in zf ; entries
+              in
+              zip_entries ) )
+  >|= action >>= Lwt.return_ok
+
 (* GitHub specific *)
 
 let project_api_preview_header =
@@ -50,6 +71,8 @@ let project_api_preview_header =
 
 let app_api_preview_header =
   [("Accept", "application/vnd.github.machine-man-preview+json")]
+
+let api_json_header = [("Accept", "application/vnd.github+json")]
 
 let github_header bot_info =
   [("Authorization", "bearer " ^ github_token bot_info)]
@@ -62,3 +85,12 @@ let generic_get ~bot_info relative_uri ?(header_list = []) json_handler =
   Client.get ~headers uri
   >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
   >|= handle_json json_handler
+
+let generic_get_zip ~bot_info relative_uri ?(header_list = []) zip_handler =
+  let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
+  let headers =
+    headers (header_list @ github_header bot_info) bot_info.github_name
+  in
+  Client.get ~headers uri
+  >>= fun (_response, body) ->
+  Cohttp_lwt.Body.to_stream body |> handle_zip zip_handler
