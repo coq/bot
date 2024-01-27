@@ -3,8 +3,8 @@
 (* Queries *)
 
 module PullRequest_Milestone_and_Cards =
-[%graphql
-{|
+  [%graphql
+  {|
   fragment Column on ProjectColumn {
     id
     databaseId
@@ -34,8 +34,8 @@ module PullRequest_Milestone_and_Cards =
 |}]
 
 module PullRequest_ID =
-[%graphql
-{|
+  [%graphql
+  {|
   query prID($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) {
@@ -46,8 +46,8 @@ module PullRequest_ID =
 |}]
 
 module PullRequest_ID_and_Milestone =
-[%graphql
-{|
+  [%graphql
+  {|
   query prInfo($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) {
@@ -63,8 +63,8 @@ module PullRequest_ID_and_Milestone =
 |}]
 
 module TeamMembership =
-[%graphql
-{|
+  [%graphql
+  {|
   query teamMember($org: String!, $team: String!, $user: String!) {
     organization(login:$org) {
       team(slug:$team) {
@@ -85,8 +85,8 @@ module ParseAsString = struct
 end
 
 module PullRequest_Refs =
-[%graphql
-{|
+  [%graphql
+  {|
   query prRefs($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner, name:$repo) {
       pullRequest(number: $number) {
@@ -115,8 +115,8 @@ module PullRequest_Refs =
 |}]
 
 module Issue_Milestone =
-[%graphql
-{|
+  [%graphql
+  {|
   fragment Milestone on Milestone {
     id
   }
@@ -151,8 +151,8 @@ module Issue_Milestone =
 |}]
 
 module PullRequestReviewsInfo =
-[%graphql
-{|
+  [%graphql
+  {|
   fragment Reviews on PullRequestReviewConnection {
     nodes {
       author { login }
@@ -189,8 +189,8 @@ module PullRequestReviewsInfo =
 |}]
 
 module DefaultBranch =
-[%graphql
-{|
+  [%graphql
+  {|
   query defaultBranch($owner: String!, $repo: String!) {
     repository(owner: $owner, name: $repo) {
       defaultBranchRef {
@@ -201,8 +201,8 @@ module DefaultBranch =
 |}]
 
 module FileContent =
-[%graphql
-{|
+  [%graphql
+  {|
   query fileContent($owner: String!, $repo: String!, $file: String!) {
     repository(owner: $owner, name: $repo) {
       file:object(expression: $file) {
@@ -215,8 +215,8 @@ module FileContent =
 |}]
 
 module RepoId =
-[%graphql
-{|
+  [%graphql
+  {|
   query repoId($owner: String!, $repo: String!) {
     repository(owner: $owner, name: $repo) {
       id
@@ -227,8 +227,8 @@ module RepoId =
 (* Mutations *)
 
 module MoveCardToColumn =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation moveCard($card_id:ID!,$column_id:ID!) {
     moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
       clientMutationId
@@ -237,8 +237,8 @@ module MoveCardToColumn =
 |}]
 
 module PostComment =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation addComment($id:ID!,$message:String!) {
     payload: addComment(input:{subjectId:$id,body:$message}) {
       commentEdge {
@@ -251,8 +251,8 @@ module PostComment =
 |}]
 
 module UpdateMilestone =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation updateMilestone($issue: ID!, $milestone: ID!) {
     updateIssue(input: {id: $issue, milestoneId: $milestone}) {
       clientMutationId
@@ -261,8 +261,8 @@ module UpdateMilestone =
 |}]
 
 module MergePullRequest =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation mergePullRequest($pr_id: ID!, $commit_headline: String,
   $commit_body: String, $merge_method: PullRequestMergeMethod) {
     mergePullRequest(
@@ -279,8 +279,8 @@ module MergePullRequest =
 |}]
 
 module ClosePullRequest =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation closePullRequest($pr_id: ID!) {
     closePullRequest(
       input: {pullRequestId: $pr_id}) {
@@ -292,8 +292,8 @@ module ClosePullRequest =
 |}]
 
 module LabelIssue =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation labelIssue($issue_id: ID!, $label_ids: [ID!]!) {
     addLabelsToLabelable(
       input: {labelableId: $issue_id, labelIds:$label_ids}) {
@@ -303,8 +303,8 @@ module LabelIssue =
 |}]
 
 module UnlabelIssue =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation unlabelIssue($issue_id: ID!, $label_ids: [ID!]!) {
     removeLabelsFromLabelable(
       input: {labelableId: $issue_id, labelIds:$label_ids}) {
@@ -314,8 +314,8 @@ module UnlabelIssue =
 |}]
 
 module NewCheckRun =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
   $status: RequestableCheckStatusState!, $title: String!, $text: String, $summary: String!,
   $url: String!, $conclusion: CheckConclusionState, $externalId: String) {
@@ -342,8 +342,8 @@ module NewCheckRun =
 |}]
 
 module UpdateCheckRun =
-[%graphql
-{|
+  [%graphql
+  {|
   mutation updateCheckRun($checkRunId: ID!, $repoId: ID!
   $conclusion: CheckConclusionState!, $title: String!, $text: String,
   $url: String, $summary: String!) {
@@ -365,8 +365,8 @@ module UpdateCheckRun =
 |}]
 
 module GetCheckRuns =
-[%graphql
-{|
+  [%graphql
+  {|
   query getCheckRuns($appId: Int!, $owner: String!, $repo: String!, $commit: String!, $context: String!) {
     repository(owner:$owner, name:$repo) {
       obj: object(expression: $commit) {
@@ -392,8 +392,8 @@ module GetCheckRuns =
 |}]
 
 module GetLabel =
-[%graphql
-{|
+  [%graphql
+  {|
   query getLabels($owner: String!, $repo: String!, $label: String!) {
     repository(owner:$owner, name:$repo) {
       label(name: $label) {
@@ -404,8 +404,8 @@ module GetLabel =
 |}]
 
 module GetOpenPullRequestWithLabel =
-[%graphql
-{|
+  [%graphql
+  {|
 
 query getOpenPullRequestWithLabel($owner: String!, $repo:String!, $label:String!, $cursor: String, $len: Int!) {
   repository(name: $repo,owner:$owner) {
@@ -425,8 +425,8 @@ query getOpenPullRequestWithLabel($owner: String!, $repo:String!, $label:String!
 |}]
 
 module GetPullRequestLabelTimeline =
-[%graphql
-{|
+  [%graphql
+  {|
 fragment Label on Label {
   name
 }
@@ -457,8 +457,8 @@ query getPullRequestLabelTimeline($owner: String!, $repo:String!, $prNumber: Int
 |}]
 
 module GetPullRequestLabels =
-[%graphql
-{|
+  [%graphql
+  {|
 
 query getPullRequestLabels($owner: String!, $repo:String!, $prNumber: Int!, $cursor: String, $len: Int!) {
   repository(name: $repo,owner:$owner) {
@@ -479,8 +479,8 @@ query getPullRequestLabels($owner: String!, $repo:String!, $prNumber: Int!, $cur
 |}]
 
 module GetBaseAndHeadChecks =
-[%graphql
-{|
+  [%graphql
+  {|
 fragment CheckRuns on CheckRunConnection {
   nodes {
     name
@@ -526,8 +526,8 @@ query getChecks($appId: Int!, $owner: String!, $repo:String!, $prNumber: Int!, $
 |}]
 
 module GetPipelineSummary =
-[%graphql
-{|
+  [%graphql
+  {|
 query getChecks($appId: Int!, $owner: String!, $repo:String!, $head: String!) {
   repository(name: $repo,owner:$owner) {
     getPipelineSummaryCommit: object(expression: $head) {
