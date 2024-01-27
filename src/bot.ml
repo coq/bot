@@ -59,6 +59,12 @@ let callback _conn req body =
         { quote_kind= quote_kind |> Str.global_replace (Str.regexp "[ \r]") ""
         ; body= body |> extract_minimize_file }
     in
+    let extract_minimize_url url =
+      url |> Str.global_replace (Str.regexp "^[` ]+\\|[` ]+$") ""
+    in
+    let extract_minimize_attachment ?(description = "") url =
+      MinimizeAttachment {description; url= url |> extract_minimize_url}
+    in
     let parse_minimiation_requests requests =
       requests
       |> Str.global_replace (Str.regexp "[ ,]+") " "
@@ -100,7 +106,7 @@ let callback _conn req body =
           , Str.matched_group 2 body
           , Str.matched_group 3 body )
         in
-        Some (options, MinimizeAttachment {description; url})
+        Some (options, extract_minimize_attachment ~description url)
       else None
     in
     let coqbot_ci_minimize_text_of_body body =
@@ -163,7 +169,7 @@ let callback _conn req body =
         Some
           ( options
           , requests |> parse_minimiation_requests
-          , MinimizeAttachment {description; url} )
+          , extract_minimize_attachment ~description url )
       else if
         string_match
           ~regexp:
@@ -185,7 +191,7 @@ let callback _conn req body =
         Some
           ( options
           , requests |> parse_minimiation_requests
-          , MinimizeAttachment {description= ""; url} )
+          , extract_minimize_attachment url )
       else None
     in
     ( coqbot_minimize_text_of_body
