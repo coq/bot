@@ -782,7 +782,6 @@ let run_ci_minimization_error_to_string = function
         f
           "Could not resume minimization because [artifact %s/%s:%s](%s) \
            failed to download:\n\
-           Error:\n\
            %s"
           artifact_owner artifact_repo artifact_id artifact_url error )
   | DownloadError {url; error} ->
