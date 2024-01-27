@@ -137,12 +137,14 @@ let github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url =
            ~gitlab_repo_full_name )
 
 let download_cps ~uri ~with_file =
+  let open Lwt.Infix in
   let rec inner_download uri =
     let* resp, body = Client.get uri in
     match Response.status resp with
     | `OK ->
         let stream = Body.to_stream body in
         with_file (fun chan -> Lwt_stream.iter_s (Lwt_io.write chan) stream)
+        >>= Lwt.return_ok
     | `Moved_permanently
     | `Found
     | `See_other
@@ -156,14 +158,14 @@ let download_cps ~uri ~with_file =
             Printf.sprintf "Redirected from %s, but no Location header found"
               (Uri.to_string uri)
           in
-          Lwt.fail_with msg )
+          Lwt.return_error msg )
     | status_code ->
         let msg =
           Printf.sprintf "HTTP request to %s failed with status code: %s"
             (Uri.to_string uri)
             (Code.string_of_status status_code)
         in
-        Lwt.fail_with msg
+        Lwt.return_error msg
   in
   inner_download uri
 
