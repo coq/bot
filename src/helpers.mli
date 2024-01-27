@@ -36,6 +36,7 @@ val github_repo_of_gitlab_url :
   -> http_repo_url:string
   -> (string * string, string) result
 
-val download : uri:Uri.t -> string -> unit Lwt.t
+val download : uri:Uri.t -> string -> (unit, string) Lwt_result.t
 
-val download_to : uri:Uri.t -> Lwt_io.output_channel -> unit Lwt.t
+val download_to :
+  uri:Uri.t -> Lwt_io.output_channel -> (unit, string) Lwt_result.t

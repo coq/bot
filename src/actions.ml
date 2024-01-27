@@ -760,28 +760,37 @@ type artifact_error =
   | ArtifactDownloadError of string
 
 type run_ci_minimization_error =
-  {url: string; artifact: artifact_info; artifact_error: artifact_error}
+  | ArtifactError of
+      {url: string; artifact: artifact_info; artifact_error: artifact_error}
+  | DownloadError of {url: string; error: string}
 
-let run_ci_minimization_error_to_string
-    { url= artifact_url
-    ; artifact= ArtifactInfo {artifact_owner; artifact_repo; artifact_id}
-    ; artifact_error } =
-  match artifact_error with
-  | ArtifactEmpty ->
-      f "Could not resume minimization with [empty artifact](%s)" artifact_url
-  | ArtifactContainsMultipleFiles filenames ->
+let run_ci_minimization_error_to_string = function
+  | ArtifactError
+      { url= artifact_url
+      ; artifact= ArtifactInfo {artifact_owner; artifact_repo; artifact_id}
+      ; artifact_error } -> (
+    match artifact_error with
+    | ArtifactEmpty ->
+        f "Could not resume minimization with [empty artifact](%s)" artifact_url
+    | ArtifactContainsMultipleFiles filenames ->
+        f
+          "Could not resume minimization because [artifact](%s) contains more \
+           than one file: %s"
+          artifact_url
+          (String.concat ~sep:", " filenames)
+    | ArtifactDownloadError error ->
+        f
+          "Could not resume minimization because [artifact %s/%s:%s](%s) \
+           failed to download:\n\
+           Error:\n\
+           %s"
+          artifact_owner artifact_repo artifact_id artifact_url error )
+  | DownloadError {url; error} ->
       f
-        "Could not resume minimization because [artifact](%s) contains more \
-         than one file: %s"
-        artifact_url
-        (String.concat ~sep:", " filenames)
-  | ArtifactDownloadError error ->
-      f
-        "Could not resume minimization because [artifact %s/%s:%s](%s) failed \
-         to download:\n\
-         Error:\n\
+        "Could not resume minimization because [artifact](%s) failed to \
+         download:\n\
          %s"
-        artifact_owner artifact_repo artifact_id artifact_url error
+        url error
 
 let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
     ~base ~head ~ci_minimization_infos ~bug_file ~minimizer_extra_arguments =
@@ -813,21 +822,26 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
             | Ok [(_filename, bug_file_contents)] ->
                 Lwt_io.write bug_file_ch bug_file_contents >>= Lwt.return_ok
             | Ok [] ->
-                Lwt.return_error {url; artifact; artifact_error= ArtifactEmpty}
+                Lwt.return_error
+                  (ArtifactError {url; artifact; artifact_error= ArtifactEmpty})
             | Ok files ->
                 files
                 |> List.map ~f:(fun (filename, _contents) -> filename)
                 |> fun artifact_filenames ->
                 Lwt.return_error
-                  { url
-                  ; artifact
-                  ; artifact_error=
-                      ArtifactContainsMultipleFiles artifact_filenames }
+                  (ArtifactError
+                     { url
+                     ; artifact
+                     ; artifact_error=
+                         ArtifactContainsMultipleFiles artifact_filenames } )
             | Error err ->
                 Lwt.return_error
-                  {url; artifact; artifact_error= ArtifactDownloadError err} )
+                  (ArtifactError
+                     {url; artifact; artifact_error= ArtifactDownloadError err}
+                  ) )
         | None ->
-            download_to ~uri:(Uri.of_string url) bug_file_ch >>= Lwt.return_ok )
+            download_to ~uri:(Uri.of_string url) bug_file_ch
+            |> Lwt_result.map_error (fun error -> DownloadError {url; error}) )
       )
       >>= fun () ->
       let open Lwt.Infix in
