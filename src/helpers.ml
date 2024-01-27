@@ -1,4 +1,8 @@
 open Base
+open Lwt.Syntax
+open Cohttp
+open Cohttp_lwt
+open Cohttp_lwt_unix
 
 let f = Printf.sprintf
 
@@ -131,3 +135,40 @@ let github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url =
   |> Result.map ~f:(fun (gitlab_domain, gitlab_repo_full_name) ->
          github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
            ~gitlab_repo_full_name )
+
+let download_cps ~uri ~with_file =
+  let rec inner_download uri =
+    let* resp, body = Client.get uri in
+    match Response.status resp with
+    | `OK ->
+        let stream = Body.to_stream body in
+        with_file (fun chan -> Lwt_stream.iter_s (Lwt_io.write chan) stream)
+    | `Moved_permanently
+    | `Found
+    | `See_other
+    | `Temporary_redirect
+    | `Permanent_redirect -> (
+      match Header.get_location (Response.headers resp) with
+      | Some new_uri ->
+          inner_download new_uri
+      | None ->
+          let msg =
+            Printf.sprintf "Redirected from %s, but no Location header found"
+              (Uri.to_string uri)
+          in
+          Lwt.fail_with msg )
+    | status_code ->
+        let msg =
+          Printf.sprintf "HTTP request to %s failed with status code: %s"
+            (Uri.to_string uri)
+            (Code.string_of_status status_code)
+        in
+        Lwt.fail_with msg
+  in
+  inner_download uri
+
+let download ~uri dest =
+  download_cps ~uri ~with_file:(Lwt_io.with_file ~mode:Lwt_io.output dest)
+
+let download_to ~uri chan =
+  download_cps ~uri ~with_file:(fun write_to -> write_to chan)

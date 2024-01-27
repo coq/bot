@@ -54,6 +54,11 @@ let callback _conn req body =
       |> Str.split (Str.regexp_string "\n```")
       |> List.hd |> Option.value ~default:""
     in
+    let extract_minimize_script quote_kind body =
+      MinimizeScript
+        { quote_kind= quote_kind |> Str.global_replace (Str.regexp "[ \r]") ""
+        ; body= body |> extract_minimize_file }
+    in
     let parse_minimiation_requests requests =
       requests
       |> Str.global_replace (Str.regexp "[ ,]+") " "
@@ -81,12 +86,7 @@ let callback _conn req body =
           , Str.matched_group 2 body
           , Str.matched_group 3 body )
         in
-        Some
-          ( options
-          , MinimizeScript
-              { quote_kind=
-                  quote_kind |> Str.global_replace (Str.regexp "[ \r]") ""
-              ; body= body |> extract_minimize_file } )
+        Some (options, extract_minimize_script quote_kind body)
       else if
         string_match
           ~regexp:
@@ -125,14 +125,59 @@ let callback _conn req body =
                 "@%s:?\\( [^\n\
                  ]*\\)\\bresume [Cc][Ii][- ][Mm]inimiz\\(e\\|ation\\):?\\([^\n\
                  ]*\\)\n\
-                 +```[^\n\
-                 ]*\n\
+                 +```\\([^\n\
+                 ]*\\)\n\
                  \\(\\(.\\|\n\
                  \\)+\\)"
             @@ Str.quote github_bot_name )
           body
       then
-        let options, requests, body =
+        let options, requests, quote_kind, body =
+          ( Str.matched_group 1 body
+          , Str.matched_group 3 body
+          , Str.matched_group 4 body
+          , Str.matched_group 5 body )
+        in
+        Some
+          ( options
+          , requests |> parse_minimiation_requests
+          , extract_minimize_script quote_kind body )
+      else if
+        string_match
+          ~regexp:
+            ( f
+                "@%s:?\\( [^\n\
+                 ]*\\)\\bresume [Cc][Ii][- ][Mm]inimiz\\(e\\|ation\\):?[ \n\
+                 ]+\\([^ \n\
+                 ]+\\)[ \n\
+                 ]+\\[\\([^]]*\\)\\] *(\\([^)]*\\))"
+            @@ Str.quote github_bot_name )
+          body
+      then
+        let options, requests, description, url =
+          ( Str.matched_group 1 body
+          , Str.matched_group 3 body
+          , Str.matched_group 4 body
+          , Str.matched_group 5 body )
+        in
+        Some
+          ( options
+          , requests |> parse_minimiation_requests
+          , MinimizeAttachment {description; url} )
+      else if
+        string_match
+          ~regexp:
+            ( f
+                "@%s:?\\( [^\n\
+                 ]*\\)\\bresume [Cc][Ii][- ][Mm]inimiz\\(e\\|ation\\):?[ \n\
+                 ]+\\([^ \n\
+                 ]+\\)[ \n\
+                 ]+\\(https?://[^ \n\
+                 ]+\\)"
+            @@ Str.quote github_bot_name )
+          body
+      then
+        let options, requests, url =
           ( Str.matched_group 1 body
           , Str.matched_group 3 body
           , Str.matched_group 4 body )
@@ -140,7 +185,7 @@ let callback _conn req body =
         Some
           ( options
           , requests |> parse_minimiation_requests
-          , body |> extract_minimize_file )
+          , MinimizeAttachment {description= ""; url} )
       else None
     in
     ( coqbot_minimize_text_of_body
@@ -363,14 +408,14 @@ let callback _conn req body =
                don't want to parse "resume" as an option, we test
                resumption first *)
             match coqbot_resume_ci_minimize_text_of_body body with
-            | Some (options, requests, bug_file_contents) ->
+            | Some (options, requests, bug_file) ->
                 (fun () ->
                   init_git_bare_repository ~bot_info
                   >>= fun () ->
                   action_as_github_app ~bot_info ~key ~app_id
                     ~owner:comment_info.issue.issue.owner
                     (ci_minimize ~comment_info ~requests ~comment_on_error:true
-                       ~options ~bug_file_contents:(Some bug_file_contents) ) )
+                       ~options ~bug_file:(Some bug_file) ) )
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:"Handling CI minimization resumption." ()
@@ -383,8 +428,7 @@ let callback _conn req body =
                     action_as_github_app ~bot_info ~key ~app_id
                       ~owner:comment_info.issue.issue.owner
                       (ci_minimize ~comment_info ~requests
-                         ~comment_on_error:true ~options ~bug_file_contents:None )
-                    )
+                         ~comment_on_error:true ~options ~bug_file:None ) )
                   |> Lwt.async ;
                   Server.respond_string ~status:`OK
                     ~body:"Handling CI minimization." ()

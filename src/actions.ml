@@ -732,20 +732,27 @@ type ci_minimization_info =
   ; failing_urls: string
   ; passing_urls: string }
 
+type coqbot_minimize_script_data =
+  | MinimizeScript of {quote_kind: string; body: string}
+  | MinimizeAttachment of {description: string; url: string}
+
 let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
-    ~base ~head ~ci_minimization_infos ~bug_file_contents
-    ~minimizer_extra_arguments =
+    ~base ~head ~ci_minimization_infos ~bug_file ~minimizer_extra_arguments =
   (* for convenience of control flow, we always create the temporary
      file, but we only pass in the file name if the bug file contents
      is non-None *)
   Lwt_io.with_temp_file (fun (bug_file_name, bug_file_ch) ->
-      Lwt_io.write bug_file_ch (Option.value ~default:"" bug_file_contents)
+      ( match bug_file with
+      | None ->
+          Lwt.return_unit
+      | Some (MinimizeScript {body= bug_file_contents}) ->
+          Lwt_io.write bug_file_ch bug_file_contents
+      | Some (MinimizeAttachment {url}) ->
+          download_to ~uri:(Uri.of_string url) bug_file_ch )
       >>= fun () ->
       Lwt_io.flush bug_file_ch
       >>= fun () ->
-      let bug_file_name =
-        Option.map ~f:(fun _ -> bug_file_name) bug_file_contents
-      in
+      let bug_file_name = Option.map ~f:(fun _ -> bug_file_name) bug_file in
       Lwt_list.map_s
         (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
           git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
@@ -1200,8 +1207,8 @@ let accumulate_extra_minimizer_arguments options =
   >>= fun inline_stdlib_args -> inline_stdlib_args @ extra_args |> Lwt.return
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
-    ~head_pipeline_summary ~request ~comment_on_error ~bug_file_contents
-    ~options ?base_sha ?head_sha () =
+    ~head_pipeline_summary ~request ~comment_on_error ~bug_file ~options
+    ?base_sha ?head_sha () =
   let options = format_options_for_getopts options in
   accumulate_extra_minimizer_arguments options
   >>= fun minimizer_extra_arguments ->
@@ -1297,7 +1304,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
       run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
         ~pr_number:(Int.to_string pr_number) ~base ~head
         ~ci_minimization_infos:jobs_to_minimize ~minimizer_extra_arguments
-        ~bug_file_contents
+        ~bug_file
       >>= fun (jobs_minimized, jobs_that_could_not_be_minimized) ->
       let pluralize word ?plural ls =
         match (ls, plural) with
@@ -1452,8 +1459,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
               f
                 "I am now %s minimization at commit %s on %s. I'll come back \
                  to you with the results once it's done.%s"
-                ( if Option.is_none bug_file_contents then "running"
-                else "resuming" )
+                (if Option.is_none bug_file then "running" else "resuming")
                 head
                 (jobs_minimized |> String.concat ~sep:", ")
                 note_some_head_unfinished_msg )
@@ -1560,8 +1566,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 "I am now %s minimization at commit %s on requested %s %s. \
                  I'll come back to you with the results once it's done.%s\n\n\
                  %s"
-                ( if Option.is_none bug_file_contents then "running"
-                else "resuming" )
+                (if Option.is_none bug_file then "running" else "resuming")
                 head
                 (pluralize "target" successful_requests)
                 (successful_requests |> String.concat ~sep:", ")
@@ -1751,7 +1756,7 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
         pr_number err
 
 let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error ~options
-    ~bug_file_contents =
+    ~bug_file =
   minimize_failed_tests ~bot_info ~owner:comment_info.issue.issue.owner
     ~repo:comment_info.issue.issue.repo ~pr_number:comment_info.issue.number
     ~head_pipeline_summary:None
@@ -1763,7 +1768,7 @@ let ci_minimize ~bot_info ~comment_info ~requests ~comment_on_error ~options
           RequestAll
       | requests ->
           RequestExplicit requests )
-    ~comment_on_error ~options ~bug_file_contents ()
+    ~comment_on_error ~options ~bug_file ()
 
 let pipeline_action ~bot_info ({common_info= {http_repo_url}} as pipeline_info)
     ~gitlab_mapping : unit Lwt.t =
@@ -1890,16 +1895,11 @@ let pipeline_action ~bot_info ({common_info= {http_repo_url}} as pipeline_info)
                       minimize_failed_tests ~bot_info ~owner:gh_owner
                         ~repo:gh_repo ~pr_number
                         ~head_pipeline_summary:(Some summary) ~request:Auto
-                        ~comment_on_error:false ~options:""
-                        ~bug_file_contents:None
+                        ~comment_on_error:false ~options:"" ~bug_file:None
                         ?base_sha:pipeline_info.common_info.base_commit
                         ~head_sha:pipeline_info.common_info.head_commit ()
                   | _ ->
                       Lwt.return_unit ) ) ) )
-
-type coqbot_minimize_script_data =
-  | MinimizeScript of {quote_kind: string; body: string}
-  | MinimizeAttachment of {description: string; url: string}
 
 let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo ~options =
@@ -2028,7 +2028,10 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                         ; passing_urls
                         ; docker_image
                         ; full_target= target (* dummy value *) } ]
-                    ~bug_file_contents:(Some bug_file_contents) )
+                    ~bug_file:
+                      (Some
+                         (MinimizeScript
+                            {quote_kind= ""; body= bug_file_contents} ) ) )
                >>= function
                | [], [] ->
                    Lwt_io.printlf

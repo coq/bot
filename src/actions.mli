@@ -103,7 +103,7 @@ val ci_minimize :
   -> requests:string list
   -> comment_on_error:bool
   -> options:string
-  -> bug_file_contents:string option
+  -> bug_file:coqbot_minimize_script_data option
   -> unit Lwt.t
 
 val coq_bug_minimizer_resume_ci_minimization_action :
