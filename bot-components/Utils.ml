@@ -81,7 +81,13 @@ let api_json_header = [("Accept", "application/vnd.github+json")]
 let github_header bot_info =
   [("Authorization", "bearer " ^ github_token bot_info)]
 
-let rec client_get ?(follow_redirects = true) ~headers uri =
+let headers_of_list = headers
+
+(* when following a redirect from GitHub to Azure, passing along the
+   Authorization header results in 403 Forbidden.  So we strip the
+   headers when we recurse by default. *)
+let rec client_get ?(follow_redirects = true)
+    ?(include_headers_in_redirects = false) ~user_agent ~headers uri =
   Client.get ~headers uri
   >>= fun (resp, body) ->
   match Response.status resp with
@@ -93,15 +99,22 @@ let rec client_get ?(follow_redirects = true) ~headers uri =
   | `Temporary_redirect
   | `Permanent_redirect
     when follow_redirects -> (
-    match Header.get_location (Response.headers resp) with
-    | Some new_uri ->
-        client_get ~follow_redirects ~headers new_uri
-    | None ->
-        let msg =
-          f "Redirected from %s, but no Location header found"
-            (Uri.to_string uri)
-        in
-        Lwt.return_error msg )
+      let headers =
+        if include_headers_in_redirects then headers
+        else headers_of_list [] user_agent
+      in
+      match Header.get_location (Response.headers resp) with
+      | Some new_uri ->
+          Lwt_io.printlf "Following redirect to %s" (Uri.to_string new_uri)
+          >>= fun () ->
+          client_get ~follow_redirects ~include_headers_in_redirects ~headers
+            ~user_agent new_uri
+      | None ->
+          let msg =
+            f "Redirected from %s, but no Location header found"
+              (Uri.to_string uri)
+          in
+          Lwt.return_error msg )
   | status_code ->
       let msg =
         f "HTTP request to %s failed with status code: %s" (Uri.to_string uri)
@@ -112,10 +125,9 @@ let rec client_get ?(follow_redirects = true) ~headers uri =
 let generic_get ~bot_info relative_uri ?(header_list = []) handler =
   let open Lwt_result.Infix in
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
-  let headers =
-    headers (header_list @ github_header bot_info) bot_info.github_name
-  in
-  client_get ~headers uri
+  let user_agent = bot_info.github_name in
+  let headers = headers (header_list @ github_header bot_info) user_agent in
+  client_get ~headers ~user_agent uri
   >>= (fun body -> Cohttp_lwt.Body.to_string body |> Lwt_result.ok)
   >>= handler
 
