@@ -152,9 +152,11 @@ val get_project_field_values :
      result
      Lwt.t
 
+type zip_error = {zip_name: string; entry_name: string; message: string}
+
 val get_artifact_blob :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> artifact_id:string
-  -> ((string * string) list, string) result Lwt.t
+  -> ((string * string) list, zip_error) result Lwt.t
