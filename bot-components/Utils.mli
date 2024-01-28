@@ -21,7 +21,7 @@ val api_json_header : (string * string) list
 
 val github_header : Bot_info.t -> (string * string) list
 
-val generic_get :
+val generic_get_json :
      bot_info:Bot_info.t
   -> string
   -> ?header_list:(string * string) list
@@ -33,4 +33,4 @@ val generic_get_zip :
   -> string
   -> ?header_list:(string * string) list
   -> ((Zip.entry * string) list -> 'a)
-  -> ('a, string * string * string * string) result Lwt.t
+  -> ('a, string) result Lwt.t

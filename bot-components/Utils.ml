@@ -65,7 +65,7 @@ let handle_zip action body =
                 in
                 Ok zip_entries
               with Zip.Error (zip_name, entry_name, message) ->
-                Error (body, zip_name, entry_name, message) ) )
+                Error (f "Zip.Error(%s, %s, %s)" zip_name entry_name message) ) )
   >|= action
 
 (* GitHub specific *)
@@ -81,20 +81,47 @@ let api_json_header = [("Accept", "application/vnd.github+json")]
 let github_header bot_info =
   [("Authorization", "bearer " ^ github_token bot_info)]
 
-let generic_get ~bot_info relative_uri ?(header_list = []) json_handler =
+let rec client_get ?(follow_redirects = true) ~headers uri =
+  Client.get ~headers uri
+  >>= fun (resp, body) ->
+  match Response.status resp with
+  | `OK ->
+      Lwt.return_ok body
+  | `Moved_permanently
+  | `Found
+  | `See_other
+  | `Temporary_redirect
+  | `Permanent_redirect
+    when follow_redirects -> (
+    match Header.get_location (Response.headers resp) with
+    | Some new_uri ->
+        client_get ~follow_redirects ~headers new_uri
+    | None ->
+        let msg =
+          f "Redirected from %s, but no Location header found"
+            (Uri.to_string uri)
+        in
+        Lwt.return_error msg )
+  | status_code ->
+      let msg =
+        f "HTTP request to %s failed with status code: %s" (Uri.to_string uri)
+          (Code.string_of_status status_code)
+      in
+      Lwt.return_error msg
+
+let generic_get ~bot_info relative_uri ?(header_list = []) handler =
+  let open Lwt_result.Infix in
   let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
   let headers =
     headers (header_list @ github_header bot_info) bot_info.github_name
   in
-  Client.get ~headers uri
-  >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
-  >|= handle_json json_handler
+  client_get ~headers uri
+  >>= (fun body -> Cohttp_lwt.Body.to_string body |> Lwt_result.ok)
+  >>= handler
+
+let generic_get_json ~bot_info relative_uri ?(header_list = []) json_handler =
+  generic_get ~bot_info relative_uri ~header_list (fun body ->
+      body |> handle_json json_handler |> Lwt.return )
 
 let generic_get_zip ~bot_info relative_uri ?(header_list = []) zip_handler =
-  let uri = "https://api.github.com/" ^ relative_uri |> Uri.of_string in
-  let headers =
-    headers (header_list @ github_header bot_info) bot_info.github_name
-  in
-  Client.get ~headers uri
-  >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
-  >>= handle_zip zip_handler
+  generic_get ~bot_info relative_uri ~header_list (handle_zip zip_handler)
