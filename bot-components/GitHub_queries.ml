@@ -855,7 +855,7 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
 (* TODO: use GraphQL API *)
 
 let get_cards_in_column column_id =
-  generic_get
+  generic_get_json
     ("projects/columns/" ^ Int.to_string column_id ^ "/cards")
     ~header_list:project_api_preview_header
     (fun json ->
@@ -1034,3 +1034,9 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
         Lwt.return @@ Error err
   in
   get_list getter
+
+let get_artifact_blob ~bot_info ~owner ~repo ~artifact_id =
+  generic_get_zip ~bot_info
+    (f "repos/%s/%s/actions/artifacts/%s/zip" owner repo artifact_id)
+    (let open Zip in
+     List.map ~f:(fun (entry, contents) -> (entry.filename, contents)) )

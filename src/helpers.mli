@@ -35,3 +35,8 @@ val github_repo_of_gitlab_url :
      gitlab_mapping:(string, string) Base.Hashtbl.t
   -> http_repo_url:string
   -> (string * string, string) result
+
+val download : uri:Uri.t -> string -> (unit, string) Lwt_result.t
+
+val download_to :
+  uri:Uri.t -> Lwt_io.output_channel -> (unit, string) Lwt_result.t

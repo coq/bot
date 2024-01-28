@@ -137,3 +137,10 @@ val get_pull_request_labels :
   -> repo:string
   -> pr_number:int
   -> (string list, string) result Lwt.t
+
+val get_artifact_blob :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> artifact_id:string
+  -> ((string * string) list, string) result Lwt.t
