@@ -154,18 +154,13 @@ let download_cps ~uri ~with_file =
       | Some new_uri ->
           inner_download new_uri
       | None ->
-          let msg =
-            Printf.sprintf "Redirected from %s, but no Location header found"
-              (Uri.to_string uri)
-          in
-          Lwt.return_error msg )
-    | status_code ->
-        let msg =
-          Printf.sprintf "HTTP request to %s failed with status code: %s"
+          f "Redirected from %s, but no Location header found"
             (Uri.to_string uri)
-            (Code.string_of_status status_code)
-        in
-        Lwt.return_error msg
+          |> Lwt.return_error )
+    | status_code ->
+        f "HTTP request to %s failed with status code: %s" (Uri.to_string uri)
+          (Code.string_of_status status_code)
+        |> Lwt.return_error
   in
   inner_download uri
 
