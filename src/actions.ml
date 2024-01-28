@@ -744,14 +744,14 @@ let parse_github_artifact_url url =
   let github_prefix = "https://github.com/" in
   let regexp =
     Str.quote github_prefix
-    ^ "\\([^/]+\\)/\\([^/]+\\)/suites/.*/artifacts/\\([0-9]+\\)"
+    ^ "\\([^/]+\\)/\\([^/]+\\)/\\(actions/runs\\|suites\\)/.*/artifacts/\\([0-9]+\\)"
   in
   if string_match ~regexp url then
     Some
       (ArtifactInfo
          { artifact_owner= Str.matched_group 1 url
          ; artifact_repo= Str.matched_group 2 url
-         ; artifact_id= Str.matched_group 3 url } )
+         ; artifact_id= Str.matched_group 4 url } )
   else None
 
 type artifact_error =
