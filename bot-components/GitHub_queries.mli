@@ -138,7 +138,8 @@ val get_pull_request_labels :
   -> pr_number:int
   -> (string list, string) result Lwt.t
 
-type zip_error = {zip_name: string; entry_name: string; message: string}
+type zip_error =
+  {zip_contents: string; zip_name: string; entry_name: string; message: string}
 
 val get_artifact_blob :
      bot_info:Bot_info.t
