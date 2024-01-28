@@ -833,7 +833,8 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
                      ; artifact
                      ; artifact_error=
                          ArtifactContainsMultipleFiles artifact_filenames } )
-            | Error {zip_name; entry_name; message} ->
+            | Error {zip_contents= _zip_contents; zip_name; entry_name; message}
+              ->
                 Lwt.return_error
                   (ArtifactError
                      { url

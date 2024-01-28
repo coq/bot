@@ -65,7 +65,7 @@ let handle_zip action body =
                 in
                 Ok zip_entries
               with Zip.Error (zip_name, entry_name, message) ->
-                Error (zip_name, entry_name, message) ) )
+                Error (body, zip_name, entry_name, message) ) )
   >|= action
 
 (* GitHub specific *)

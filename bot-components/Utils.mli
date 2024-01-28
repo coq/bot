@@ -33,4 +33,4 @@ val generic_get_zip :
   -> string
   -> ?header_list:(string * string) list
   -> ((Zip.entry * string) list -> 'a)
-  -> ('a, string * string * string) result Lwt.t
+  -> ('a, string * string * string * string) result Lwt.t
