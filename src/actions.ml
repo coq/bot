@@ -833,16 +833,12 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
                      ; artifact
                      ; artifact_error=
                          ArtifactContainsMultipleFiles artifact_filenames } )
-            | Error {zip_contents= _zip_contents; zip_name; entry_name; message}
-              ->
+            | Error message ->
                 Lwt.return_error
                   (ArtifactError
                      { url
                      ; artifact
-                     ; artifact_error=
-                         ArtifactDownloadError
-                           (f "Zip.Error(%s, %s, %s)" zip_name entry_name
-                              message ) } ) )
+                     ; artifact_error= ArtifactDownloadError message } ) )
         | None ->
             download_to ~uri:(Uri.of_string url) bug_file_ch
             |> Lwt_result.map_error (fun error -> DownloadError {url; error}) )
