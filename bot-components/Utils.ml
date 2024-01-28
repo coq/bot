@@ -45,24 +45,29 @@ let handle_json action body =
       Error (f "Json type error: %s\n" err)
 
 let handle_zip action body_stream =
+  let open Lwt_result.Infix in
   Lwt_io.with_temp_file (fun (tmp_name, tmp_channel) ->
+      let open Lwt.Infix in
       body_stream
       |> Lwt_stream.iter_s (Lwt_io.write tmp_channel)
       >>= fun () ->
       Lwt_io.close tmp_channel
       >>= Lwt_preemptive.detach (fun () ->
-              let zip_entries =
-                let zf = Zip.open_in tmp_name in
-                let entries =
-                  Zip.entries zf
-                  |> List.filter ~f:(fun entry -> not entry.is_directory)
-                  |> List.map ~f:(fun entry ->
-                         (entry, Zip.read_entry zf entry) )
+              try
+                let zip_entries =
+                  let zf = Zip.open_in tmp_name in
+                  let entries =
+                    Zip.entries zf
+                    |> List.filter ~f:(fun entry -> not entry.is_directory)
+                    |> List.map ~f:(fun entry ->
+                           (entry, Zip.read_entry zf entry) )
+                  in
+                  Zip.close_in zf ; entries
                 in
-                Zip.close_in zf ; entries
-              in
-              zip_entries ) )
-  >|= action >>= Lwt.return_ok
+                Ok zip_entries
+              with Zip.Error (zip_name, entry_name, message) ->
+                Error (zip_name, entry_name, message) ) )
+  >|= action
 
 (* GitHub specific *)
 

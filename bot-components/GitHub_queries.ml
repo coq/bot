@@ -1035,8 +1035,12 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
   in
   get_list getter
 
+type zip_error = {zip_name: string; entry_name: string; message: string}
+
 let get_artifact_blob ~bot_info ~owner ~repo ~artifact_id =
   generic_get_zip ~bot_info
     (f "repos/%s/%s/actions/artifacts/%s/zip" owner repo artifact_id)
     (let open Zip in
      List.map ~f:(fun (entry, contents) -> (entry.filename, contents)) )
+  |> Lwt_result.map_error (fun (zip_name, entry_name, message) ->
+         {zip_name; entry_name; message} )
