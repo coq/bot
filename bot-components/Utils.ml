@@ -44,12 +44,11 @@ let handle_json action body =
   | Yojson.Basic.Util.Type_error (err, _) ->
       Error (f "Json type error: %s\n" err)
 
-let handle_zip action body_stream =
+let handle_zip action body =
   let open Lwt_result.Infix in
   Lwt_io.with_temp_file (fun (tmp_name, tmp_channel) ->
       let open Lwt.Infix in
-      body_stream
-      |> Lwt_stream.iter_s (Lwt_io.write tmp_channel)
+      Lwt_io.write tmp_channel body
       >>= fun () ->
       Lwt_io.close tmp_channel
       >>= Lwt_preemptive.detach (fun () ->
@@ -97,5 +96,5 @@ let generic_get_zip ~bot_info relative_uri ?(header_list = []) zip_handler =
     headers (header_list @ github_header bot_info) bot_info.github_name
   in
   Client.get ~headers uri
-  >>= fun (_response, body) ->
-  Cohttp_lwt.Body.to_stream body |> handle_zip zip_handler
+  >>= (fun (_response, body) -> Cohttp_lwt.Body.to_string body)
+  >>= handle_zip zip_handler
