@@ -198,7 +198,7 @@ let github_action ~event ~action json =
   | "check_suite", "requested" ->
       Ok (CheckSuiteRequested (check_suite_info_of_json json))
   | _ ->
-      Ok (UnsupportedEvent "Unsupported GitHub action.")
+      Ok (UnsupportedEvent (f "Unsupported GitHub action %s / %s." event action))
 
 let github_event ~event json =
   match event with
@@ -225,7 +225,7 @@ let github_event ~event json =
       | ref_type ->
           Error (f "Unexpected ref_type: %s" ref_type) )
   | _ ->
-      Ok (UnsupportedEvent "Unsupported GitHub event.")
+      Ok (UnsupportedEvent (f "Unsupported GitHub event %s." event))
 
 let receive_github ~secret headers body =
   let open Result in
