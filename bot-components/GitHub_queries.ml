@@ -682,6 +682,18 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                   Error
                     (f "No check suite %d for head commit %s/%s@%s." appId owner
                        repo head )
+              | Some (_ :: _ :: _), _ ->
+                  Error
+                    (f
+                       "Got more than one checkSuite %d for base commit \
+                        %s/%s@%s."
+                       appId owner repo base )
+              | _, Some (_ :: _ :: _) ->
+                  Error
+                    (f
+                       "Got more than one checkSuite %d for head commit \
+                        %s/%s@%s."
+                       appId owner repo head )
               | Some [baseCheckSuite], Some [headCheckSuite] -> (
                   let extract_check_runs checkRuns =
                     let open CheckRuns in
@@ -791,9 +803,7 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                         ; base_checks= completed_runs baseCheckRuns "base" base
                         ; head_checks= completed_runs headCheckRuns "head" head
                         ; draft= pull_request.isDraft
-                        ; labels= Option.value ~default:[] labels } )
-              | _ ->
-                  Error "Got more than one checkSuite." ) )
+                        ; labels= Option.value ~default:[] labels } ) ) )
 
 let get_pipeline_summary ~bot_info ~owner ~repo ~head =
   let appId = bot_info.app_id in
@@ -819,10 +829,16 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                 |> Option.map ~f:List.filter_opt
               in
               match extract_check_suites head_obj.checkSuites with
-              | None ->
+              | None | Some [] ->
                   Error
                     (f "No check suite %d for head commit %s/%s@%s." appId owner
                        repo head )
+              | Some (_ :: _ :: _) ->
+                  Error
+                    (f
+                       "Got more than one checkSuite %d for head commit \
+                        %s/%s@%s."
+                       appId owner repo head )
               | Some [headCheckSuite] -> (
                 match headCheckSuite.getPipelineSummaryCheckRuns with
                 | None ->
@@ -832,14 +848,18 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                           %s/%s@%s."
                          owner repo head )
                 | Some checkRuns -> (
-                  match checkRuns.nodes |> Option.map ~f:Array.to_list with
-                  | None | Some [None] ->
+                  match
+                    checkRuns.nodes
+                    |> Option.map ~f:Array.to_list
+                    |> Option.map ~f:List.filter_opt
+                  with
+                  | None | Some [] ->
                       Error
                         (f
                            "No GitLab CI pipeline summary for head commit \
                             %s/%s@%s."
                            owner repo head )
-                  | Some [Some headCheckRun] ->
+                  | Some [headCheckRun] ->
                       Stdlib.Option.to_result
                         ~none:
                           (f
@@ -847,10 +867,12 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                               %s/%s@%s."
                              owner repo head )
                         headCheckRun.summary
-                  | Some _ ->
-                      Error "Got more than one checkRun." ) )
-              | _ ->
-                  Error "Got more than one checkSuite." ) )
+                  | Some (_ :: _ :: _) ->
+                      Error
+                        (f
+                           "Got more than one checkRun for head commit \
+                            %s/%s@%s."
+                           owner repo head ) ) ) ) )
 
 (* TODO: use GraphQL API *)
 
