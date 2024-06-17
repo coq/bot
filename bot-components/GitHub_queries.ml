@@ -1056,3 +1056,38 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
         Lwt.return @@ Error err
   in
   get_list getter
+
+let get_project_field_values ~bot_info ~organization ~project ~field ~options =
+  let open GitHub_GraphQL.GetProjectFieldValues in
+  makeVariables ~organization ~project ~field ~options ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >>= function
+  | Ok result -> (
+    match result.organization with
+    | Some result -> (
+      match result.projectV2 with
+      | Some project -> (
+        match project.field with
+        | Some (`ProjectV2SingleSelectField field) ->
+            let options = field.options |> Array.to_list in
+            Lwt.return
+            @@ Ok
+                 ( GitHub_ID.of_string project.id
+                 , GitHub_ID.of_string field.id
+                 , List.map ~f:(fun {name; id} -> (name, id)) options )
+        | Some _ ->
+            Lwt.return
+            @@ Error (f "Field %s is not a single select field." field)
+        | None ->
+            Lwt.return @@ Error (f "Field %s does not exist." field) )
+      | None ->
+          Lwt.return
+          @@ Error
+               (f "Unknown project %d of organization %s" project organization)
+      )
+    | None ->
+        Lwt.return @@ Error (f "Organization %s does not exist." organization) )
+  | Error err ->
+      Lwt.return @@ Error err

@@ -407,6 +407,27 @@ query getChecks($appId: Int!, $owner: String!, $repo:String!, $head: String!) {
 }
 |}]
 
+module GetProjectFieldValues =
+[%graphql
+{|
+query getProjectFieldValues($organization: String!, $project: Int!, $field: String!, $options: [String!]!) {
+  organization(login: $organization) {
+    projectV2(number: $project) {
+      id
+      field(name: $field) {
+        ... on ProjectV2SingleSelectField {
+          id
+          options(names: $options) {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+}
+|}]
+
 (* Mutations *)
 
 module MoveCardToColumn =
