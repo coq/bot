@@ -18,13 +18,21 @@ module PullRequest_Milestone_and_Cards =
           description
         }
         projectCards(first:100) {
-          nodes {
-            id
+          cards: nodes {
+            card_id: id
             column { ... Column }
             project {
               columns(first:100) {
                 nodes { ... Column }
               }
+            }
+          }
+        }
+        projectItems(first: 100) {
+          items: nodes {
+            item_id: id
+            projectV2: project {
+              number
             }
           }
         }

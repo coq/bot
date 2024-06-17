@@ -2633,7 +2633,7 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
         ~repo:"coq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
-      | Ok (Some (_, pr_id, {backport_info})) ->
+      | Ok (Some (card_id, pr_id, {backport_info})) ->
           backport_info
           |> Lwt_list.iter_p
                (fun {backport_to; request_inclusion_column; backported_column}
@@ -2644,6 +2644,35 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                    >>= fun () ->
                    GitHub_mutations.add_pr_to_column ~pr_id
                      ~column_id:backported_column ~bot_info
+                   >>= fun () ->
+                   GitHub_queries.get_project_field_values ~bot_info
+                     ~organization:"coq" ~project:11
+                     ~field:(backport_to ^ " status") ~options:[|"Shipped"|]
+                   >>= fun project_info ->
+                   match project_info with
+                   | Ok (project_id, field_id, [("Shipped", field_value_id)])
+                     -> (
+                       GitHub_mutations.add_card_to_project ~bot_info ~card_id
+                         ~project_id
+                       >>= fun result ->
+                       match result with
+                       | Ok card_id ->
+                           GitHub_mutations.update_field_value ~bot_info
+                             ~card_id ~project_id ~field_id ~field_value_id
+                       | Error err ->
+                           Lwt_io.printf
+                             "Error while adding card to project: %s\n" err )
+                   | Ok (_, _, []) ->
+                       Lwt_io.printf
+                         "Error: Could not find 'Shipped' option in the field.\n"
+                   | Ok (_, _, _) ->
+                       Lwt_io.printf
+                         "Error: Unexpected result when looking for 'Shipped'.\n"
+                   | Error err ->
+                       (* TODO: we could treat the case where the field does not
+                          exist yet and create it. *)
+                       Lwt_io.printf
+                         "Error while getting project field values: %s\n" err
                  else if String.equal base_ref "refs/heads/master" then
                    (* For now, we hard code that PRs are only backported
                       from master.  In the future, we could make this
@@ -2654,6 +2683,40 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                    >>= fun () ->
                    GitHub_mutations.add_pr_to_column ~pr_id
                      ~column_id:request_inclusion_column ~bot_info
+                   >>= fun () ->
+                   GitHub_queries.get_project_field_values ~bot_info
+                     ~organization:"coq" ~project:11
+                     ~field:(backport_to ^ " status")
+                     ~options:[|"Request inclusion"|]
+                   >>= fun project_info ->
+                   match project_info with
+                   | Ok
+                       ( project_id
+                       , field_id
+                       , [("Request inclusion", field_value_id)] ) -> (
+                       GitHub_mutations.add_card_to_project ~bot_info ~card_id
+                         ~project_id
+                       >>= fun result ->
+                       match result with
+                       | Ok card_id ->
+                           GitHub_mutations.update_field_value ~bot_info
+                             ~card_id ~project_id ~field_id ~field_value_id
+                       | Error err ->
+                           Lwt_io.printf
+                             "Error while adding card to project: %s\n" err )
+                   | Ok (_, _, []) ->
+                       Lwt_io.printf
+                         "Error: Could not find 'Request inclusion' option in \
+                          the field.\n"
+                   | Ok (_, _, _) ->
+                       Lwt_io.printf
+                         "Error: Unexpected result when looking for 'Request \
+                          inclusion'.\n"
+                   | Error err ->
+                       (* TODO: we could treat the case where the field does not
+                          exist yet and create it. *)
+                       Lwt_io.printf
+                         "Error while getting project field values: %s\n" err
                  else
                    Lwt_io.printf
                      "PR was merged into a branch that is not the backporting \
@@ -2668,12 +2731,52 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
       >>= fun () ->
       GitHub_queries.get_backported_pr_info ~bot_info pr_number base_ref
       >>= function
-      | Ok (Some ({card_id; column_id} as input)) ->
+      | Ok (Some ({card_id; column_id} as input), items) -> (
           Lwt_io.printf "Moving card %s to column %s.\n"
             (GitHub_ID.to_string card_id)
             (GitHub_ID.to_string column_id)
-          >>= fun () -> GitHub_mutations.mv_card_to_column ~bot_info input
-      | Ok None ->
+          >>= fun () ->
+          GitHub_mutations.mv_card_to_column ~bot_info input
+          >>= fun () ->
+          let backport_to =
+            String.chop_prefix_if_exists ~prefix:"refs/heads/" base_ref
+          in
+          let card_id =
+            items |> List.find_map ~f:(function id, 11 -> Some id | _ -> None)
+          in
+          match card_id with
+          | Some card_id -> (
+              (* We could avoid this query by looking for this field in the
+                 previous query to GitHub. *)
+              GitHub_queries.get_project_field_values ~bot_info
+                ~organization:"coq" ~project:11 ~field:(backport_to ^ " status")
+                ~options:[|"Shipped"|]
+              >>= fun project_info ->
+              match project_info with
+              | Ok (project_id, field_id, [("Shipped", field_value_id)]) ->
+                  GitHub_mutations.update_field_value ~bot_info ~card_id
+                    ~project_id ~field_id ~field_value_id
+              | Ok (_, _, []) ->
+                  Lwt_io.printf
+                    "Error: Could not find 'Shipped' option in the field named \
+                     '%s status'.\n"
+                    backport_to
+              | Ok (_, _, _) ->
+                  Lwt_io.printf
+                    "Error: Unexpected result when looking for 'Shipped' \
+                     option in the field named '%s status'.\n"
+                    backport_to
+              | Error err ->
+                  (* TODO: we could treat the case where the field does not
+                     exist yet and create it. *)
+                  Lwt_io.printf "Error while getting project field values: %s\n"
+                    err )
+          | None ->
+              (* We could do something in this case, like post a comment to
+                 the PR and add the PR to the project. *)
+              Lwt_io.printlf "Pull request coq/coq#%d not found in project 11."
+                pr_number )
+      | Ok (None, _) ->
           Lwt_io.printf "Could not find backporting info for backported PR.\n"
       | Error e ->
           Lwt_io.printf "%s\n" e

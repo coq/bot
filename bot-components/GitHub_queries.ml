@@ -79,14 +79,23 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
     | Some result -> (
       match result.pullRequest with
       | Some result ->
+          let items =
+            match result.projectItems.items with
+            | None ->
+                []
+            | Some items ->
+                items |> Array.to_list |> List.filter_opt
+                |> List.map ~f:(fun item ->
+                       (GitHub_ID.of_string item.item_id, item.projectV2.number) )
+          in
           let cards =
-            match result.projectCards.nodes with
+            match result.projectCards.cards with
             | None ->
                 []
             | Some cards ->
                 cards |> Array.to_list |> List.filter_opt
                 |> List.map ~f:(fun card ->
-                       { id= GitHub_ID.of_string card.id
+                       { id= GitHub_ID.of_string card.card_id
                        ; column=
                            Option.map card.column ~f:(fun column ->
                                { GitHub_types.id= GitHub_ID.of_string column.id
@@ -102,7 +111,7 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
                                           GitHub_ID.of_string column.Column.id
                                       ; databaseId= column.databaseId } ) ) } )
           in
-          Ok (cards, Option.map ~f:convertMilestone result.milestone)
+          Ok (cards, items, Option.map ~f:convertMilestone result.milestone)
       | None ->
           Error (f "Pull request %s/%s#%d does not exist." owner repo number) )
     | None ->
@@ -114,7 +123,7 @@ let get_backported_pr_info ~bot_info number base_ref =
   get_pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq"
     ~number
   >|= function
-  | Ok (cards, milestone) ->
+  | Ok (cards, items, milestone) ->
       (let open Option in
       milestone
       >>= fun milestone ->
@@ -138,7 +147,7 @@ let get_backported_pr_info ~bot_info number base_ref =
                 then Some {card_id= card.id; column_id= column.id}
                 else None )
           else None ) )
-      |> fun res -> Ok res
+      |> fun res -> Ok (res, items)
   | Error err ->
       Error (f "Error in backported_pr_info: %s." err)
 

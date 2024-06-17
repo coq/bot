@@ -5,13 +5,13 @@ val get_pull_request_milestone_and_cards :
   -> owner:string
   -> repo:string
   -> number:int
-  -> (project_card list * milestone option, string) result Lwt.t
+  -> (project_card list * (GitHub_ID.t * int) list * milestone option, string) result Lwt.t
 
 val get_backported_pr_info :
      bot_info:Bot_info.t
   -> int
   -> string
-  -> (mv_card_to_column_input option, string) result Lwt.t
+  -> (mv_card_to_column_input option * (GitHub_ID.t * int) list, string) result Lwt.t
 
 val get_pull_request_id_and_milestone :
      bot_info:Bot_info.t
