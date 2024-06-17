@@ -430,6 +430,28 @@ query getProjectFieldValues($organization: String!, $project: Int!, $field: Stri
 
 (* Mutations *)
 
+module AddCardToProject =
+[%graphql
+{|
+  mutation addCard($card_id:ID!, $project_id: ID!) {
+    addProjectV2ItemById(input:{contentId:$card_id,projectId:$project_id}) {
+      item {
+        id
+      }
+    }
+  }
+|}]
+
+module UpdateFieldValue =
+[%graphql
+{|
+  mutation updateFieldValue($card_id:ID!, $project_id: ID!, $field_id: ID!, $field_value_id: String!) {
+    updateProjectV2ItemFieldValue(input: {projectId: $project_id, itemId: $card_id, fieldId: $field_id, value: {singleSelectOptionId: $field_value_id}}) {
+      clientMutationId
+    }
+  }
+|}]
+
 module MoveCardToColumn =
 [%graphql
 {|

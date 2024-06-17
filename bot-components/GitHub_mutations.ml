@@ -6,6 +6,46 @@ open Utils
 
 let send_graphql_query = GraphQL_query.send_graphql_query ~api:GitHub
 
+let add_card_to_project ~bot_info ~card_id ~project_id =
+  let open GitHub_GraphQL.AddCardToProject in
+  makeVariables
+    ~card_id:(GitHub_ID.to_string card_id)
+    ~project_id:(GitHub_ID.to_string project_id)
+    ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >>= function
+  | Ok result -> (
+    match result.addProjectV2ItemById with
+    | None ->
+        Lwt.return (Error "No item ID returned.")
+    | Some {item} -> (
+      match item with
+      | None ->
+          Lwt.return (Error "No item ID returned.")
+      | Some item ->
+          Lwt.return_ok (GitHub_ID.of_string item.id) ) )
+  | Error err ->
+      Lwt.return (Error ("Error while adding card to project: " ^ err))
+
+let update_field_value ~bot_info ~card_id ~project_id ~field_id ~field_value_id
+    =
+  let open GitHub_GraphQL.UpdateFieldValue in
+  makeVariables
+    ~card_id:(GitHub_ID.to_string card_id)
+    ~project_id:(GitHub_ID.to_string project_id)
+    ~field_id:(GitHub_ID.to_string field_id)
+    ~field_value_id ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >>= function
+  | Ok _ ->
+      Lwt.return_unit
+  | Error err ->
+      Lwt_io.printlf "Error while updating field value: %s" err
+
 let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
     =
   let open GitHub_GraphQL.MoveCardToColumn in
