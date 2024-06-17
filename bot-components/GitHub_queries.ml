@@ -180,7 +180,7 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                         None ) ) ) )
 
 let get_pull_request_id ~bot_info ~owner ~repo ~number =
-  let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
+  let open GitHub_GraphQL.PullRequest_ID in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
