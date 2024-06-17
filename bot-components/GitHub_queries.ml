@@ -116,28 +116,28 @@ let get_backported_pr_info ~bot_info number base_ref =
   >|= function
   | Ok (cards, milestone) ->
       (let open Option in
-       milestone
-       >>= fun milestone ->
-       milestone.description
-       >>= extract_backport_info ~bot_info
-       >>= (fun full_backport_info ->
-             full_backport_info.backport_info
-             |> List.find ~f:(fun {backport_to} ->
-                    String.equal ("refs/heads/" ^ backport_to) base_ref ) )
-       >>= fun {request_inclusion_column; backported_column} ->
-       List.find_map cards ~f:(fun card ->
-           if
-             card.column
-             >>= (fun column -> column.databaseId)
-             |> Option.equal Int.equal (Some request_inclusion_column)
-           then
-             List.find_map card.columns ~f:(fun column ->
-                 if
-                   Option.equal Int.equal (Some backported_column)
-                     column.databaseId
-                 then Some {card_id= card.id; column_id= column.id}
-                 else None )
-           else None ) )
+      milestone
+      >>= fun milestone ->
+      milestone.description
+      >>= extract_backport_info ~bot_info
+      >>= (fun full_backport_info ->
+            full_backport_info.backport_info
+            |> List.find ~f:(fun {backport_to} ->
+                   String.equal ("refs/heads/" ^ backport_to) base_ref ) )
+      >>= fun {request_inclusion_column; backported_column} ->
+      List.find_map cards ~f:(fun card ->
+          if
+            card.column
+            >>= (fun column -> column.databaseId)
+            |> Option.equal Int.equal (Some request_inclusion_column)
+          then
+            List.find_map card.columns ~f:(fun column ->
+                if
+                  Option.equal Int.equal (Some backported_column)
+                    column.databaseId
+                then Some {card_id= card.id; column_id= column.id}
+                else None )
+          else None ) )
       |> fun res -> Ok res
   | Error err ->
       Error (f "Error in backported_pr_info: %s." err)
