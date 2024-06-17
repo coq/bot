@@ -224,146 +224,6 @@ module RepoId =
   }
 |}]
 
-(* Mutations *)
-
-module MoveCardToColumn =
-  [%graphql
-  {|
-  mutation moveCard($card_id:ID!,$column_id:ID!) {
-    moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
-      clientMutationId
-    }
-  }
-|}]
-
-module PostComment =
-  [%graphql
-  {|
-  mutation addComment($id:ID!,$message:String!) {
-    payload: addComment(input:{subjectId:$id,body:$message}) {
-      commentEdge {
-        node {
-          url @ppxCustom(module: "ParseAsString")
-        }
-      }
-    }
-  }
-|}]
-
-module UpdateMilestone =
-  [%graphql
-  {|
-  mutation updateMilestone($issue: ID!, $milestone: ID!) {
-    updateIssue(input: {id: $issue, milestoneId: $milestone}) {
-      clientMutationId
-    }
-  }
-|}]
-
-module MergePullRequest =
-  [%graphql
-  {|
-  mutation mergePullRequest($pr_id: ID!, $commit_headline: String,
-  $commit_body: String, $merge_method: PullRequestMergeMethod) {
-    mergePullRequest(
-      input: {pullRequestId: $pr_id, commitHeadline: $commit_headline,
-      commitBody: $commit_body, mergeMethod: $merge_method}) {
-      pullRequest {
-        merged
-        mergedAt
-        state
-        url
-      }
-    }
-  }
-|}]
-
-module ClosePullRequest =
-  [%graphql
-  {|
-  mutation closePullRequest($pr_id: ID!) {
-    closePullRequest(
-      input: {pullRequestId: $pr_id}) {
-      pullRequest {
-        state
-      }
-    }
-  }
-|}]
-
-module LabelIssue =
-  [%graphql
-  {|
-  mutation labelIssue($issue_id: ID!, $label_ids: [ID!]!) {
-    addLabelsToLabelable(
-      input: {labelableId: $issue_id, labelIds:$label_ids}) {
-      clientMutationId
-    }
-  }
-|}]
-
-module UnlabelIssue =
-  [%graphql
-  {|
-  mutation unlabelIssue($issue_id: ID!, $label_ids: [ID!]!) {
-    removeLabelsFromLabelable(
-      input: {labelableId: $issue_id, labelIds:$label_ids}) {
-      clientMutationId
-    }
-  }
-|}]
-
-module NewCheckRun =
-  [%graphql
-  {|
-  mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
-  $status: RequestableCheckStatusState!, $title: String!, $text: String, $summary: String!,
-  $url: String!, $conclusion: CheckConclusionState, $externalId: String) {
-    createCheckRun(
-      input: {
-        status:$status,
-        name:$name,
-        repositoryId:$repoId,
-        headSha:$headSha,
-        conclusion:$conclusion,
-        detailsUrl:$url,
-        output:{
-          title:$title,
-          text:$text,
-          summary:$summary
-        }
-        externalId:$externalId
-      }) {
-      checkRun {
-        url @ppxCustom(module: "ParseAsString")
-      }
-    }
-  }
-|}]
-
-module UpdateCheckRun =
-  [%graphql
-  {|
-  mutation updateCheckRun($checkRunId: ID!, $repoId: ID!
-  $conclusion: CheckConclusionState!, $title: String!, $text: String,
-  $url: String, $summary: String!) {
-    updateCheckRun(
-      input: {
-        checkRunId:$checkRunId,
-        repositoryId:$repoId,
-        conclusion:$conclusion,
-        detailsUrl:$url,
-        output:{
-          title:$title,
-          text:$text,
-          summary:$summary
-        }
-      }) {
-      clientMutationId
-    }
-  }
-|}]
-
 module GetCheckRuns =
   [%graphql
   {|
@@ -545,4 +405,144 @@ query getChecks($appId: Int!, $owner: String!, $repo:String!, $head: String!) {
     }
   }
 }
+|}]
+
+(* Mutations *)
+
+module MoveCardToColumn =
+  [%graphql
+  {|
+  mutation moveCard($card_id:ID!,$column_id:ID!) {
+    moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module PostComment =
+  [%graphql
+  {|
+  mutation addComment($id:ID!,$message:String!) {
+    payload: addComment(input:{subjectId:$id,body:$message}) {
+      commentEdge {
+        node {
+          url @ppxCustom(module: "ParseAsString")
+        }
+      }
+    }
+  }
+|}]
+
+module UpdateMilestone =
+  [%graphql
+  {|
+  mutation updateMilestone($issue: ID!, $milestone: ID!) {
+    updateIssue(input: {id: $issue, milestoneId: $milestone}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module MergePullRequest =
+  [%graphql
+  {|
+  mutation mergePullRequest($pr_id: ID!, $commit_headline: String,
+  $commit_body: String, $merge_method: PullRequestMergeMethod) {
+    mergePullRequest(
+      input: {pullRequestId: $pr_id, commitHeadline: $commit_headline,
+      commitBody: $commit_body, mergeMethod: $merge_method}) {
+      pullRequest {
+        merged
+        mergedAt
+        state
+        url
+      }
+    }
+  }
+|}]
+
+module ClosePullRequest =
+  [%graphql
+  {|
+  mutation closePullRequest($pr_id: ID!) {
+    closePullRequest(
+      input: {pullRequestId: $pr_id}) {
+      pullRequest {
+        state
+      }
+    }
+  }
+|}]
+
+module LabelIssue =
+  [%graphql
+  {|
+  mutation labelIssue($issue_id: ID!, $label_ids: [ID!]!) {
+    addLabelsToLabelable(
+      input: {labelableId: $issue_id, labelIds:$label_ids}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module UnlabelIssue =
+  [%graphql
+  {|
+  mutation unlabelIssue($issue_id: ID!, $label_ids: [ID!]!) {
+    removeLabelsFromLabelable(
+      input: {labelableId: $issue_id, labelIds:$label_ids}) {
+      clientMutationId
+    }
+  }
+|}]
+
+module NewCheckRun =
+  [%graphql
+  {|
+  mutation newCheckRun($name: String!, $repoId: ID!, $headSha: String!,
+  $status: RequestableCheckStatusState!, $title: String!, $text: String, $summary: String!,
+  $url: String!, $conclusion: CheckConclusionState, $externalId: String) {
+    createCheckRun(
+      input: {
+        status:$status,
+        name:$name,
+        repositoryId:$repoId,
+        headSha:$headSha,
+        conclusion:$conclusion,
+        detailsUrl:$url,
+        output:{
+          title:$title,
+          text:$text,
+          summary:$summary
+        }
+        externalId:$externalId
+      }) {
+      checkRun {
+        url @ppxCustom(module: "ParseAsString")
+      }
+    }
+  }
+|}]
+
+module UpdateCheckRun =
+  [%graphql
+  {|
+  mutation updateCheckRun($checkRunId: ID!, $repoId: ID!
+  $conclusion: CheckConclusionState!, $title: String!, $text: String,
+  $url: String, $summary: String!) {
+    updateCheckRun(
+      input: {
+        checkRunId:$checkRunId,
+        repositoryId:$repoId,
+        conclusion:$conclusion,
+        detailsUrl:$url,
+        output:{
+          title:$title,
+          text:$text,
+          summary:$summary
+        }
+      }) {
+      clientMutationId
+    }
+  }
 |}]
