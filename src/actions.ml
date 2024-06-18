@@ -2625,8 +2625,8 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
 let coq_push_action ~bot_info ~base_ref ~commits_msg =
   let* () = Lwt_io.printl "Merge and backport commit messages:" in
   let commit_action commit_msg =
-    if string_match ~regexp:"^Merge PR #\\([0-9]*\\):" commit_msg then
-      let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
+    if string_match ~regexp:"^Merge \\(PR\\|pull request\\) #\\([0-9]*\\)" commit_msg then
+      let pr_number = Str.matched_group 2 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
       >>= fun () ->
       GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
