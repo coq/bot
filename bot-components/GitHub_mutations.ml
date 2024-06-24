@@ -46,22 +46,6 @@ let update_field_value ~bot_info ~card_id ~project_id ~field_id ~field_value_id
   | Error err ->
       Lwt_io.printlf "Error while updating field value: %s" err
 
-let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
-    =
-  let open GitHub_GraphQL.MoveCardToColumn in
-  makeVariables
-    ~card_id:(GitHub_ID.to_string card_id)
-    ~column_id:(GitHub_ID.to_string column_id)
-    ()
-  |> serializeVariables |> variablesToJson
-  |> send_graphql_query ~bot_info ~query
-       ~parse:(Fn.compose parse unsafe_fromJson)
-  >>= function
-  | Ok _ ->
-      Lwt.return_unit
-  | Error err ->
-      Lwt_io.printlf "Error while moving project card: %s" err
-
 let post_comment ~bot_info ~id ~message =
   let open GitHub_GraphQL.PostComment in
   makeVariables ~id:(GitHub_ID.to_string id) ~message ()
@@ -283,17 +267,3 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
     |> Uri.of_string
   in
   send_request ~body ~uri (github_header bot_info) bot_info.github_name
-
-let add_pr_to_column ~bot_info ~pr_id ~column_id =
-  let body =
-    f {|{"content_id":%d, "content_type": "PullRequest"}|} pr_id
-    |> Cohttp_lwt.Body.of_string
-  in
-  let uri =
-    "https://api.github.com/projects/columns/" ^ Int.to_string column_id
-    ^ "/cards"
-    |> Uri.of_string
-  in
-  send_request ~body ~uri
-    (project_api_preview_header @ github_header bot_info)
-    bot_info.github_name

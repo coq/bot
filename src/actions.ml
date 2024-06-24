@@ -2596,6 +2596,7 @@ let rec adjust_milestone ~bot_info ~issue ~sleep_time =
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
+(* TODO: adapt to rejection through GitHub Project v2 *)
 let project_action ~bot_info ~(issue : issue) ~column_id =
   GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
     ~repo:"coq" ~number:issue.number
@@ -2604,7 +2605,7 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
       Lwt_io.printf "Error: %s\n" err
   | Ok None ->
       Lwt_io.printf "Could not find backporting info for PR.\n"
-  | Ok (Some (id, _, {backport_info; rejected_milestone}))
+  | Ok (Some (id, {backport_info; rejected_milestone}))
     when List.exists backport_info ~f:(fun {request_inclusion_column} ->
              Int.equal request_inclusion_column column_id ) ->
       Lwt_io.printf
@@ -2625,7 +2626,10 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
 let coq_push_action ~bot_info ~base_ref ~commits_msg =
   let* () = Lwt_io.printl "Merge and backport commit messages:" in
   let commit_action commit_msg =
-    if string_match ~regexp:"^Merge \\(PR\\|pull request\\) #\\([0-9]*\\)" commit_msg then
+    if
+      string_match ~regexp:"^Merge \\(PR\\|pull request\\) #\\([0-9]*\\)"
+        commit_msg
+    then
       let pr_number = Str.matched_group 2 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
       >>= fun () ->
@@ -2633,17 +2637,12 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
         ~repo:"coq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
-      | Ok (Some (card_id, pr_id, {backport_info})) ->
+      | Ok (Some (card_id, {backport_info})) ->
           backport_info
-          |> Lwt_list.iter_p
-               (fun {backport_to; request_inclusion_column; backported_column}
-               ->
+          |> Lwt_list.iter_p (fun {backport_to} ->
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
                    Lwt_io.printf
-                     "PR was merged into the backportig branch directly.\n"
-                   >>= fun () ->
-                   GitHub_mutations.add_pr_to_column ~pr_id
-                     ~column_id:backported_column ~bot_info
+                     "PR was merged into the backporting branch directly.\n"
                    >>= fun () ->
                    GitHub_queries.get_project_field_values ~bot_info
                      ~organization:"coq" ~project:11
@@ -2680,9 +2679,6 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                       some configuration file. *)
                    Lwt_io.printf "Backporting to %s was requested.\n"
                      backport_to
-                   >>= fun () ->
-                   GitHub_mutations.add_pr_to_column ~pr_id
-                     ~column_id:request_inclusion_column ~bot_info
                    >>= fun () ->
                    GitHub_queries.get_project_field_values ~bot_info
                      ~organization:"coq" ~project:11
@@ -2729,15 +2725,10 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.get_backported_pr_info ~bot_info pr_number base_ref
+      GitHub_queries.get_pull_request_cards ~bot_info ~owner:"coq" ~repo:"coq"
+        ~number:pr_number
       >>= function
-      | Ok (Some ({card_id; column_id} as input), items) -> (
-          Lwt_io.printf "Moving card %s to column %s.\n"
-            (GitHub_ID.to_string card_id)
-            (GitHub_ID.to_string column_id)
-          >>= fun () ->
-          GitHub_mutations.mv_card_to_column ~bot_info input
-          >>= fun () ->
+      | Ok items -> (
           let backport_to =
             String.chop_prefix_if_exists ~prefix:"refs/heads/" base_ref
           in
@@ -2746,6 +2737,11 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
           in
           match card_id with
           | Some card_id -> (
+              Lwt_io.printlf
+                "Pull request coq/coq#%d found in project 11. Updating its \
+                 fields."
+                pr_number
+              >>= fun () ->
               (* We could avoid this query by looking for this field in the
                  previous query to GitHub. *)
               GitHub_queries.get_project_field_values ~bot_info
@@ -2776,8 +2772,6 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                  the PR and add the PR to the project. *)
               Lwt_io.printlf "Pull request coq/coq#%d not found in project 11."
                 pr_number )
-      | Ok (None, _) ->
-          Lwt_io.printf "Could not find backporting info for backported PR.\n"
       | Error e ->
           Lwt_io.printf "%s\n" e
     else Lwt.return_unit

@@ -1,24 +1,18 @@
 open GitHub_types
 
-val get_pull_request_milestone_and_cards :
+val get_pull_request_cards :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
-  -> (project_card list * (GitHub_ID.t * int) list * milestone option, string) result Lwt.t
-
-val get_backported_pr_info :
-     bot_info:Bot_info.t
-  -> int
-  -> string
-  -> (mv_card_to_column_input option * (GitHub_ID.t * int) list, string) result Lwt.t
+  -> ((GitHub_ID.t * int) list, string) result Lwt.t
 
 val get_pull_request_id_and_milestone :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
-  -> ((GitHub_ID.t * int * full_backport_info) option, string) result Lwt.t
+  -> ((GitHub_ID.t * full_backport_info) option, string) result Lwt.t
 
 val get_pull_request_id :
      bot_info:Bot_info.t

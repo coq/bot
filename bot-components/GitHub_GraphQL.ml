@@ -2,32 +2,12 @@
 
 (* Queries *)
 
-module PullRequest_Milestone_and_Cards =
+module PullRequest_Cards =
 [%graphql
 {|
-  fragment Column on ProjectColumn {
-    id
-    databaseId
-  }
-
-  query backportInfo($owner: String!, $repo: String!, $number: Int!) {
+  query prCards($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) {
-        milestone {
-          title
-          description
-        }
-        projectCards(first:100) {
-          cards: nodes {
-            card_id: id
-            column { ... Column }
-            project {
-              columns(first:100) {
-                nodes { ... Column }
-              }
-            }
-          }
-        }
         projectItems(first: 100) {
           items: nodes {
             item_id: id
@@ -60,7 +40,6 @@ module PullRequest_ID_and_Milestone =
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) {
         id
-        databaseId
         milestone {
           title
           description
@@ -455,16 +434,6 @@ module UpdateFieldValue =
 {|
   mutation updateFieldValue($card_id:ID!, $project_id: ID!, $field_id: ID!, $field_value_id: String!) {
     updateProjectV2ItemFieldValue(input: {projectId: $project_id, itemId: $card_id, fieldId: $field_id, value: {singleSelectOptionId: $field_value_id}}) {
-      clientMutationId
-    }
-  }
-|}]
-
-module MoveCardToColumn =
-[%graphql
-{|
-  mutation moveCard($card_id:ID!,$column_id:ID!) {
-    moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
       clientMutationId
     }
   }

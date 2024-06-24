@@ -62,13 +62,8 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
       Str.matched_group 1 description |> aux
     else None
 
-let convertMilestone milestone =
-  let open GitHub_GraphQL.PullRequest_Milestone_and_Cards.BackportInfo in
-  {milestone_title= milestone.title; description= milestone.description}
-
-let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
-  let open GitHub_GraphQL.PullRequest_Milestone_and_Cards in
-  let open BackportInfo in
+let get_pull_request_cards ~bot_info ~owner ~repo ~number =
+  let open GitHub_GraphQL.PullRequest_Cards in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
@@ -88,68 +83,13 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
                 |> List.map ~f:(fun item ->
                        (GitHub_ID.of_string item.item_id, item.projectV2.number) )
           in
-          let cards =
-            match result.projectCards.cards with
-            | None ->
-                []
-            | Some cards ->
-                cards |> Array.to_list |> List.filter_opt
-                |> List.map ~f:(fun card ->
-                       { id= GitHub_ID.of_string card.card_id
-                       ; column=
-                           Option.map card.column ~f:(fun column ->
-                               { GitHub_types.id= GitHub_ID.of_string column.id
-                               ; databaseId= column.databaseId } )
-                       ; columns=
-                           ( match card.project.columns.nodes with
-                           | None ->
-                               []
-                           | Some columns ->
-                               columns |> Array.to_list |> List.filter_opt
-                               |> List.map ~f:(fun column ->
-                                      { GitHub_types.id=
-                                          GitHub_ID.of_string column.Column.id
-                                      ; databaseId= column.databaseId } ) ) } )
-          in
-          Ok (cards, items, Option.map ~f:convertMilestone result.milestone)
+          Ok items
       | None ->
           Error (f "Pull request %s/%s#%d does not exist." owner repo number) )
     | None ->
         Error (f "Repository %s/%s does not exist." owner repo) )
   | Error err ->
       Error err
-
-let get_backported_pr_info ~bot_info number base_ref =
-  get_pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq"
-    ~number
-  >|= function
-  | Ok (cards, items, milestone) ->
-      (let open Option in
-      milestone
-      >>= fun milestone ->
-      milestone.description
-      >>= extract_backport_info ~bot_info
-      >>= (fun full_backport_info ->
-            full_backport_info.backport_info
-            |> List.find ~f:(fun {backport_to} ->
-                   String.equal ("refs/heads/" ^ backport_to) base_ref ) )
-      >>= fun {request_inclusion_column; backported_column} ->
-      List.find_map cards ~f:(fun card ->
-          if
-            card.column
-            >>= (fun column -> column.databaseId)
-            |> Option.equal Int.equal (Some request_inclusion_column)
-          then
-            List.find_map card.columns ~f:(fun column ->
-                if
-                  Option.equal Int.equal (Some backported_column)
-                    column.databaseId
-                then Some {card_id= card.id; column_id= column.id}
-                else None )
-          else None ) )
-      |> fun res -> Ok (res, items)
-  | Error err ->
-      Error (f "Error in backported_pr_info: %s." err)
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
@@ -167,22 +107,18 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                 Error
                   (f "Pull request %s/%s#%d does not exist." owner repo number)
             | Some pr -> (
-              match (pr.databaseId, pr.milestone) with
-              | None, _ ->
-                  Error
-                    (f "Pull request %s/%s#%d does not have a database ID."
-                       owner repo number )
-              | _, None ->
+              match pr.milestone with
+              | None ->
                   Error
                     (f "Pull request %s/%s#%d does not have a milestone." owner
                        repo number )
-              | Some db_id, Some milestone ->
+              | Some milestone ->
                   Ok
                     ( match milestone.description with
                     | Some description -> (
                       match extract_backport_info ~bot_info description with
                       | Some bp_info ->
-                          Some (GitHub_ID.of_string pr.id, db_id, bp_info)
+                          Some (GitHub_ID.of_string pr.id, bp_info)
                       | _ ->
                           None )
                     | _ ->
