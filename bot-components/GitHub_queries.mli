@@ -135,4 +135,4 @@ val get_project_field_values :
   -> project:int
   -> field:string
   -> options:string array
-  -> (GitHub_ID.t * GitHub_ID.t * (string * string) list, string) result Lwt.t
+  -> (GitHub_ID.t * (GitHub_ID.t * (string * string) list) option, string) result Lwt.t

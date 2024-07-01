@@ -960,12 +960,15 @@ let get_project_field_values ~bot_info ~organization ~project ~field ~options =
             let options = field.options |> Array.to_list in
             Lwt.return_ok
               ( GitHub_ID.of_string project.id
-              , GitHub_ID.of_string field.id
-              , List.map ~f:(fun {name; id} -> (name, id)) options )
+              , Some
+                  ( GitHub_ID.of_string field.id
+                  , List.map ~f:(fun {name; id} -> (name, id)) options ) )
         | Some _ ->
             Lwt.return_error (f "Field %s is not a single select field." field)
         | None ->
-            Lwt.return_error (f "Field %s does not exist." field) )
+            (* We consider the field not existing in the project to be
+               acceptable, because it can be created then. *)
+            Lwt.return_ok (GitHub_ID.of_string project.id, None) )
       | None ->
           Lwt.return_error
             (f "Unknown project %d of organization %s" project organization) )

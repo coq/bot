@@ -15,7 +15,10 @@ val update_field_value :
   -> unit Lwt.t
 
 val create_new_release_management_field :
-  bot_info:Bot_info.t -> project_id:GitHub_ID.t -> name:string -> unit Lwt.t
+     bot_info:Bot_info.t
+  -> project_id:GitHub_ID.t
+  -> field:string
+  -> (GitHub_ID.t * (string * string) list, string) result Lwt.t
 
 val post_comment :
      bot_info:Bot_info.t

@@ -46,17 +46,31 @@ let update_field_value ~bot_info ~card_id ~project_id ~field_id ~field_value_id
   | Error err ->
       Lwt_io.printlf "Error while updating field value: %s" err
 
-let create_new_release_management_field ~bot_info ~project_id ~name =
+let create_new_release_management_field ~bot_info ~project_id ~field =
   let open GitHub_GraphQL.CreateNewReleaseManagementField in
-  makeVariables ~project_id:(GitHub_ID.to_string project_id) ~name ()
+  makeVariables ~project_id:(GitHub_ID.to_string project_id) ~field ()
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >>= function
-  | Ok _ ->
-      Lwt.return_unit
+  | Ok result -> (
+    match result.createProjectV2Field with
+    | None ->
+        Lwt.return_error "No field returned after creation."
+    | Some result -> (
+      match result.projectV2Field with
+      | None ->
+          Lwt.return_error "No field returned after creation."
+      | Some (`ProjectV2SingleSelectField result) ->
+          Lwt.return_ok
+            ( GitHub_ID.of_string result.id
+            , result.options |> Array.to_list
+              |> List.map ~f:(fun {name; id} -> (name, id)) )
+      | Some _ ->
+          Lwt.return_error
+            "Field returned after creation is not of type single select." ) )
   | Error err ->
-      Lwt_io.printlf "Error while creating new field: %s" err
+      Lwt.return_error (f "Error while creating new field: %s" err)
 
 let post_comment ~bot_info ~id ~message =
   let open GitHub_GraphQL.PostComment in

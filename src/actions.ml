@@ -2646,13 +2646,15 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                    Lwt_io.printf
                      "PR was merged into the backporting branch directly.\n"
                    >>= fun () ->
+                   let field = backport_to ^ " status" in
                    GitHub_queries.get_project_field_values ~bot_info
-                     ~organization:"coq" ~project:11
-                     ~field:(backport_to ^ " status") ~options:[|"Shipped"|]
+                     ~organization:"coq" ~project:11 ~field
+                     ~options:[|"Shipped"|]
                    >>= fun project_info ->
                    match project_info with
-                   | Ok (project_id, field_id, [("Shipped", field_value_id)])
-                     -> (
+                   | Ok
+                       ( project_id
+                       , Some (field_id, [("Shipped", field_value_id)]) ) -> (
                        GitHub_mutations.add_card_to_project ~bot_info ~card_id
                          ~project_id
                        >>= fun result ->
@@ -2663,15 +2665,54 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                        | Error err ->
                            Lwt_io.printf
                              "Error while adding card to project: %s\n" err )
-                   | Ok (_, _, []) ->
+                   | Ok (_, Some (_, [])) ->
                        Lwt_io.printf
                          "Error: Could not find 'Shipped' option in the field.\n"
-                   | Ok (_, _, _) ->
+                   | Ok (_, Some _) ->
                        Lwt_io.printf
                          "Error: Unexpected result when looking for 'Shipped'.\n"
+                   | Ok (project_id, None) -> (
+                       Lwt_io.printf
+                         "Required backporting field '%s' does not exist yet. \
+                          Creating it..."
+                         field
+                       >>= fun () ->
+                       GitHub_mutations.create_new_release_management_field
+                         ~bot_info ~project_id ~field
+                       >>= function
+                       | Ok (field_id, options) -> (
+                         match
+                           List.find_map options ~f:(function
+                             | "Shipped", field_value_id ->
+                                 Some field_value_id
+                             | _ ->
+                                 None )
+                         with
+                         | Some field_value_id -> (
+                             (* duplicated code: not ideal *)
+                             GitHub_mutations.add_card_to_project ~bot_info
+                               ~card_id ~project_id
+                             >>= fun result ->
+                             match result with
+                             | Ok card_id ->
+                                 GitHub_mutations.update_field_value ~bot_info
+                                   ~card_id ~project_id ~field_id
+                                   ~field_value_id
+                             | Error err ->
+                                 Lwt_io.printf
+                                   "Error while adding card to project: %s\n"
+                                   err )
+                         | None ->
+                             Lwt_io.printlf
+                               "Error new field '%s status' was created, but \
+                                does not have a 'Shipped' option."
+                               field )
+                       | Error err ->
+                           Lwt_io.printlf
+                             "Error while creating new backporting field '%s': \
+                              %s"
+                             field err )
                    | Error err ->
-                       (* TODO: we could treat the case where the field does not
-                          exist yet and create it. *)
                        Lwt_io.printf
                          "Error while getting project field values: %s\n" err
                  else if String.equal base_ref "refs/heads/master" then
@@ -2682,16 +2723,16 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                    Lwt_io.printf "Backporting to %s was requested.\n"
                      backport_to
                    >>= fun () ->
+                   let field = backport_to ^ " status" in
                    GitHub_queries.get_project_field_values ~bot_info
-                     ~organization:"coq" ~project:11
-                     ~field:(backport_to ^ " status")
+                     ~organization:"coq" ~project:11 ~field
                      ~options:[|"Request inclusion"|]
                    >>= fun project_info ->
                    match project_info with
                    | Ok
                        ( project_id
-                       , field_id
-                       , [("Request inclusion", field_value_id)] ) -> (
+                       , Some (field_id, [("Request inclusion", field_value_id)])
+                       ) -> (
                        GitHub_mutations.add_card_to_project ~bot_info ~card_id
                          ~project_id
                        >>= fun result ->
@@ -2702,17 +2743,56 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                        | Error err ->
                            Lwt_io.printf
                              "Error while adding card to project: %s\n" err )
-                   | Ok (_, _, []) ->
+                   | Ok (_, Some (_, [])) ->
                        Lwt_io.printf
                          "Error: Could not find 'Request inclusion' option in \
                           the field.\n"
-                   | Ok (_, _, _) ->
+                   | Ok (_, Some _) ->
                        Lwt_io.printf
                          "Error: Unexpected result when looking for 'Request \
                           inclusion'.\n"
+                   | Ok (project_id, None) -> (
+                       Lwt_io.printf
+                         "Required backporting field '%s' does not exist yet. \
+                          Creating it..."
+                         field
+                       >>= fun () ->
+                       GitHub_mutations.create_new_release_management_field
+                         ~bot_info ~project_id ~field
+                       >>= function
+                       | Ok (field_id, options) -> (
+                         match
+                           List.find_map options ~f:(function
+                             | "Request inclusion", field_value_id ->
+                                 Some field_value_id
+                             | _ ->
+                                 None )
+                         with
+                         | Some field_value_id -> (
+                             (* duplicated code: not ideal *)
+                             GitHub_mutations.add_card_to_project ~bot_info
+                               ~card_id ~project_id
+                             >>= fun result ->
+                             match result with
+                             | Ok card_id ->
+                                 GitHub_mutations.update_field_value ~bot_info
+                                   ~card_id ~project_id ~field_id
+                                   ~field_value_id
+                             | Error err ->
+                                 Lwt_io.printf
+                                   "Error while adding card to project: %s\n"
+                                   err )
+                         | None ->
+                             Lwt_io.printlf
+                               "Error new field '%s status' was created, but \
+                                does not have a 'Request inclusion' option."
+                               field )
+                       | Error err ->
+                           Lwt_io.printlf
+                             "Error while creating new backporting field '%s': \
+                              %s"
+                             field err )
                    | Error err ->
-                       (* TODO: we could treat the case where the field does not
-                          exist yet and create it. *)
                        Lwt_io.printf
                          "Error while getting project field values: %s\n" err
                  else
@@ -2744,27 +2824,55 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
               >>= fun () ->
               (* We could avoid this query by looking for this field in the
                  previous query to GitHub. *)
+              let field = backport_to ^ " status" in
               GitHub_queries.get_project_field_values ~bot_info
-                ~organization:"coq" ~project:11 ~field:(backport_to ^ " status")
-                ~options:[|"Shipped"|]
+                ~organization:"coq" ~project:11 ~field ~options:[|"Shipped"|]
               >>= fun project_info ->
               match project_info with
-              | Ok (project_id, field_id, [("Shipped", field_value_id)]) ->
+              | Ok (project_id, Some (field_id, [("Shipped", field_value_id)]))
+                ->
                   GitHub_mutations.update_field_value ~bot_info ~card_id
                     ~project_id ~field_id ~field_value_id
-              | Ok (_, _, []) ->
+              | Ok (_, Some (_, [])) ->
                   Lwt_io.printf
-                    "Error: Could not find 'Shipped' option in the field named \
-                     '%s status'.\n"
+                    "Error: Field '%s status' exists but does not have a \
+                     'Shipped' option.\n"
                     backport_to
-              | Ok (_, _, _) ->
+              | Ok (_, Some _) ->
                   Lwt_io.printf
                     "Error: Unexpected result when looking for 'Shipped' \
-                     option in the field named '%s status'.\n"
-                    backport_to
+                     option in the field named '%s'.\n"
+                    field
+              | Ok (project_id, None) -> (
+                  Lwt_io.printf
+                    "Required backporting field '%s' does not exist yet. \
+                     Creating it..."
+                    field
+                  >>= fun () ->
+                  GitHub_mutations.create_new_release_management_field ~bot_info
+                    ~project_id ~field
+                  >>= function
+                  | Ok (field_id, options) -> (
+                    match
+                      List.find_map options ~f:(function
+                        | "Shipped", field_value_id ->
+                            Some field_value_id
+                        | _ ->
+                            None )
+                    with
+                    | Some field_value_id ->
+                        GitHub_mutations.update_field_value ~bot_info ~card_id
+                          ~project_id ~field_id ~field_value_id
+                    | None ->
+                        Lwt_io.printlf
+                          "Error new field '%s status' was created, but does \
+                           not have a 'Shipped' option."
+                          field )
+                  | Error err ->
+                      Lwt_io.printlf
+                        "Error while creating new backporting field '%s': %s"
+                        field err )
               | Error err ->
-                  (* TODO: we could treat the case where the field does not
-                     exist yet and create it. *)
                   Lwt_io.printf "Error while getting project field values: %s\n"
                     err )
           | None ->
