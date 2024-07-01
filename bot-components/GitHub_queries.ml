@@ -792,11 +792,11 @@ let get_list getter =
         let accu = List.rev_append ans accu in
         match cursor with
         | None ->
-            Lwt.return (Ok (List.rev accu))
+            Lwt.return_ok (List.rev accu)
         | Some cursor ->
             get_list_aux (Some cursor) accu )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list_aux None []
 
@@ -828,12 +828,11 @@ let get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label =
                 in
                 List.filter_map ~f:map (Array.to_list data)
           in
-          Lwt.return (Ok (data, next))
+          Lwt.return_ok (data, next)
       | None ->
-          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
-      )
+          Lwt.return_error (f "Repository %s/%s does not exist." owner repo) )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list getter
 
@@ -876,15 +875,14 @@ let get_pull_request_label_timeline ~bot_info ~owner ~repo ~pr_number =
                   in
                   List.filter_map ~f:map (Array.to_list data)
             in
-            Lwt.return (Ok (data, next))
+            Lwt.return_ok (data, next)
         | None ->
-            Lwt.return
-            @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
+            Lwt.return_error
+              (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
       | None ->
-          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
-      )
+          Lwt.return_error (f "Repository %s/%s does not exist." owner repo) )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list getter
 
@@ -932,17 +930,16 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
                     let map o = Option.map ~f:(fun o -> o.name) o in
                     List.filter_map ~f:map (Array.to_list data)
               in
-              Lwt.return (Ok (data, next))
+              Lwt.return_ok (data, next)
           | None ->
-              Lwt.return @@ Error (f "Error querying labels") )
+              Lwt.return_error (f "Error querying labels") )
         | None ->
             Lwt.return
             @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
       | None ->
-          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
-      )
+          Lwt.return_error (f "Repository %s/%s does not exist." owner repo) )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list getter
 
@@ -961,22 +958,18 @@ let get_project_field_values ~bot_info ~organization ~project ~field ~options =
         match project.field with
         | Some (`ProjectV2SingleSelectField field) ->
             let options = field.options |> Array.to_list in
-            Lwt.return
-            @@ Ok
-                 ( GitHub_ID.of_string project.id
-                 , GitHub_ID.of_string field.id
-                 , List.map ~f:(fun {name; id} -> (name, id)) options )
+            Lwt.return_ok
+              ( GitHub_ID.of_string project.id
+              , GitHub_ID.of_string field.id
+              , List.map ~f:(fun {name; id} -> (name, id)) options )
         | Some _ ->
-            Lwt.return
-            @@ Error (f "Field %s is not a single select field." field)
+            Lwt.return_error (f "Field %s is not a single select field." field)
         | None ->
-            Lwt.return @@ Error (f "Field %s does not exist." field) )
+            Lwt.return_error (f "Field %s does not exist." field) )
       | None ->
-          Lwt.return
-          @@ Error
-               (f "Unknown project %d of organization %s" project organization)
-      )
+          Lwt.return_error
+            (f "Unknown project %d of organization %s" project organization) )
     | None ->
-        Lwt.return @@ Error (f "Organization %s does not exist." organization) )
+        Lwt.return_error (f "Organization %s does not exist." organization) )
   | Error err ->
-      Lwt.return @@ Error err
+      Lwt.return_error err

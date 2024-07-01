@@ -19,11 +19,11 @@ let add_card_to_project ~bot_info ~card_id ~project_id =
   | Ok result -> (
     match result.addProjectV2ItemById with
     | None ->
-        Lwt.return (Error "No item ID returned.")
+        Lwt.return_error "No item ID returned."
     | Some {item} -> (
       match item with
       | None ->
-          Lwt.return (Error "No item ID returned.")
+          Lwt.return_error "No item ID returned."
       | Some item ->
           Lwt.return_ok (GitHub_ID.of_string item.id) ) )
   | Error err ->
