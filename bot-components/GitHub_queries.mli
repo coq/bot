@@ -100,9 +100,6 @@ val get_pipeline_summary :
   -> head:string
   -> (string, string) result Lwt.t
 
-val get_cards_in_column :
-  int -> bot_info:Bot_info.t -> ((string * int) list, string) result Lwt.t
-
 val get_open_pull_requests_with_label :
      bot_info:Bot_info.t
   -> owner:string

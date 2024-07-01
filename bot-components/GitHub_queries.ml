@@ -784,27 +784,6 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                             %s/%s@%s."
                            owner repo head ) ) ) ) )
 
-(* TODO: use GraphQL API *)
-
-let get_cards_in_column column_id =
-  generic_get
-    ("projects/columns/" ^ Int.to_string column_id ^ "/cards")
-    ~header_list:project_api_preview_header
-    (fun json ->
-      let open Yojson.Basic.Util in
-      json |> to_list
-      |> List.filter_map ~f:(fun json ->
-             let card_id = json |> member "id" |> to_int in
-             let content_url =
-               json |> member "content_url" |> to_string_option
-               |> Option.value ~default:""
-             in
-             let regexp = "https://api.github.com/repos/.*/\\([0-9]*\\)" in
-             if string_match ~regexp content_url then
-               let pr_number = Str.matched_group 1 content_url in
-               Some (pr_number, card_id)
-             else None ) )
-
 let get_list getter =
   let rec get_list_aux cursor accu =
     getter cursor
