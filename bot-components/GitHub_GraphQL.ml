@@ -439,6 +439,24 @@ module UpdateFieldValue =
   }
 |}]
 
+module CreateNewReleaseManagementField =
+[%graphql
+{|
+  mutation createNewField($project_id: ID!, $name: String!) {
+    createProjectV2Field(input: {projectId: $project_id, dataType: SINGLE_SELECT, name: $name, singleSelectOptions: [{name: "Request inclusion", color: GREEN, description: "This merged pull request is proposed for inclusion."}, {name: "Shipped", color: PURPLE, description: "This pull request has been backported (or merged directly in the release branch)."}, {name: "Rejected", color: RED, description: "This merged pull request will not be included in this release."}]}) {
+      projectV2Field {
+        ... on ProjectV2SingleSelectField {
+          id
+          options(names: ["Request inclusion", "Shipped", "Rejected"]) {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+|}]
+
 module PostComment =
 [%graphql
 {|

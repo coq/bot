@@ -46,6 +46,18 @@ let update_field_value ~bot_info ~card_id ~project_id ~field_id ~field_value_id
   | Error err ->
       Lwt_io.printlf "Error while updating field value: %s" err
 
+let create_new_release_management_field ~bot_info ~project_id ~name =
+  let open GitHub_GraphQL.CreateNewReleaseManagementField in
+  makeVariables ~project_id:(GitHub_ID.to_string project_id) ~name ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >>= function
+  | Ok _ ->
+      Lwt.return_unit
+  | Error err ->
+      Lwt_io.printlf "Error while creating new field: %s" err
+
 let post_comment ~bot_info ~id ~message =
   let open GitHub_GraphQL.PostComment in
   makeVariables ~id:(GitHub_ID.to_string id) ~message ()
