@@ -287,6 +287,7 @@ let callback _conn req body =
               (f "Issue %s/%s#%d was closed: checking its milestone."
                  issue.owner issue.repo issue.number )
             ()
+          (*
       | Ok (_, RemovedFromProject ({issue= Some issue; column_id} as card)) ->
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
@@ -303,6 +304,7 @@ let callback _conn req body =
       | Ok (_, RemovedFromProject _) ->
           Server.respond_string ~status:`OK
             ~body:"Note card removed from project: nothing to do." ()
+            *)
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) -> (
           let body =
             body |> trim_comments |> strip_quoted_bot_name ~github_bot_name

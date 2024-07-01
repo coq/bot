@@ -2597,6 +2597,7 @@ let rec adjust_milestone ~bot_info ~issue ~sleep_time =
       Lwt_io.print (f "Error: %s\n" err)
 
 (* TODO: adapt to rejection through GitHub Project v2 *)
+(*
 let project_action ~bot_info ~(issue : issue) ~column_id =
   GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
     ~repo:"coq" ~number:issue.number
@@ -2622,6 +2623,7 @@ let project_action ~bot_info ~(issue : issue) ~column_id =
           >>= GitHub_mutations.report_on_posting_comment )
   | _ ->
       Lwt_io.printf "This was not a request inclusion column: ignoring.\n"
+*)
 
 let coq_push_action ~bot_info ~base_ref ~commits_msg =
   let* () = Lwt_io.printl "Merge and backport commit messages:" in
@@ -2637,7 +2639,7 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
         ~repo:"coq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
-      | Ok (Some (card_id, {backport_info})) ->
+      | Ok (card_id, backport_info) ->
           backport_info
           |> Lwt_list.iter_p (fun {backport_to} ->
                  if "refs/heads/" ^ backport_to |> String.equal base_ref then
@@ -2717,8 +2719,6 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
                    Lwt_io.printf
                      "PR was merged into a branch that is not the backporting \
                       branch nor the master branch.\n" )
-      | Ok None ->
-          Lwt_io.printf "Did not get any backporting info.\n"
       | Error err ->
           Lwt_io.printf "Error: %s\n" err
     else if string_match ~regexp:"^Backport PR #\\([0-9]*\\):" commit_msg then

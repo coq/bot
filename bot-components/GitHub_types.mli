@@ -7,11 +7,7 @@ type project_column = {id: GitHub_ID.t; databaseId: int option}
 
 type merge_method = MERGE | REBASE | SQUASH
 
-type backport_info =
-  {backport_to: string; request_inclusion_column: int; backported_column: int}
-
-type full_backport_info =
-  {backport_info: backport_info list; rejected_milestone: string}
+type backport_info = {backport_to: string; rejected_milestone: string}
 
 type project_card =
   {id: GitHub_ID.t; column: project_column option; columns: project_column list}

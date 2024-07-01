@@ -12,7 +12,7 @@ val get_pull_request_id_and_milestone :
   -> owner:string
   -> repo:string
   -> number:int
-  -> ((GitHub_ID.t * full_backport_info) option, string) result Lwt.t
+  -> (GitHub_ID.t * backport_info list, string) result Lwt.t
 
 val get_pull_request_id :
      bot_info:Bot_info.t
