@@ -9,8 +9,14 @@ type merge_method = MERGE | REBASE | SQUASH
 
 type backport_info = {backport_to: string; rejected_milestone: string}
 
-type project_card =
-  {id: GitHub_ID.t; column: project_column option; columns: project_column list}
+type pull_request_card_info =
+  { pr_id: GitHub_ID.t
+  ; card_id: GitHub_ID.t
+  ; project_id: GitHub_ID.t
+  ; project_number: int
+  ; field: string
+  ; old_value: string
+  ; new_value: string }
 
 type mv_card_to_column_input = {card_id: GitHub_ID.t; column_id: GitHub_ID.t}
 

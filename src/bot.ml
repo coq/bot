@@ -287,24 +287,32 @@ let callback _conn req body =
               (f "Issue %s/%s#%d was closed: checking its milestone."
                  issue.owner issue.repo issue.number )
             ()
+      | Ok
+          ( _
+          , PullRequestCardEdited {project_number; field; old_value; new_value}
+          )
+        when Int.equal project_number 11
+             && String.equal old_value "Request inclusion"
+             && String.equal new_value "Rejected"
+             && String.is_suffix ~suffix:" status" field ->
+          let backport_to = String.drop_suffix field 7 in
           (*
-      | Ok (_, RemovedFromProject ({issue= Some issue; column_id} as card)) ->
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
               ~repo:issue.repo
               (project_action ~issue ~column_id) )
           |> Lwt.async ;
+          *)
           Server.respond_string ~status:`OK
             ~body:
               (f
-                 "Issue or PR %s/%s#%d was removed from project column %d: \
-                  checking if this was a backporting column."
-                 issue.owner issue.repo issue.number card.column_id )
+                 "PR proposed for backporting was rejected from inclusion in \
+                  %s. Updating the milestone."
+                 backport_to )
             ()
-      | Ok (_, RemovedFromProject _) ->
+      | Ok (_, PullRequestCardEdited _) ->
           Server.respond_string ~status:`OK
-            ~body:"Note card removed from project: nothing to do." ()
-            *)
+            ~body:"Unsupported pull request card edition." ()
       | Ok (_, IssueOpened ({body= Some body} as issue_info)) -> (
           let body =
             body |> trim_comments |> strip_quoted_bot_name ~github_bot_name
