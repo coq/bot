@@ -1,7 +1,24 @@
 open GitHub_types
 
-val mv_card_to_column :
-  bot_info:Bot_info.t -> mv_card_to_column_input -> unit Lwt.t
+val add_card_to_project :
+     bot_info:Bot_info.t
+  -> card_id:GitHub_ID.t
+  -> project_id:GitHub_ID.t
+  -> (GitHub_ID.t, string) result Lwt.t
+
+val update_field_value :
+     bot_info:Bot_info.t
+  -> card_id:GitHub_ID.t
+  -> project_id:GitHub_ID.t
+  -> field_id:GitHub_ID.t
+  -> field_value_id:string
+  -> unit Lwt.t
+
+val create_new_release_management_field :
+     bot_info:Bot_info.t
+  -> project_id:GitHub_ID.t
+  -> field:string
+  -> (GitHub_ID.t * (string * string) list, string) result Lwt.t
 
 val post_comment :
      bot_info:Bot_info.t
@@ -77,6 +94,3 @@ val send_status_check :
   -> context:string
   -> description:string
   -> unit Lwt.t
-
-val add_pr_to_column :
-  bot_info:Bot_info.t -> pr_id:int -> column_id:int -> unit Lwt.t

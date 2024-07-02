@@ -3,7 +3,7 @@ open GitHub_types
 type msg =
   | IssueOpened of issue_info
   | IssueClosed of issue_info
-  | RemovedFromProject of project_card_issue
+  | PullRequestCardEdited of pull_request_card_info
   | PullRequestUpdated of pull_request_action * issue_info pull_request_info
   | BranchCreated of remote_ref_info
   | TagCreated of remote_ref_info

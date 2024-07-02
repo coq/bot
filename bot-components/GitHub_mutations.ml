@@ -6,13 +6,37 @@ open Utils
 
 let send_graphql_query = GraphQL_query.send_graphql_query ~api:GitHub
 
-let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
-    =
-  let open GitHub_GraphQL.MoveCardToColumn in
+let add_card_to_project ~bot_info ~card_id ~project_id =
+  let open GitHub_GraphQL.AddCardToProject in
   makeVariables
     ~card_id:(GitHub_ID.to_string card_id)
-    ~column_id:(GitHub_ID.to_string column_id)
+    ~project_id:(GitHub_ID.to_string project_id)
     ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >>= function
+  | Ok result -> (
+    match result.addProjectV2ItemById with
+    | None ->
+        Lwt.return_error "No item ID returned."
+    | Some {item} -> (
+      match item with
+      | None ->
+          Lwt.return_error "No item ID returned."
+      | Some item ->
+          Lwt.return_ok (GitHub_ID.of_string item.id) ) )
+  | Error err ->
+      Lwt.return (Error ("Error while adding card to project: " ^ err))
+
+let update_field_value ~bot_info ~card_id ~project_id ~field_id ~field_value_id
+    =
+  let open GitHub_GraphQL.UpdateFieldValue in
+  makeVariables
+    ~card_id:(GitHub_ID.to_string card_id)
+    ~project_id:(GitHub_ID.to_string project_id)
+    ~field_id:(GitHub_ID.to_string field_id)
+    ~field_value_id ()
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
@@ -20,7 +44,33 @@ let mv_card_to_column ~bot_info ({card_id; column_id} : mv_card_to_column_input)
   | Ok _ ->
       Lwt.return_unit
   | Error err ->
-      Lwt_io.printlf "Error while moving project card: %s" err
+      Lwt_io.printlf "Error while updating field value: %s" err
+
+let create_new_release_management_field ~bot_info ~project_id ~field =
+  let open GitHub_GraphQL.CreateNewReleaseManagementField in
+  makeVariables ~project_id:(GitHub_ID.to_string project_id) ~field ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >>= function
+  | Ok result -> (
+    match result.createProjectV2Field with
+    | None ->
+        Lwt.return_error "No field returned after creation."
+    | Some result -> (
+      match result.projectV2Field with
+      | None ->
+          Lwt.return_error "No field returned after creation."
+      | Some (`ProjectV2SingleSelectField result) ->
+          Lwt.return_ok
+            ( GitHub_ID.of_string result.id
+            , result.options |> Array.to_list
+              |> List.map ~f:(fun {name; id} -> (name, id)) )
+      | Some _ ->
+          Lwt.return_error
+            "Field returned after creation is not of type single select." ) )
+  | Error err ->
+      Lwt.return_error (f "Error while creating new field: %s" err)
 
 let post_comment ~bot_info ~id ~message =
   let open GitHub_GraphQL.PostComment in
@@ -243,17 +293,3 @@ let send_status_check ~bot_info ~repo_full_name ~commit ~state ~url ~context
     |> Uri.of_string
   in
   send_request ~body ~uri (github_header bot_info) bot_info.github_name
-
-let add_pr_to_column ~bot_info ~pr_id ~column_id =
-  let body =
-    f {|{"content_id":%d, "content_type": "PullRequest"}|} pr_id
-    |> Cohttp_lwt.Body.of_string
-  in
-  let uri =
-    "https://api.github.com/projects/columns/" ^ Int.to_string column_id
-    ^ "/cards"
-    |> Uri.of_string
-  in
-  send_request ~body ~uri
-    (project_api_preview_header @ github_header bot_info)
-    bot_info.github_name
