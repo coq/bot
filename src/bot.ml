@@ -162,9 +162,9 @@ let callback _conn req body =
         | Error error_msg ->
             (fun () -> Lwt_io.printl error_msg) |> Lwt.async ;
             Server.respond_string ~status:`Bad_request ~body:error_msg ()
-        | Ok (owner, repo) ->
+        | Ok (owner, _) ->
             (fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              action_as_github_app ~bot_info ~key ~app_id ~owner
                 (job_action ~gitlab_mapping job_info) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Job event." () )
@@ -174,9 +174,9 @@ let callback _conn req body =
         | Error error_msg ->
             (fun () -> Lwt_io.printl error_msg) |> Lwt.async ;
             Server.respond_string ~status:`Bad_request ~body:error_msg ()
-        | Ok (owner, repo) ->
+        | Ok (owner, _) ->
             (fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              action_as_github_app ~bot_info ~key ~app_id ~owner
                 (pipeline_action ~gitlab_mapping pipeline_info) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Pipeline event." () )
@@ -205,10 +205,9 @@ let callback _conn req body =
           (fun () ->
             init_git_bare_repository ~bot_info
             >>= fun () ->
-            action_as_github_app ~bot_info ~key ~app_id ~owner:"coq" ~repo:"coq"
+            action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
               (coq_push_action ~base_ref ~commits_msg)
             <&> action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
-                  ~repo:"coq"
                   (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner:"coq"
                      ~repo:"coq" ~base_ref ~head_sha () ) )
           |> Lwt.async ;
@@ -223,7 +222,7 @@ let callback _conn req body =
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              action_as_github_app ~bot_info ~key ~app_id ~owner
                 (mirror_action ~gitlab_domain:"gitlab.com" ~owner ~repo
                    ~base_ref ~head_sha () ) )
             |> Lwt.async ;
@@ -238,7 +237,7 @@ let callback _conn req body =
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              action_as_github_app ~bot_info ~key ~app_id ~owner
                 (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner ~repo
                    ~base_ref ~head_sha () ) )
             |> Lwt.async ;
@@ -256,7 +255,7 @@ let callback _conn req body =
             init_git_bare_repository ~bot_info
             >>= fun () ->
             action_as_github_app ~bot_info ~key ~app_id
-              ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
+              ~owner:pr_info.issue.issue.owner
               (pull_request_closed_action ~gitlab_mapping ~github_mapping
                  pr_info ) )
           |> Lwt.async ;
@@ -272,14 +271,13 @@ let callback _conn req body =
           init_git_bare_repository ~bot_info
           >>= fun () ->
           action_as_github_app ~bot_info ~key ~app_id
-            ~owner:pr_info.issue.issue.owner ~repo:pr_info.issue.issue.repo
+            ~owner:pr_info.issue.issue.owner
             (pull_request_updated_action ~action ~pr_info ~gitlab_mapping
                ~github_mapping )
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
-              ~repo:issue.repo
               (adjust_milestone ~issue ~sleep_time:5.) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
@@ -323,7 +321,7 @@ let callback _conn req body =
                 init_git_bare_repository ~bot_info
                 >>= fun () ->
                 action_as_github_app ~bot_info ~key ~app_id
-                  ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
+                  ~owner:issue_info.issue.owner
                   (run_coq_minimizer ~script ~comment_thread_id:issue_info.id
                      ~comment_author:issue_info.user
                      ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
@@ -347,7 +345,6 @@ let callback _conn req body =
                 >>= fun () ->
                 action_as_github_app ~bot_info ~key ~app_id
                   ~owner:comment_info.issue.issue.owner
-                  ~repo:comment_info.issue.issue.repo
                   (run_coq_minimizer ~script
                      ~comment_thread_id:comment_info.issue.id
                      ~comment_author:comment_info.author
@@ -368,7 +365,6 @@ let callback _conn req body =
                   >>= fun () ->
                   action_as_github_app ~bot_info ~key ~app_id
                     ~owner:comment_info.issue.issue.owner
-                    ~repo:comment_info.issue.issue.repo
                     (ci_minimize ~comment_info ~requests ~comment_on_error:true
                        ~options ~bug_file_contents:(Some bug_file_contents) ) )
                 |> Lwt.async ;
@@ -382,7 +378,6 @@ let callback _conn req body =
                     >>= fun () ->
                     action_as_github_app ~bot_info ~key ~app_id
                       ~owner:comment_info.issue.issue.owner
-                      ~repo:comment_info.issue.issue.repo
                       (ci_minimize ~comment_info ~requests
                          ~comment_on_error:true ~options ~bug_file_contents:None )
                     )
@@ -416,7 +411,6 @@ let callback _conn req body =
                     >>= fun () ->
                     action_as_github_app ~bot_info ~key ~app_id
                       ~owner:comment_info.issue.issue.owner
-                      ~repo:comment_info.issue.issue.repo
                       (run_ci_action ~comment_info ?full_ci ~gitlab_mapping
                          ~github_mapping () )
                   else if
@@ -432,7 +426,6 @@ let callback _conn req body =
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
                         ~owner:comment_info.issue.issue.owner
-                        ~repo:comment_info.issue.issue.repo
                         (merge_pull_request_action comment_info) )
                     |> Lwt.async ;
                     Server.respond_string ~status:`OK
@@ -451,7 +444,6 @@ let callback _conn req body =
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
                         ~owner:comment_info.issue.issue.owner
-                        ~repo:comment_info.issue.issue.repo
                         (run_bench
                            ~key_value_pairs:[("coq_native", "yes")]
                            comment_info ) )
@@ -471,7 +463,6 @@ let callback _conn req body =
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
                         ~owner:comment_info.issue.issue.owner
-                        ~repo:comment_info.issue.issue.repo
                         (run_bench comment_info) )
                     |> Lwt.async ;
                     Server.respond_string ~status:`OK
@@ -558,11 +549,11 @@ let callback _conn req body =
             let warn_after = 30 in
             let close_after = 30 in
             (fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              action_as_github_app ~bot_info ~key ~app_id ~owner
                 (coq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
                    ~throttle:6 )
               >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner ~repo
+              action_as_github_app ~bot_info ~key ~app_id ~owner
                 (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4)
               )
             |> Lwt.async ;

@@ -1963,11 +1963,11 @@ let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
     let stamp = Str.matched_group 1 body in
     let message = Str.matched_group 2 body in
     match Str.split (Str.regexp " ") stamp with
-    | [id; author; repo_name; branch_name; owner; repo; _ (*pr_number*)]
-    | [id; author; repo_name; branch_name; owner; repo] ->
+    | [id; author; repo_name; branch_name; owner; _repo; _ (*pr_number*)]
+    | [id; author; repo_name; branch_name; owner; _repo] ->
         (fun () ->
           Github_installations.action_as_github_app ~bot_info ~key ~app_id
-            ~owner ~repo
+            ~owner
             (GitHub_mutations.post_comment ~id:(GitHub_ID.of_string id)
                ~message:(if ci then message else f "@%s, %s" author message) )
           >>= GitHub_mutations.report_on_posting_comment
@@ -2015,7 +2015,7 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                init_git_bare_repository ~bot_info
                >>= fun () ->
                Github_installations.action_as_github_app ~bot_info ~key ~app_id
-                 ~owner ~repo
+                 ~owner
                  (run_ci_minimization
                     ~comment_thread_id:(GitHub_ID.of_string comment_thread_id)
                     ~owner ~repo ~base ~pr_number ~head

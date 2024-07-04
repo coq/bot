@@ -56,40 +56,26 @@ let post ~bot_info ~body ~token ~url =
   in
   Cohttp_lwt.Body.to_string body
 
-let get_installation_token ~bot_info ~owner ~repo ~jwt :
+let get_installation_token ~bot_info ~key ~app_id ~install_id :
     (string * float, string) Result.t Lwt.t =
-  get ~bot_info ~token:jwt
-    ~url:(f "https://api.github.com/repos/%s/%s/installation" owner repo)
-  >>= (fun body ->
-        try
-          let json = Yojson.Basic.from_string body in
-          let access_token_url =
-            Yojson.Basic.Util.(json |> member "access_tokens_url" |> to_string)
-          in
-          post ~bot_info ~body:None ~token:jwt ~url:access_token_url
-          >|= Result.return
-        with
-        | Yojson.Json_error err ->
-            Lwt.return_error (f "Json error: %s" err)
-        | Yojson.Basic.Util.Type_error (err, _) ->
-            Lwt.return_error (f "Json type error: %s" err) )
-  >|= Result.bind ~f:(fun resp ->
-          try
-            let json = Yojson.Basic.from_string resp in
-            Ok
-              (* Installation tokens expire after one hour, let's stop using them after 40 minutes *)
-              ( Yojson.Basic.Util.(json |> member "token" |> to_string)
-              , Unix.time () +. (40. *. 60.) )
-          with
-          | Yojson.Json_error err ->
-              Error (f "Json error: %s" err)
-          | Yojson.Basic.Util.Type_error (err, _) ->
-              Error (f "Json type error: %s" err) )
-
-let get_installation_token ~bot_info ~key ~app_id ~owner ~repo =
   match make_jwt ~key ~app_id with
-  | Ok jwt ->
-      get_installation_token ~bot_info ~jwt ~owner ~repo
+  | Ok jwt -> (
+      let access_token_url =
+        f "https://api.github.com/app/installations/%d/access_tokens" install_id
+      in
+      post ~bot_info ~body:None ~token:jwt ~url:access_token_url
+      >|= fun resp ->
+      try
+        let json = Yojson.Basic.from_string resp in
+        Ok
+          (* Installation tokens expire after one hour, let's stop using them after 40 minutes *)
+          ( Yojson.Basic.Util.(json |> member "token" |> to_string)
+          , Unix.time () +. (40. *. 60.) )
+      with
+      | Yojson.Json_error err ->
+          Error (f "Json error: %s" err)
+      | Yojson.Basic.Util.Type_error (err, _) ->
+          Error (f "Json type error: %s" err) )
   | Error e ->
       Lwt.return (Error e)
 
@@ -104,7 +90,8 @@ let get_installations ~bot_info ~key ~app_id =
         Ok
           ( json |> to_list
           |> List.map ~f:(fun json ->
-                 json |> member "account" |> member "login" |> to_string ) )
+                 ( json |> member "account" |> member "login" |> to_string
+                 , json |> member "id" |> to_int ) ) )
       with
       | Yojson.Json_error err ->
           Error (f "Json error: %s" err)
