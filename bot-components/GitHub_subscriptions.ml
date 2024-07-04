@@ -227,24 +227,30 @@ let github_event ~event json =
       Ok (UnsupportedEvent "Unsupported GitHub event.")
 
 let receive_github ~secret headers body =
-  let open Result in
-  ( match Header.get headers "X-Hub-Signature" with
-  | Some signature ->
-      let expected =
-        Mirage_crypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
-          (Cstruct.of_string body)
-        |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
-      in
-      if Eqaf.equal signature expected then return true
-      else Error "Webhook signed but with wrong signature."
-  | None ->
-      return false )
-  >>= fun signed ->
+  let open Result.Monad_infix in
   match Header.get headers "X-GitHub-Event" with
   | Some event -> (
     try
       let json = Yojson.Basic.from_string body in
-      github_event ~event json |> Result.map ~f:(fun r -> (signed, r))
+      ( try
+          let install_id =
+            json |> member "installation" |> member "id" |> to_int
+          in
+          (* if there is an install id, the webhook should be signed *)
+          match Header.get headers "X-Hub-Signature" with
+          | Some signature ->
+              let expected =
+                Mirage_crypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
+                  (Cstruct.of_string body)
+                |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
+              in
+              if Eqaf.equal signature expected then Ok (Some install_id)
+              else Error "Webhook signed but with wrong signature."
+          | None ->
+              Error "Webhook comes from a GitHub App, but it is not signed."
+        with Yojson.Json_error _ | Type_error _ -> Ok None )
+      >>= fun install_id ->
+      github_event ~event json |> Result.map ~f:(fun r -> (install_id, r))
     with
     | Yojson.Json_error err ->
         Error (f "Json error: %s" err)

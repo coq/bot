@@ -199,15 +199,17 @@ let callback _conn req body =
           (Request.headers req) body
       with
       | Ok
-          ( true
+          ( Some install_id
           , PushEvent
               {owner= "coq"; repo= "coq"; base_ref; head_sha; commits_msg} ) ->
           (fun () ->
             init_git_bare_repository ~bot_info
             >>= fun () ->
-            action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
+            action_as_github_app_from_install_id ~bot_info ~key ~app_id
+              ~install_id
               (coq_push_action ~base_ref ~commits_msg)
-            <&> action_as_github_app ~bot_info ~key ~app_id ~owner:"coq"
+            <&> action_as_github_app_from_install_id ~bot_info ~key ~app_id
+                  ~install_id
                   (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner:"coq"
                      ~repo:"coq" ~base_ref ~head_sha () ) )
           |> Lwt.async ;
@@ -216,13 +218,15 @@ let callback _conn req body =
               "Processing push event on Coq repository: analyzing merge / \
                backporting info."
             ()
-      | Ok (true, PushEvent {owner; repo; base_ref; head_sha; _}) -> (
+      | Ok (Some install_id, PushEvent {owner; repo; base_ref; head_sha; _})
+        -> (
         match (owner, repo) with
         | "coq-community", ("docker-base" | "docker-coq") ->
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner
+              action_as_github_app_from_install_id ~bot_info ~key ~app_id
+                ~install_id
                 (mirror_action ~gitlab_domain:"gitlab.com" ~owner ~repo
                    ~base_ref ~head_sha () ) )
             |> Lwt.async ;
@@ -237,7 +241,8 @@ let callback _conn req body =
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
-              action_as_github_app ~bot_info ~key ~app_id ~owner
+              action_as_github_app_from_install_id ~bot_info ~key ~app_id
+                ~install_id
                 (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner ~repo
                    ~base_ref ~head_sha () ) )
             |> Lwt.async ;
@@ -333,7 +338,7 @@ let callback _conn req body =
               Server.respond_string ~status:`OK
                 ~body:(f "Unhandled new issue: %s" body)
                 () )
-      | Ok (signed, CommentCreated comment_info) -> (
+      | Ok (install_id, CommentCreated comment_info) -> (
           let body =
             comment_info.body |> trim_comments
             |> strip_quoted_bot_name ~github_bot_name
@@ -394,7 +399,7 @@ let callback _conn req body =
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
                     && String.equal comment_info.issue.issue.repo "coq"
-                    && signed
+                    && Option.is_some install_id
                   then
                     let full_ci =
                       match Str.matched_group 1 body with
@@ -421,7 +426,7 @@ let callback _conn req body =
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
                     && String.equal comment_info.issue.issue.repo "coq"
-                    && signed
+                    && Option.is_some install_id
                   then (
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
@@ -439,7 +444,7 @@ let callback _conn req body =
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
                     && String.equal comment_info.issue.issue.repo "coq"
-                    && signed
+                    && Option.is_some install_id
                   then (
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
@@ -458,7 +463,7 @@ let callback _conn req body =
                     && comment_info.issue.pull_request
                     && String.equal comment_info.issue.issue.owner "coq"
                     && String.equal comment_info.issue.issue.repo "coq"
-                    && signed
+                    && Option.is_some install_id
                   then (
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
@@ -472,11 +477,11 @@ let callback _conn req body =
                     Server.respond_string ~status:`OK
                       ~body:(f "Unhandled comment: %s" body)
                       () ) ) )
-      | Ok (signed, CheckRunReRequested {external_id}) -> (
-          if not signed then
-            Server.respond_string ~status:(Code.status_of_code 401)
-              ~body:"Request to rerun check run must be signed." ()
-          else if String.is_empty external_id then
+      | Ok (None, CheckRunReRequested _) ->
+          Server.respond_string ~status:(Code.status_of_code 401)
+            ~body:"Request to rerun check run must be signed." ()
+      | Ok (Some _, CheckRunReRequested {external_id}) -> (
+          if String.is_empty external_id then
             Server.respond_string ~status:(Code.status_of_code 400)
               ~body:"Request to rerun check run but empty external ID." ()
           else

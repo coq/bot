@@ -17,4 +17,7 @@ type msg =
   | UnsupportedEvent of string
 
 val receive_github :
-  secret:string -> Cohttp.Header.t -> string -> (bool * msg, string) result
+     secret:string
+  -> Cohttp.Header.t
+  -> string
+  -> (int option * msg, string) result
