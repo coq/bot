@@ -73,10 +73,12 @@ val adjust_milestone :
   -> sleep_time:float
   -> unit Lwt.t
 
-(*
 val project_action :
-  bot_info:Bot_info.t -> issue:GitHub_types.issue -> column_id:int -> unit Lwt.t
-*)
+     bot_info:Bot_info.t
+  -> pr_id:GitHub_ID.t
+  -> backport_to:string
+  -> unit
+  -> unit Lwt.t
 
 val coq_push_action :
      bot_info:Bot_info.t

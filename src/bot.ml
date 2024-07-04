@@ -291,21 +291,20 @@ let callback _conn req body =
                  issue.owner issue.repo issue.number )
             ()
       | Ok
-          ( _
-          , PullRequestCardEdited {project_number; field; old_value; new_value}
-          )
-        when Int.equal project_number 11
-             && String.equal old_value "Request inclusion"
-             && String.equal new_value "Rejected"
-             && String.is_suffix ~suffix:" status" field ->
+          ( Some (1062161 as install_id) (* Coq's installation number *)
+          , PullRequestCardEdited
+              { project_number= 11 (* Coq's backporting project number *)
+              ; pr_id
+              ; field
+              ; old_value= "Request inclusion"
+              ; new_value= "Rejected" } )
+        when String.is_suffix ~suffix:" status" field ->
           let backport_to = String.drop_suffix field 7 in
-          (*
           (fun () ->
-            action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
-              ~repo:issue.repo
-              (project_action ~issue ~column_id) )
+            action_as_github_app_from_install_id ~bot_info ~key ~app_id
+              ~install_id
+              (project_action ~pr_id ~backport_to ()) )
           |> Lwt.async ;
-          *)
           Server.respond_string ~status:`OK
             ~body:
               (f

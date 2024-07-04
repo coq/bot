@@ -33,6 +33,21 @@ module PullRequest_ID =
   }
 |}]
 
+module PullRequest_Milestone =
+[%graphql
+{|
+  query prInfo($pr_id: ID!) {
+    node(id: $pr_id) {
+      ... on PullRequest {
+        milestone {
+          title
+          description
+        }
+      }
+    }
+  }
+|}]
+
 module PullRequest_ID_and_Milestone =
 [%graphql
 {|
@@ -44,6 +59,18 @@ module PullRequest_ID_and_Milestone =
           title
           description
         }
+      }
+    }
+  }
+|}]
+
+module Milestone_ID =
+[%graphql
+{|
+  query milestoneID($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner,name: $repo) {
+      milestone(number: $number) {
+        id
       }
     }
   }

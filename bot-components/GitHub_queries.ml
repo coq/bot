@@ -18,13 +18,17 @@ let extract_backport_info ~(bot_info : Bot_info.t) description :
   let rec aux description =
     if string_match ~regexp:backport_info_unit description then
       let backport_to = Str.matched_group 1 description in
-      let rejected_milestone = Str.matched_group 2 description in
+      let rejected_milestone =
+        Str.matched_group 2 description |> Int.of_string
+      in
       Str.matched_group 3 description
       |> aux
       |> List.cons {backport_to; rejected_milestone}
     else if string_match ~regexp:end_regexp description then
       let backport_to = Str.matched_group 1 description in
-      let rejected_milestone = Str.matched_group 2 description in
+      let rejected_milestone =
+        Str.matched_group 2 description |> Int.of_string
+      in
       [{backport_to; rejected_milestone}]
     else []
   in
@@ -60,6 +64,28 @@ let get_pull_request_cards ~bot_info ~owner ~repo ~number =
         Error (f "Repository %s/%s does not exist." owner repo) )
   | Error err ->
       Error err
+
+let get_pull_request_milestone ~bot_info ~pr_id =
+  let open GitHub_GraphQL.PullRequest_Milestone in
+  let pr_id = GitHub_ID.to_string pr_id in
+  makeVariables ~pr_id () |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(fun result ->
+          match result.node with
+          | Some (`PullRequest result) -> (
+            match result.milestone with
+            | Some milestone ->
+                Ok
+                  ( milestone.description
+                  |> Option.map ~f:(extract_backport_info ~bot_info)
+                  |> Option.value ~default:[] )
+            | None ->
+                Ok [] )
+          | Some _ ->
+              Error (f "Node %s is not a pull request." pr_id)
+          | None ->
+              Error (f "Pull request %s does not exist." pr_id) )
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
@@ -106,6 +132,25 @@ let get_pull_request_id ~bot_info ~owner ~repo ~number =
                   (f "Pull request %s/%s#%d does not exist." owner repo number)
             | Some pr ->
                 Ok (GitHub_ID.of_string pr.id) ) )
+
+let get_milestone_id ~bot_info ~owner ~repo ~number =
+  let open GitHub_GraphQL.Milestone_ID in
+  makeVariables ~owner ~repo ~number ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(fun result ->
+          match result.repository with
+          | None ->
+              Error (f "Repository %s/%s does not exist." owner repo)
+          | Some result -> (
+            match result.milestone with
+            | None ->
+                Error
+                  (f "Milestone %d does not exist in repository %s/%s." number
+                     owner repo )
+            | Some milestone ->
+                Ok (GitHub_ID.of_string milestone.id) ) )
 
 let team_membership_of_resp ~org ~team ~user resp =
   let open GitHub_GraphQL.TeamMembership in

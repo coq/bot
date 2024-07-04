@@ -7,6 +7,11 @@ val get_pull_request_cards :
   -> number:int
   -> ((GitHub_ID.t * int) list, string) result Lwt.t
 
+val get_pull_request_milestone :
+     bot_info:Bot_info.t
+  -> pr_id:GitHub_ID.t
+  -> (backport_info list, string) result Lwt.t
+
 val get_pull_request_id_and_milestone :
      bot_info:Bot_info.t
   -> owner:string
@@ -15,6 +20,13 @@ val get_pull_request_id_and_milestone :
   -> (GitHub_ID.t * backport_info list, string) result Lwt.t
 
 val get_pull_request_id :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> number:int
+  -> (GitHub_ID.t, string) result Lwt.t
+
+val get_milestone_id :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
