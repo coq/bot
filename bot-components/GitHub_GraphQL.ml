@@ -2,29 +2,17 @@
 
 (* Queries *)
 
-module PullRequest_Milestone_and_Cards =
+module PullRequest_Cards =
 [%graphql
 {|
-  fragment Column on ProjectColumn {
-    id
-    databaseId
-  }
-
-  query backportInfo($owner: String!, $repo: String!, $number: Int!) {
+  query prCards($owner: String!, $repo: String!, $number: Int!) {
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) {
-        milestone {
-          title
-          description
-        }
-        projectCards(first:100) {
-          nodes {
-            id
-            column { ... Column }
-            project {
-              columns(first:100) {
-                nodes { ... Column }
-              }
+        projectItems(first: 100) {
+          items: nodes {
+            item_id: id
+            projectV2: project {
+              number
             }
           }
         }
@@ -45,6 +33,21 @@ module PullRequest_ID =
   }
 |}]
 
+module PullRequest_Milestone =
+[%graphql
+{|
+  query prInfo($pr_id: ID!) {
+    node(id: $pr_id) {
+      ... on PullRequest {
+        milestone {
+          title
+          description
+        }
+      }
+    }
+  }
+|}]
+
 module PullRequest_ID_and_Milestone =
 [%graphql
 {|
@@ -52,11 +55,22 @@ module PullRequest_ID_and_Milestone =
     repository(owner: $owner,name: $repo) {
       pullRequest(number: $number) {
         id
-        databaseId
         milestone {
           title
           description
         }
+      }
+    }
+  }
+|}]
+
+module Milestone_ID =
+[%graphql
+{|
+  query milestoneID($owner: String!, $repo: String!, $number: Int!) {
+    repository(owner: $owner,name: $repo) {
+      milestone(number: $number) {
+        id
       }
     }
   }
@@ -407,14 +421,65 @@ query getChecks($appId: Int!, $owner: String!, $repo:String!, $head: String!) {
 }
 |}]
 
-(* Mutations *)
-
-module MoveCardToColumn =
+module GetProjectFieldValues =
 [%graphql
 {|
-  mutation moveCard($card_id:ID!,$column_id:ID!) {
-    moveProjectCard(input:{cardId:$card_id,columnId:$column_id}) {
+query getProjectFieldValues($organization: String!, $project: Int!, $field: String!, $options: [String!]!) {
+  organization(login: $organization) {
+    projectV2(number: $project) {
+      id
+      field(name: $field) {
+        ... on ProjectV2SingleSelectField {
+          id
+          options(names: $options) {
+            id
+            name
+          }
+        }
+      }
+    }
+  }
+}
+|}]
+
+(* Mutations *)
+
+module AddCardToProject =
+[%graphql
+{|
+  mutation addCard($card_id:ID!, $project_id: ID!) {
+    addProjectV2ItemById(input:{contentId:$card_id,projectId:$project_id}) {
+      item {
+        id
+      }
+    }
+  }
+|}]
+
+module UpdateFieldValue =
+[%graphql
+{|
+  mutation updateFieldValue($card_id:ID!, $project_id: ID!, $field_id: ID!, $field_value_id: String!) {
+    updateProjectV2ItemFieldValue(input: {projectId: $project_id, itemId: $card_id, fieldId: $field_id, value: {singleSelectOptionId: $field_value_id}}) {
       clientMutationId
+    }
+  }
+|}]
+
+module CreateNewReleaseManagementField =
+[%graphql
+{|
+  mutation createNewField($project_id: ID!, $field: String!) {
+    createProjectV2Field(input: {projectId: $project_id, dataType: SINGLE_SELECT, name: $field, singleSelectOptions: [{name: "Request inclusion", color: GREEN, description: "This merged pull request is proposed for inclusion."}, {name: "Shipped", color: PURPLE, description: "This pull request has been backported (or merged directly in the release branch)."}, {name: "Rejected", color: RED, description: "This merged pull request will not be included in this release."}]}) {
+      projectV2Field {
+        ... on ProjectV2SingleSelectField {
+          id
+          options(names: ["Request inclusion", "Shipped", "Rejected"]) {
+            id
+            name
+          }
+        }
+      }
     }
   }
 |}]

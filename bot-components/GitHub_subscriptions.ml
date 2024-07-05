@@ -49,25 +49,6 @@ let pull_request_info_of_json json =
       (match pr_json |> member "merged_at" with `Null -> false | _ -> true)
   ; last_commit_message= None }
 
-let project_card_of_json json =
-  let card_json = json |> member "project_card" in
-  let column_id = card_json |> member "column_id" |> to_int in
-  let regexp =
-    "https://api.github.com/repos/\\([^/]*\\)/\\([^/]*\\)/issues/\\([0-9]*\\)"
-  in
-  match card_json |> member "content_url" with
-  | `Null ->
-      Ok {issue= None; column_id}
-  | `String content_url when string_match ~regexp content_url ->
-      let owner = Str.matched_group 1 content_url in
-      let repo = Str.matched_group 2 content_url in
-      let number = Str.matched_group 3 content_url |> Int.of_string in
-      Ok {issue= Some {owner; repo; number}; column_id}
-  | `String _ ->
-      Error "Could not parse content_url field."
-  | _ ->
-      Error "content_url field has unexpected type."
-
 let comment_info_of_json ?(review_comment = false) json =
   let comment_json =
     if review_comment then json |> member "review" else json |> member "comment"
@@ -153,7 +134,7 @@ let push_event_info_of_json json =
 type msg =
   | IssueOpened of issue_info
   | IssueClosed of issue_info
-  | RemovedFromProject of project_card_issue
+  | PullRequestCardEdited of pull_request_card_info
   | PullRequestUpdated of pull_request_action * issue_info pull_request_info
   | BranchCreated of remote_ref_info
   | TagCreated of remote_ref_info
@@ -184,9 +165,27 @@ let github_action ~event ~action json =
       Ok (IssueOpened (issue_info_of_json json))
   | "issues", "closed" ->
       Ok (IssueClosed (issue_info_of_json json))
-  | "project_card", "deleted" ->
-      json |> project_card_of_json
-      |> Result.map ~f:(fun card -> RemovedFromProject card)
+  | "projects_v2_item", "edited"
+    when String.equal "PullRequest"
+           ( json |> member "projects_v2_item" |> member "content_type"
+           |> to_string )
+         && String.equal "single_select"
+              ( json |> member "changes" |> member "field_value"
+              |> member "field_type" |> to_string ) ->
+      let card_json = json |> member "projects_v2_item" in
+      let changes_json = json |> member "changes" |> member "field_value" in
+      Ok
+        (PullRequestCardEdited
+           { pr_id= card_json |> member "content_node_id" |> GitHub_ID.of_json
+           ; card_id= card_json |> member "node_id" |> GitHub_ID.of_json
+           ; project_id=
+               card_json |> member "project_node_id" |> GitHub_ID.of_json
+           ; project_number= changes_json |> member "project_number" |> to_int
+           ; field= changes_json |> member "field_name" |> to_string
+           ; old_value=
+               changes_json |> member "from" |> member "name" |> to_string
+           ; new_value=
+               changes_json |> member "to" |> member "name" |> to_string } )
   | "issue_comment", "created" ->
       Ok (CommentCreated (comment_info_of_json json))
   | "pull_request_review", "submitted" ->
@@ -204,7 +203,7 @@ let github_event ~event json =
   match event with
   | "pull_request"
   | "issues"
-  | "project_card"
+  | "projects_v2_item"
   | "issue_comment"
   | "pull_request_review"
   | "check_run"
@@ -228,24 +227,30 @@ let github_event ~event json =
       Ok (UnsupportedEvent "Unsupported GitHub event.")
 
 let receive_github ~secret headers body =
-  let open Result in
-  ( match Header.get headers "X-Hub-Signature" with
-  | Some signature ->
-      let expected =
-        Mirage_crypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
-          (Cstruct.of_string body)
-        |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
-      in
-      if Eqaf.equal signature expected then return true
-      else Error "Webhook signed but with wrong signature."
-  | None ->
-      return false )
-  >>= fun signed ->
+  let open Result.Monad_infix in
   match Header.get headers "X-GitHub-Event" with
   | Some event -> (
     try
       let json = Yojson.Basic.from_string body in
-      github_event ~event json |> Result.map ~f:(fun r -> (signed, r))
+      ( try
+          let install_id =
+            json |> member "installation" |> member "id" |> to_int
+          in
+          (* if there is an install id, the webhook should be signed *)
+          match Header.get headers "X-Hub-Signature" with
+          | Some signature ->
+              let expected =
+                Mirage_crypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
+                  (Cstruct.of_string body)
+                |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
+              in
+              if Eqaf.equal signature expected then Ok (Some install_id)
+              else Error "Webhook signed but with wrong signature."
+          | None ->
+              Error "Webhook comes from a GitHub App, but it is not signed."
+        with Yojson.Json_error _ | Type_error _ -> Ok None )
+      >>= fun install_id ->
+      github_event ~event json |> Result.map ~f:(fun r -> (install_id, r))
     with
     | Yojson.Json_error err ->
         Error (f "Json error: %s" err)

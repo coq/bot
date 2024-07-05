@@ -7,68 +7,37 @@ open Utils
 let send_graphql_query = GraphQL_query.send_graphql_query ~api:GitHub
 
 let extract_backport_info ~(bot_info : Bot_info.t) description :
-    full_backport_info option =
-  let project_column_regexp =
-    "https://github.com/[^/]*/[^/]*/projects/[0-9]+#column-\\([0-9]+\\)"
-  in
-  let regexp =
-    bot_info.github_name
-    ^ ": backport to \\([^ ]*\\) (request inclusion column: "
-    ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
-    ^ "; move rejected PRs to: "
+    backport_info list =
+  let main_regexp =
+    "backport to \\([^ ]*\\) (.*move rejected PRs to: "
     ^ "https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)" ^ ")"
   in
-  if string_match ~regexp description then
-    let backport_to = Str.matched_group 1 description in
-    let request_inclusion_column =
-      Str.matched_group 2 description |> Int.of_string
-    in
-    let backported_column = Str.matched_group 3 description |> Int.of_string in
-    let rejected_milestone = Str.matched_group 4 description in
-    Some
-      { backport_info=
-          [{backport_to; request_inclusion_column; backported_column}]
-      ; rejected_milestone }
-  else
-    let begin_regexp = bot_info.github_name ^ ": \\(.*\\)$" in
-    let backport_info_unit =
-      "backport to \\([^ ]*\\) (request inclusion column: "
-      ^ project_column_regexp ^ "; backported column: " ^ project_column_regexp
-      ^ "); \\(.*\\)$"
-    in
-    let end_regexp =
-      "move rejected PRs to: \
-       https://github.com/[^/]*/[^/]*/milestone/\\([0-9]+\\)"
-    in
-    let rec aux string =
-      if string_match ~regexp:backport_info_unit string then
-        let backport_to = Str.matched_group 1 string in
-        let request_inclusion_column =
-          Str.matched_group 2 string |> Int.of_string
-        in
-        let backported_column = Str.matched_group 3 string |> Int.of_string in
-        Str.matched_group 4 string |> aux
-        |> Option.map ~f:(fun {backport_info; rejected_milestone} ->
-               { backport_info=
-                   {backport_to; request_inclusion_column; backported_column}
-                   :: backport_info
-               ; rejected_milestone } )
-      else if string_match ~regexp:end_regexp string then
-        let rejected_milestone = Str.matched_group 1 string in
-        Some {backport_info= []; rejected_milestone}
-      else None
-    in
-    if string_match ~regexp:begin_regexp description then
-      Str.matched_group 1 description |> aux
-    else None
+  let begin_regexp = bot_info.github_name ^ ": \\(.*\\)$" in
+  let backport_info_unit = main_regexp ^ "; \\(.*\\)$" in
+  let end_regexp = main_regexp in
+  let rec aux description =
+    if string_match ~regexp:backport_info_unit description then
+      let backport_to = Str.matched_group 1 description in
+      let rejected_milestone =
+        Str.matched_group 2 description |> Int.of_string
+      in
+      Str.matched_group 3 description
+      |> aux
+      |> List.cons {backport_to; rejected_milestone}
+    else if string_match ~regexp:end_regexp description then
+      let backport_to = Str.matched_group 1 description in
+      let rejected_milestone =
+        Str.matched_group 2 description |> Int.of_string
+      in
+      [{backport_to; rejected_milestone}]
+    else []
+  in
+  if string_match ~regexp:begin_regexp description then
+    Str.matched_group 1 description |> aux
+  else []
 
-let convertMilestone milestone =
-  let open GitHub_GraphQL.PullRequest_Milestone_and_Cards.BackportInfo in
-  {milestone_title= milestone.title; description= milestone.description}
-
-let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
-  let open GitHub_GraphQL.PullRequest_Milestone_and_Cards in
-  let open BackportInfo in
+let get_pull_request_cards ~bot_info ~owner ~repo ~number =
+  let open GitHub_GraphQL.PullRequest_Cards in
   makeVariables ~owner ~repo ~number ()
   |> serializeVariables |> variablesToJson
   |> send_graphql_query ~bot_info ~query
@@ -79,30 +48,16 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
     | Some result -> (
       match result.pullRequest with
       | Some result ->
-          let cards =
-            match result.projectCards.nodes with
+          let items =
+            match result.projectItems.items with
             | None ->
                 []
-            | Some cards ->
-                cards |> Array.to_list |> List.filter_opt
-                |> List.map ~f:(fun card ->
-                       { id= GitHub_ID.of_string card.id
-                       ; column=
-                           Option.map card.column ~f:(fun column ->
-                               { GitHub_types.id= GitHub_ID.of_string column.id
-                               ; databaseId= column.databaseId } )
-                       ; columns=
-                           ( match card.project.columns.nodes with
-                           | None ->
-                               []
-                           | Some columns ->
-                               columns |> Array.to_list |> List.filter_opt
-                               |> List.map ~f:(fun column ->
-                                      { GitHub_types.id=
-                                          GitHub_ID.of_string column.Column.id
-                                      ; databaseId= column.databaseId } ) ) } )
+            | Some items ->
+                items |> Array.to_list |> List.filter_opt
+                |> List.map ~f:(fun item ->
+                       (GitHub_ID.of_string item.item_id, item.projectV2.number) )
           in
-          Ok (cards, Option.map ~f:convertMilestone result.milestone)
+          Ok items
       | None ->
           Error (f "Pull request %s/%s#%d does not exist." owner repo number) )
     | None ->
@@ -110,37 +65,27 @@ let get_pull_request_milestone_and_cards ~bot_info ~owner ~repo ~number =
   | Error err ->
       Error err
 
-let get_backported_pr_info ~bot_info number base_ref =
-  get_pull_request_milestone_and_cards ~bot_info ~owner:"coq" ~repo:"coq"
-    ~number
-  >|= function
-  | Ok (cards, milestone) ->
-      (let open Option in
-      milestone
-      >>= fun milestone ->
-      milestone.description
-      >>= extract_backport_info ~bot_info
-      >>= (fun full_backport_info ->
-            full_backport_info.backport_info
-            |> List.find ~f:(fun {backport_to} ->
-                   String.equal ("refs/heads/" ^ backport_to) base_ref ) )
-      >>= fun {request_inclusion_column; backported_column} ->
-      List.find_map cards ~f:(fun card ->
-          if
-            card.column
-            >>= (fun column -> column.databaseId)
-            |> Option.equal Int.equal (Some request_inclusion_column)
-          then
-            List.find_map card.columns ~f:(fun column ->
-                if
-                  Option.equal Int.equal (Some backported_column)
-                    column.databaseId
-                then Some {card_id= card.id; column_id= column.id}
-                else None )
-          else None ) )
-      |> fun res -> Ok res
-  | Error err ->
-      Error (f "Error in backported_pr_info: %s." err)
+let get_pull_request_milestone ~bot_info ~pr_id =
+  let open GitHub_GraphQL.PullRequest_Milestone in
+  let pr_id = GitHub_ID.to_string pr_id in
+  makeVariables ~pr_id () |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(fun result ->
+          match result.node with
+          | Some (`PullRequest result) -> (
+            match result.milestone with
+            | Some milestone ->
+                Ok
+                  ( milestone.description
+                  |> Option.map ~f:(extract_backport_info ~bot_info)
+                  |> Option.value ~default:[] )
+            | None ->
+                Ok [] )
+          | Some _ ->
+              Error (f "Node %s is not a pull request." pr_id)
+          | None ->
+              Error (f "Pull request %s does not exist." pr_id) )
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
@@ -158,26 +103,17 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
                 Error
                   (f "Pull request %s/%s#%d does not exist." owner repo number)
             | Some pr -> (
-              match (pr.databaseId, pr.milestone) with
-              | None, _ ->
-                  Error
-                    (f "Pull request %s/%s#%d does not have a database ID."
-                       owner repo number )
-              | _, None ->
+              match pr.milestone with
+              | None ->
                   Error
                     (f "Pull request %s/%s#%d does not have a milestone." owner
                        repo number )
-              | Some db_id, Some milestone ->
+              | Some milestone ->
                   Ok
-                    ( match milestone.description with
-                    | Some description -> (
-                      match extract_backport_info ~bot_info description with
-                      | Some bp_info ->
-                          Some (GitHub_ID.of_string pr.id, db_id, bp_info)
-                      | _ ->
-                          None )
-                    | _ ->
-                        None ) ) ) )
+                    ( GitHub_ID.of_string pr.id
+                    , milestone.description
+                      |> Option.map ~f:(extract_backport_info ~bot_info)
+                      |> Option.value ~default:[] ) ) ) )
 
 let get_pull_request_id ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID in
@@ -196,6 +132,25 @@ let get_pull_request_id ~bot_info ~owner ~repo ~number =
                   (f "Pull request %s/%s#%d does not exist." owner repo number)
             | Some pr ->
                 Ok (GitHub_ID.of_string pr.id) ) )
+
+let get_milestone_id ~bot_info ~owner ~repo ~number =
+  let open GitHub_GraphQL.Milestone_ID in
+  makeVariables ~owner ~repo ~number ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >|= Result.bind ~f:(fun result ->
+          match result.repository with
+          | None ->
+              Error (f "Repository %s/%s does not exist." owner repo)
+          | Some result -> (
+            match result.milestone with
+            | None ->
+                Error
+                  (f "Milestone %d does not exist in repository %s/%s." number
+                     owner repo )
+            | Some milestone ->
+                Ok (GitHub_ID.of_string milestone.id) ) )
 
 let team_membership_of_resp ~org ~team ~user resp =
   let open GitHub_GraphQL.TeamMembership in
@@ -874,27 +829,6 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                             %s/%s@%s."
                            owner repo head ) ) ) ) )
 
-(* TODO: use GraphQL API *)
-
-let get_cards_in_column column_id =
-  generic_get
-    ("projects/columns/" ^ Int.to_string column_id ^ "/cards")
-    ~header_list:project_api_preview_header
-    (fun json ->
-      let open Yojson.Basic.Util in
-      json |> to_list
-      |> List.filter_map ~f:(fun json ->
-             let card_id = json |> member "id" |> to_int in
-             let content_url =
-               json |> member "content_url" |> to_string_option
-               |> Option.value ~default:""
-             in
-             let regexp = "https://api.github.com/repos/.*/\\([0-9]*\\)" in
-             if string_match ~regexp content_url then
-               let pr_number = Str.matched_group 1 content_url in
-               Some (pr_number, card_id)
-             else None ) )
-
 let get_list getter =
   let rec get_list_aux cursor accu =
     getter cursor
@@ -903,11 +837,11 @@ let get_list getter =
         let accu = List.rev_append ans accu in
         match cursor with
         | None ->
-            Lwt.return (Ok (List.rev accu))
+            Lwt.return_ok (List.rev accu)
         | Some cursor ->
             get_list_aux (Some cursor) accu )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list_aux None []
 
@@ -939,12 +873,11 @@ let get_open_pull_requests_with_label ~bot_info ~owner ~repo ~label =
                 in
                 List.filter_map ~f:map (Array.to_list data)
           in
-          Lwt.return (Ok (data, next))
+          Lwt.return_ok (data, next)
       | None ->
-          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
-      )
+          Lwt.return_error (f "Repository %s/%s does not exist." owner repo) )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list getter
 
@@ -987,15 +920,14 @@ let get_pull_request_label_timeline ~bot_info ~owner ~repo ~pr_number =
                   in
                   List.filter_map ~f:map (Array.to_list data)
             in
-            Lwt.return (Ok (data, next))
+            Lwt.return_ok (data, next)
         | None ->
-            Lwt.return
-            @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
+            Lwt.return_error
+              (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
       | None ->
-          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
-      )
+          Lwt.return_error (f "Repository %s/%s does not exist." owner repo) )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list getter
 
@@ -1043,16 +975,49 @@ let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
                     let map o = Option.map ~f:(fun o -> o.name) o in
                     List.filter_map ~f:map (Array.to_list data)
               in
-              Lwt.return (Ok (data, next))
+              Lwt.return_ok (data, next)
           | None ->
-              Lwt.return @@ Error (f "Error querying labels") )
+              Lwt.return_error (f "Error querying labels") )
         | None ->
             Lwt.return
             @@ Error (f "Unknown pull request %s/%s#%d" owner repo pr_number) )
       | None ->
-          Lwt.return @@ Error (f "Repository %s/%s does not exist." owner repo)
-      )
+          Lwt.return_error (f "Repository %s/%s does not exist." owner repo) )
     | Error err ->
-        Lwt.return @@ Error err
+        Lwt.return_error err
   in
   get_list getter
+
+let get_project_field_values ~bot_info ~organization ~project ~field ~options =
+  let open GitHub_GraphQL.GetProjectFieldValues in
+  makeVariables ~organization ~project ~field ~options ()
+  |> serializeVariables |> variablesToJson
+  |> send_graphql_query ~bot_info ~query
+       ~parse:(Fn.compose parse unsafe_fromJson)
+  >>= function
+  | Ok result -> (
+    match result.organization with
+    | Some result -> (
+      match result.projectV2 with
+      | Some project -> (
+        match project.field with
+        | Some (`ProjectV2SingleSelectField field) ->
+            let options = field.options |> Array.to_list in
+            Lwt.return_ok
+              ( GitHub_ID.of_string project.id
+              , Some
+                  ( GitHub_ID.of_string field.id
+                  , List.map ~f:(fun {name; id} -> (name, id)) options ) )
+        | Some _ ->
+            Lwt.return_error (f "Field %s is not a single select field." field)
+        | None ->
+            (* We consider the field not existing in the project to be
+               acceptable, because it can be created then. *)
+            Lwt.return_ok (GitHub_ID.of_string project.id, None) )
+      | None ->
+          Lwt.return_error
+            (f "Unknown project %d of organization %s" project organization) )
+    | None ->
+        Lwt.return_error (f "Organization %s does not exist." organization) )
+  | Error err ->
+      Lwt.return_error err

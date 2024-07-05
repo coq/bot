@@ -1,26 +1,32 @@
 open GitHub_types
 
-val get_pull_request_milestone_and_cards :
+val get_pull_request_cards :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
-  -> (project_card list * milestone option, string) result Lwt.t
+  -> ((GitHub_ID.t * int) list, string) result Lwt.t
 
-val get_backported_pr_info :
+val get_pull_request_milestone :
      bot_info:Bot_info.t
-  -> int
-  -> string
-  -> (mv_card_to_column_input option, string) result Lwt.t
+  -> pr_id:GitHub_ID.t
+  -> (backport_info list, string) result Lwt.t
 
 val get_pull_request_id_and_milestone :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
   -> number:int
-  -> ((GitHub_ID.t * int * full_backport_info) option, string) result Lwt.t
+  -> (GitHub_ID.t * backport_info list, string) result Lwt.t
 
 val get_pull_request_id :
+     bot_info:Bot_info.t
+  -> owner:string
+  -> repo:string
+  -> number:int
+  -> (GitHub_ID.t, string) result Lwt.t
+
+val get_milestone_id :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
@@ -106,9 +112,6 @@ val get_pipeline_summary :
   -> head:string
   -> (string, string) result Lwt.t
 
-val get_cards_in_column :
-  int -> bot_info:Bot_info.t -> ((string * int) list, string) result Lwt.t
-
 val get_open_pull_requests_with_label :
      bot_info:Bot_info.t
   -> owner:string
@@ -137,3 +140,14 @@ val get_pull_request_labels :
   -> repo:string
   -> pr_number:int
   -> (string list, string) result Lwt.t
+
+val get_project_field_values :
+     bot_info:Bot_info.t
+  -> organization:string
+  -> project:int
+  -> field:string
+  -> options:string array
+  -> ( GitHub_ID.t * (GitHub_ID.t * (string * string) list) option
+     , string )
+     result
+     Lwt.t
