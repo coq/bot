@@ -2187,7 +2187,9 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                           if
                             string_match ~regexp:"dev/ci/user-overlays/\\(.*\\)"
                               f
-                          then Str.matched_group 1 f :: acc
+                          then
+                            let f = Str.matched_group 1 f in
+                            if String.equal f "README.md" then acc else f :: acc
                           else acc )
                     with
                     | [] ->
