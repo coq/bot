@@ -511,6 +511,7 @@ let trace_action ~repo_full_name trace =
        test "transfer closed with outstanding read data remaining"
        || test "HTTP request sent, awaiting response... 50[0-9]"
        || test "The requested URL returned error: 502"
+       || test "received unexpected HTTP status: 50[0-9]"
        (*|| test "[Tt]he remote end hung up unexpectedly"*)
        (* Can happen with (actual) issues with overlays. *)
        || test "error: unable to download 'https://cache.nixos.org/"
