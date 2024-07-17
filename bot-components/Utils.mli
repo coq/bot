@@ -17,11 +17,20 @@ val project_api_preview_header : (string * string) list
 
 val app_api_preview_header : (string * string) list
 
+val api_json_header : (string * string) list
+
 val github_header : Bot_info.t -> (string * string) list
 
-val generic_get :
+val generic_get_json :
      bot_info:Bot_info.t
   -> string
   -> ?header_list:(string * string) list
   -> (Yojson.Basic.t -> 'a)
+  -> ('a, string) result Lwt.t
+
+val generic_get_zip :
+     bot_info:Bot_info.t
+  -> string
+  -> ?header_list:(string * string) list
+  -> ((Zip.entry * string) list -> 'a)
   -> ('a, string) result Lwt.t
