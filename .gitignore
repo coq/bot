@@ -3,6 +3,8 @@
 *.pub
 *.tar.gz
 .env
+.direnv
+.envrc
 
 # vscode settings
 .vscode
