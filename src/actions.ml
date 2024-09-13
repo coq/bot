@@ -2075,10 +2075,11 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo ~coq_version ~ocaml_version ~minimizer_extra_arguments
   >>= function
   | Ok () ->
+      (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
       GitHub_mutations.post_comment ~id:comment_thread_id
         ~message:
           (f
-             "Hey @%s, the coq bug minimizer is running your script, I'll come \
+             "Hey @%s, the coq bug minimizer [is running](https://github.com/coq-community/run-coq-bug-minimizer/actions) your script, I'll come \
               back to you with the results once it's done."
              comment_author )
         ~bot_info
