@@ -1,6 +1,6 @@
 { pkgs ? import (fetchTarball {
-  url = "https://github.com/NixOS/nixpkgs/archive/92d2950194214e975ae7bd2655036689fccac155.tar.gz";
-  sha256 = "1x8nk008bz5vkmqm7syxm68b0zchias039ppqjjz7rx58cqpikrk";
+  url = "https://github.com/NixOS/nixpkgs/archive/280db3decab4cbeb22a4599bd472229ab74d25e1.tar.gz";
+  sha256 = "sha256:17n9wji64l7d16s8r100ypwlxkmwrypll4q3wkkfjswbilxkqjr6";
 }) { } }:
 
 pkgs.stdenv.mkDerivation rec {
@@ -15,10 +15,11 @@ pkgs.stdenv.mkDerivation rec {
     merlin
     ocaml-lsp
     pkgs.ocamlformat
-    pkgs.nixfmt
+    pkgs.nixfmt-rfc-style
     pkgs.nodePackages.get-graphql-schema
     # Direct dependencies
     base
+    camlzip
     cohttp
     cohttp-lwt-unix
     hex
