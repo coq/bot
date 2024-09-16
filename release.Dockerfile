@@ -17,7 +17,6 @@ RUN opam install . --destdir /src/opam-install
 
 # Store the dynamic dependencies of the server
 RUN opam depext -ln coq-bot > /src/depexts-coq-bot
-RUN opam depext -ln bot-components > /src/depexts-bot-components
 
 
 FROM alpine:3.10 AS app
@@ -33,11 +32,9 @@ RUN apk update \
   && adduser coqbot -DG coqbot
 
 COPY --from=builder /src/depexts-coq-bot depexts-coq-bot
-COPY --from=builder /src/depexts-bot-components depexts-bot-components
 
 # Install the required dynamic dependencies
 RUN cat depexts-coq-bot | xargs apk --update add
-RUN cat depexts-bot-components | xargs apk --update add
 
 EXPOSE 8000
 
