@@ -1561,8 +1561,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                      at commit %s.%s"
                     head try_again_msg
               | _ :: _ ->
+                  (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
                   f
-                    "I am now %s minimization at commit %s on %s. I'll come \
+                    "I am now [%s minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+                     at commit %s on %s. I'll come \
                      back to you with the results once it's done.%s"
                     (if Option.is_none bug_file then "running" else "resuming")
                     head
