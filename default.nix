@@ -22,7 +22,7 @@ pkgs.stdenv.mkDerivation rec {
     camlzip
     cohttp
     cohttp-lwt-unix
-    hex
+    ohex
     iso8601
     mirage-crypto
     mirage-crypto-rng-lwt
@@ -31,7 +31,7 @@ pkgs.stdenv.mkDerivation rec {
     toml
     eqaf
     x509
-    cstruct
+    digestif
     ppx_expect
     odoc
   ];

@@ -15,9 +15,9 @@ depends: [
   "cohttp-lwt-unix" {>= "2.5.4"}
   "lwt_ssl" {>= "1.1.3"}
   "ssl" {>= "0.5.9"}
-  "mirage-crypto" {>= "0.11.0"}
-  "mirage-crypto-rng" {>= "0.11.0"}
-  "mirage-crypto-rng-lwt" {>= "0.11.0"}
+  "mirage-crypto" {>= "1.0.0"}
+  "mirage-crypto-rng" {>= "1.0.0"}
+  "mirage-crypto-rng-lwt" {>= "1.0.0"}
   "stdio" {>= "v0.14.0"}
   "yojson" {>= "1.7.0"}
   "bot-components" {dev}

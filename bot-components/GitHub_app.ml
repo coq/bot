@@ -10,11 +10,10 @@ let github_headers token =
   ; ("authorization", "Bearer " ^ token) ]
 
 let rs256_sign ~key ~data =
-  (* Taken from https://github.com/mmaker/ocaml-letsencrypt *)
-  let data = Cstruct.of_string data in
-  let h = Mirage_crypto.Hash.SHA256.digest data in
+  (* Taken from https://github.com/robur-coop/ocaml-letsencrypt *)
+  let h = Digestif.SHA256.(to_raw_string (digest_string data)) in
   let pkcs1_digest = X509.Certificate.encode_pkcs1_digest_info (`SHA256, h) in
-  Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key pkcs1_digest |> Cstruct.to_string
+  Mirage_crypto_pk.Rsa.PKCS1.sig_encode ~key pkcs1_digest
 
 let base64 = Base64.encode ~pad:false ~alphabet:Base64.uri_safe_alphabet
 

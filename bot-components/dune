@@ -1,8 +1,8 @@
 (library
  (name Bot_components)
  (public_name bot-components)
- (libraries base camlzip cohttp-lwt-unix cstruct eqaf hex mirage-crypto stdio
-   str x509 yojson ISO8601)
+ (libraries base camlzip cohttp-lwt-unix eqaf ohex mirage-crypto stdio str
+   x509 yojson ISO8601 digestif)
  (private_modules GraphQL_query GitHub_GraphQL Utils)
  (modules_without_implementation GitHub_types GitLab_types)
  (preprocess
