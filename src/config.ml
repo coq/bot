@@ -123,10 +123,7 @@ let github_app_id toml_data =
 
 let github_private_key () =
   (*string_of_file_path "./github.private-key.pem"*)
-  match
-    Sys.getenv_exn "GITHUB_PRIVATE_KEY"
-    |> Cstruct.of_string |> X509.Private_key.decode_pem
-  with
+  match Sys.getenv_exn "GITHUB_PRIVATE_KEY" |> X509.Private_key.decode_pem with
   | Ok (`RSA priv) ->
       priv
   | Ok _ ->
