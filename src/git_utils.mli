@@ -13,7 +13,7 @@ val gitlab_ref :
 
 val ( |&& ) : string -> string -> string
 
-val execute_cmd : string -> (unit, string) result Lwt.t
+val execute_cmd : ?mask:string list -> string -> (unit, string) result Lwt.t
 
 val git_fetch :
   ?force:bool -> Bot_components.GitHub_types.remote_ref_info -> string -> string

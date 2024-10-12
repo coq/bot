@@ -11,8 +11,12 @@ let gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name =
   |> Result.map ~f:(fun token ->
          f "https://oauth2:%s@%s/%s.git" token gitlab_domain gitlab_full_name )
 
-let report_status command report code =
-  Error (f {|Command "%s" %s %d\n|} command report code)
+let report_status ?(mask = []) command report code =
+  Error
+    (List.fold_left
+       ~init:(f {|Command "%s" %s %d%s|} command report code "\n")
+       ~f:(fun acc m -> Str.global_replace (Str.regexp_string m) "XXXXX" acc)
+       mask)
 
 let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
   let default_gitlab_domain = "gitlab.com" in
@@ -82,7 +86,7 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 
-let execute_cmd command =
+let execute_cmd ?(mask = []) command =
   Lwt_io.printf "Executing command: %s\n" command
   >>= fun () ->
   Lwt_unix.system command
@@ -90,11 +94,11 @@ let execute_cmd command =
   match status with
   | Unix.WEXITED code ->
       if Int.equal code 0 then Ok ()
-      else report_status command "exited with status" code
+      else report_status ~mask command "exited with status" code
   | Unix.WSIGNALED signal ->
-      report_status command "was killed by signal number" signal
+      report_status ~mask command "was killed by signal number" signal
   | Unix.WSTOPPED signal ->
-      report_status command "was stopped by signal number" signal
+      report_status ~mask command "was stopped by signal number" signal
 
 let git_fetch ?(force = true) remote_ref local_branch_name =
   f "git fetch --quiet -fu %s %s%s:%s" remote_ref.repo_url
@@ -166,7 +170,7 @@ let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ; coq_version
     ; ocaml_version
     ; minimizer_extra_arguments |> String.concat ~sep:" " ]
-  |> execute_cmd
+  |> execute_cmd ~mask:[bot_info.github_pat]
 
 let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
     ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base ~head
@@ -192,14 +196,14 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
   @
   match bug_file_name with Some bug_file_name -> [bug_file_name] | None -> [] )
   |> Stdlib.Filename.quote_command "./run_ci_minimization.sh"
-  |> execute_cmd
+  |> execute_cmd ~mask:[bot_info.github_pat]
 
 let init_git_bare_repository ~bot_info =
   let* () = Lwt_io.printl "Initializing repository..." in
   "git init --bare"
   |&& f {|git config user.email "%s"|} bot_info.email
   |&& f {|git config user.name "%s"|} bot_info.github_name
-  |> execute_cmd
+  |> execute_cmd ~mask:[bot_info.github_pat]
   >>= function
   | Ok _ ->
       Lwt_io.printl "Bare repository initialized."
