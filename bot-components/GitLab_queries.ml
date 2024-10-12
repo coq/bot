@@ -48,7 +48,7 @@ let get_retry_nb ~bot_info ~gitlab_domain ~full_name ~build_id ~build_name =
             | Some {name= Some name} ->
                 String.equal build_name name
             | None | Some {name= None} ->
-                false ) )
+                false))
   | Ok {project= Some {job= Some {pipeline= Some {jobs= Some {nodes= None}}}}}
     ->
       Error "There are retried jobs but we failed to get them"

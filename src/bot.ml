@@ -41,7 +41,7 @@ let github_mapping, gitlab_mapping = Config.make_mappings_table toml_data
 
 let string_of_installation_tokens =
   Hashtbl.fold ~init:"" ~f:(fun ~key ~data acc ->
-      acc ^ f "Owner: %s, token: %s,  expire at: %f\n" key (fst data) (snd data) )
+      acc ^ f "Owner: %s, token: %s,  expire at: %f\n" key (fst data) (snd data))
 
 (* TODO: deprecate unsigned webhooks *)
 
@@ -216,7 +216,7 @@ let callback _conn req body =
         | Ok (owner, _) ->
             (fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner
-                (job_action ~gitlab_mapping job_info) )
+                (job_action ~gitlab_mapping job_info))
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Job event." () )
       | Ok (_, PipelineEvent ({common_info= {http_repo_url}} as pipeline_info))
@@ -228,7 +228,7 @@ let callback _conn req body =
         | Ok (owner, _) ->
             (fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner
-                (pipeline_action ~gitlab_mapping pipeline_info) )
+                (pipeline_action ~gitlab_mapping pipeline_info))
             |> Lwt.async ;
             Server.respond_string ~status:`OK ~body:"Pipeline event." () )
       | Ok (_, UnsupportedEvent e) ->
@@ -262,7 +262,7 @@ let callback _conn req body =
             <&> action_as_github_app_from_install_id ~bot_info ~key ~app_id
                   ~install_id
                   (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner:"coq"
-                     ~repo:"coq" ~base_ref ~head_sha () ) )
+                     ~repo:"coq" ~base_ref ~head_sha ()))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -279,14 +279,14 @@ let callback _conn req body =
               action_as_github_app_from_install_id ~bot_info ~key ~app_id
                 ~install_id
                 (mirror_action ~gitlab_domain:"gitlab.com" ~owner ~repo
-                   ~base_ref ~head_sha () ) )
+                   ~base_ref ~head_sha ()))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
                 (f
                    "Processing push event on %s/%s repository: mirroring \
                     branch on GitLab."
-                   owner repo )
+                   owner repo)
               ()
         | "math-comp", ("docker-mathcomp" | "math-comp") ->
             (fun () ->
@@ -295,14 +295,14 @@ let callback _conn req body =
               action_as_github_app_from_install_id ~bot_info ~key ~app_id
                 ~install_id
                 (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner ~repo
-                   ~base_ref ~head_sha () ) )
+                   ~base_ref ~head_sha ()))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
                 (f
                    "Processing push event on %s/%s repository: mirroring \
                     branch on GitLab."
-                   owner repo )
+                   owner repo)
               ()
         | _ ->
             Server.respond_string ~status:`OK ~body:"Ignoring push event." () )
@@ -313,7 +313,7 @@ let callback _conn req body =
             action_as_github_app ~bot_info ~key ~app_id
               ~owner:pr_info.issue.issue.owner
               (pull_request_closed_action ~gitlab_mapping ~github_mapping
-                 pr_info ) )
+                 pr_info))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -321,7 +321,7 @@ let callback _conn req body =
                  "Pull request %s/%s#%d was closed: removing the branch from \
                   GitLab."
                  pr_info.issue.issue.owner pr_info.issue.issue.repo
-                 pr_info.issue.issue.number )
+                 pr_info.issue.issue.number)
             ()
       | Ok (_, PullRequestUpdated (action, pr_info)) ->
           init_git_bare_repository ~bot_info
@@ -329,20 +329,21 @@ let callback _conn req body =
           action_as_github_app ~bot_info ~key ~app_id
             ~owner:pr_info.issue.issue.owner
             (pull_request_updated_action ~action ~pr_info ~gitlab_mapping
-               ~github_mapping )
+               ~github_mapping)
       | Ok (_, IssueClosed {issue}) ->
           (* TODO: only for projects that requested this feature *)
           (fun () ->
             action_as_github_app ~bot_info ~key ~app_id ~owner:issue.owner
-              (adjust_milestone ~issue ~sleep_time:5.) )
+              (adjust_milestone ~issue ~sleep_time:5.))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f "Issue %s/%s#%d was closed: checking its milestone."
-                 issue.owner issue.repo issue.number )
+                 issue.owner issue.repo issue.number)
             ()
       | Ok
-          ( Some (1062161 as install_id) (* Coq's installation number *)
+          ( Some (1062161 as install_id)
+          (* Coq's installation number *)
           , PullRequestCardEdited
               { project_number= 11 (* Coq's backporting project number *)
               ; pr_id
@@ -354,14 +355,14 @@ let callback _conn req body =
           (fun () ->
             action_as_github_app_from_install_id ~bot_info ~key ~app_id
               ~install_id
-              (project_action ~pr_id ~backport_to ()) )
+              (project_action ~pr_id ~backport_to ()))
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
               (f
                  "PR proposed for backporting was rejected from inclusion in \
                   %s. Updating the milestone."
-                 backport_to )
+                 backport_to)
             ()
       | Ok (_, PullRequestCardEdited _) ->
           Server.respond_string ~status:`OK
@@ -380,7 +381,7 @@ let callback _conn req body =
                   (run_coq_minimizer ~script ~comment_thread_id:issue_info.id
                      ~comment_author:issue_info.user
                      ~owner:issue_info.issue.owner ~repo:issue_info.issue.repo
-                     ~options ) )
+                     ~options))
               |> Lwt.async ;
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
@@ -404,7 +405,7 @@ let callback _conn req body =
                      ~comment_thread_id:comment_info.issue.id
                      ~comment_author:comment_info.author
                      ~owner:comment_info.issue.issue.owner
-                     ~repo:comment_info.issue.issue.repo ~options ) )
+                     ~repo:comment_info.issue.issue.repo ~options))
               |> Lwt.async ;
               Server.respond_string ~status:`OK ~body:"Handling minimization."
                 ()
@@ -421,7 +422,7 @@ let callback _conn req body =
                   action_as_github_app ~bot_info ~key ~app_id
                     ~owner:comment_info.issue.issue.owner
                     (ci_minimize ~comment_info ~requests ~comment_on_error:true
-                       ~options ~bug_file:(Some bug_file) ) )
+                       ~options ~bug_file:(Some bug_file)))
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:"Handling CI minimization resumption." ()
@@ -434,7 +435,7 @@ let callback _conn req body =
                     action_as_github_app ~bot_info ~key ~app_id
                       ~owner:comment_info.issue.issue.owner
                       (ci_minimize ~comment_info ~requests
-                         ~comment_on_error:true ~options ~bug_file:None ) )
+                         ~comment_on_error:true ~options ~bug_file:None))
                   |> Lwt.async ;
                   Server.respond_string ~status:`OK
                     ~body:"Handling CI minimization." ()
@@ -466,7 +467,7 @@ let callback _conn req body =
                     action_as_github_app ~bot_info ~key ~app_id
                       ~owner:comment_info.issue.issue.owner
                       (run_ci_action ~comment_info ?full_ci ~gitlab_mapping
-                         ~github_mapping () )
+                         ~github_mapping ())
                   else if
                     string_match
                       ~regexp:
@@ -480,7 +481,7 @@ let callback _conn req body =
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
                         ~owner:comment_info.issue.issue.owner
-                        (merge_pull_request_action comment_info) )
+                        (merge_pull_request_action comment_info))
                     |> Lwt.async ;
                     Server.respond_string ~status:`OK
                       ~body:(f "Received a request to merge the PR.")
@@ -498,9 +499,8 @@ let callback _conn req body =
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
                         ~owner:comment_info.issue.issue.owner
-                        (run_bench
-                           ~key_value_pairs:[("coq_native", "yes")]
-                           comment_info ) )
+                        (run_bench ~key_value_pairs:[("coq_native", "yes")]
+                           comment_info))
                     |> Lwt.async ;
                     Server.respond_string ~status:`OK
                       ~body:(f "Received a request to start the bench.")
@@ -517,7 +517,7 @@ let callback _conn req body =
                     (fun () ->
                       action_as_github_app ~bot_info ~key ~app_id
                         ~owner:comment_info.issue.issue.owner
-                        (run_bench comment_info) )
+                        (run_bench comment_info))
                     |> Lwt.async ;
                     Server.respond_string ~status:`OK
                       ~body:(f "Received a request to start the bench.")
@@ -555,19 +555,19 @@ let callback _conn req body =
                     (f
                        "Request to rerun check run but external ID is not \
                         well-formed: %s"
-                       external_id )
+                       external_id)
                   ()
             | Some (gitlab_domain, url_part) ->
                 (fun () ->
                   GitLab_mutations.generic_retry ~bot_info ~gitlab_domain
-                    ~url_part )
+                    ~url_part)
                 |> Lwt.async ;
                 Server.respond_string ~status:`OK
                   ~body:
                     (f
                        "Received a request to re-run a job / pipeline \
                         (External ID : %s)."
-                       external_id )
+                       external_id)
                   () )
       | Ok (_, UnsupportedEvent s) ->
           Server.respond_string ~status:`OK ~body:(f "No action taken: %s" s) ()
@@ -605,11 +605,10 @@ let callback _conn req body =
             (fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner
                 (coq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
-                   ~throttle:6 )
+                   ~throttle:6)
               >>= fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner
-                (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4)
-              )
+                (coq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4))
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:"Stale pull requests updated" () )
@@ -631,7 +630,7 @@ let () =
   Lwt.async_exception_hook :=
     fun exn ->
       (fun () ->
-        Lwt_io.printlf "Error: Unhandled exception: %s" (Exn.to_string exn) )
+        Lwt_io.printlf "Error: Unhandled exception: %s" (Exn.to_string exn))
       |> Lwt.async
 
 (* RNG seeding: https://github.com/mirage/mirage-crypto#faq *)

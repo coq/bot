@@ -28,7 +28,7 @@ let action_with_new_installation_token ~bot_info ~key ~app_id ~install_id action
         (f
            "We did not manage to get an installation token for installation \
             %d: %s"
-           install_id err )
+           install_id err)
 
 let action_as_github_app_from_install_id ~bot_info ~key ~app_id ~install_id
     action =
@@ -65,7 +65,7 @@ let action_as_github_app ~bot_info ~key ~app_id ~owner action =
         match
           installs
           |> List.find_map ~f:(fun (owner', install_id) ->
-                 if String.equal owner owner' then Some install_id else None )
+                 if String.equal owner owner' then Some install_id else None)
         with
         | Some install_id ->
             let _ = Hashtbl.add installation_ids ~key:owner ~data:install_id in

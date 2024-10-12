@@ -91,7 +91,7 @@ let get_installations ~bot_info ~key ~app_id =
           ( json |> to_list
           |> List.map ~f:(fun json ->
                  ( json |> member "account" |> member "login" |> to_string
-                 , json |> member "id" |> to_int ) ) )
+                 , json |> member "id" |> to_int )) )
       with
       | Yojson.Json_error err ->
           Error (f "Json error: %s" err)

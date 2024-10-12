@@ -82,7 +82,7 @@ let post_comment ~bot_info ~id ~message =
         | {payload= Some {commentEdge= Some {node= Some {url}}}} ->
             Ok url
         | _ ->
-            Error "Error while retrieving URL of posted comment." )
+            Error "Error while retrieving URL of posted comment.")
 
 let report_on_posting_comment = function
   | Ok url ->
@@ -126,7 +126,7 @@ let merge_pull_request ~bot_info ?merge_method ?commit_headline ?commit_body
       | REBASE ->
           `REBASE
       | SQUASH ->
-          `SQUASH )
+          `SQUASH)
   in
   let open GitHub_GraphQL.MergePullRequest in
   makeVariables

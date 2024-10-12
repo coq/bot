@@ -80,7 +80,7 @@ let pipeline_info_of_json json =
     |> List.map ~f:(fun variable ->
            let key = variable |> member "key" |> to_string in
            let value = variable |> member "value" |> to_string in
-           (key, value) )
+           (key, value))
   in
   let stages =
     pipeline_json |> member "stages" |> to_list |> List.map ~f:to_string

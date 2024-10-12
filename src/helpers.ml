@@ -24,7 +24,7 @@ let map_string_matches ~regexp ~f string =
   fold_string_matches ~regexp
     ~f:(fun rest ->
       let v = f () in
-      v :: rest () )
+      v :: rest ())
     ~init:[] string
 
 let iter_string_matches ~regexp ~f string =
@@ -69,7 +69,7 @@ let strip_quoted_bot_name ~github_bot_name body =
 let%expect_test "strip_quoted_bot_name" =
   Stdio.printf "%s\n"
     (strip_quoted_bot_name ~github_bot_name:"coqbot"
-       {|>this didn't produce a pipeline for some reason\r\n\r\nI think that this is normal. @herbelin was maybe expecting that adding the `request: full CI` label would trigger a new run immediately, but the semantics is that this label will produce such a full CI run at the next update (next push) of this PR. Cf. the [documentation](https://github.com/coq/coq/blob/master/CONTRIBUTING.md#understanding-automatic-feedback):\r\n\r\n>you can request a full run of the CI by putting the `request: full CI` label before pushing to your PR branch, or by commenting `@coqbot: run full CI` after having pushed. |} ) ;
+       {|>this didn't produce a pipeline for some reason\r\n\r\nI think that this is normal. @herbelin was maybe expecting that adding the `request: full CI` label would trigger a new run immediately, but the semantics is that this label will produce such a full CI run at the next update (next push) of this PR. Cf. the [documentation](https://github.com/coq/coq/blob/master/CONTRIBUTING.md#understanding-automatic-feedback):\r\n\r\n>you can request a full run of the CI by putting the `request: full CI` label before pushing to your PR branch, or by commenting `@coqbot: run full CI` after having pushed. |}) ;
   [%expect
     {| >this didn't produce a pipeline for some reason\r\n\r\nI think that this is normal. @herbelin was maybe expecting that adding the `request: full CI` label would trigger a new run immediately, but the semantics is that this label will produce such a full CI run at the next update (next push) of this PR. Cf. the [documentation](https://github.com/coq/coq/blob/master/CONTRIBUTING.md#understanding-automatic-feedback):\r\n\r\n>you can request a full run of the CI by putting the `request: full CI` label before pushing to your PR branch, or by commenting @`coqbot run full CI` after having pushed. |}]
 
@@ -92,7 +92,7 @@ let github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
   | _ ->
       failwith
         (f "Could not split repository full name %s into (owner, repo)."
-           github_full_name )
+           github_full_name)
 
 let parse_gitlab_repo_url ~http_repo_url =
   if not (string_match ~regexp:"https?://\\([^/]*\\)/\\(.*/.*\\)" http_repo_url)
@@ -134,7 +134,7 @@ let github_repo_of_gitlab_url ~gitlab_mapping ~http_repo_url =
   parse_gitlab_repo_url ~http_repo_url
   |> Result.map ~f:(fun (gitlab_domain, gitlab_repo_full_name) ->
          github_repo_of_gitlab_project_path ~gitlab_mapping ~gitlab_domain
-           ~gitlab_repo_full_name )
+           ~gitlab_repo_full_name)
 
 let download_cps ~uri ~with_file =
   let open Lwt.Infix in

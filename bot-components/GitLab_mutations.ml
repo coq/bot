@@ -41,7 +41,7 @@ let play_job ~bot_info ~gitlab_domain ~project_id ~build_id
         | _ ->
             key_value_pairs
             |> List.map ~f:(fun (k, v) ->
-                   f {|{ "key": "%s", "value": "%s" }|} k v )
+                   f {|{ "key": "%s", "value": "%s" }|} k v)
             |> String.concat ~sep:","
             |> f {|{ "job_variables_attributes": [%s] }|}
             |> Cohttp_lwt.Body.of_string

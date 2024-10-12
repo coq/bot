@@ -46,7 +46,7 @@ let gitlab_instances toml_data =
                  | None, _ ->
                      failwith
                        (f "Invalid gitlab.%s configuration: missing domain key."
-                          k )
+                          k)
                  | Some domain, Some api_token ->
                      (* If api_token is found, we use its value in priority *)
                      (domain, (bot_name, api_token))
@@ -61,7 +61,7 @@ let gitlab_instances toml_data =
                          (f
                             "Invalid gitlab.%s configuration: missing \
                              api_token and api_token_env_var keys."
-                            k ) ) )
+                            k) ))
       | _ ->
           failwith "Invalid gitlab configuration: not a table."
     with Stdlib.Not_found ->
@@ -148,7 +148,7 @@ let parse_mappings mappings =
                in
                (gh, (gl_domain, gl))
            | _, _ ->
-               failwith (f "Missing github or gitlab key for mappings.%s" k) )
+               failwith (f "Missing github or gitlab key for mappings.%s" k))
   in
   let assoc_rev =
     List.map assoc ~f:(fun (gh, (gl_domain, gl)) -> (gl_domain ^ "/" ^ gl, gh))

@@ -59,13 +59,13 @@ let handle_zip action body =
                     Zip.entries zf
                     |> List.filter ~f:(fun entry -> not entry.is_directory)
                     |> List.map ~f:(fun entry ->
-                           (entry, Zip.read_entry zf entry) )
+                           (entry, Zip.read_entry zf entry))
                   in
                   Zip.close_in zf ; entries
                 in
                 Ok zip_entries
               with Zip.Error (zip_name, entry_name, message) ->
-                Error (f "Zip.Error(%s, %s, %s)" zip_name entry_name message) ) )
+                Error (f "Zip.Error(%s, %s, %s)" zip_name entry_name message)))
   >|= action
 
 (* GitHub specific *)
@@ -133,7 +133,7 @@ let generic_get ~bot_info relative_uri ?(header_list = []) handler =
 
 let generic_get_json ~bot_info relative_uri ?(header_list = []) json_handler =
   generic_get ~bot_info relative_uri ~header_list (fun body ->
-      body |> handle_json json_handler |> Lwt.return )
+      body |> handle_json json_handler |> Lwt.return)
 
 let generic_get_zip ~bot_info relative_uri ?(header_list = []) zip_handler =
   generic_get ~bot_info relative_uri ~header_list (handle_zip zip_handler)

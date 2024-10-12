@@ -9,7 +9,7 @@ open Lwt.Syntax
 let gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name =
   gitlab_token bot_info gitlab_domain
   |> Result.map ~f:(fun token ->
-         f "https://oauth2:%s@%s/%s.git" token gitlab_domain gitlab_full_name )
+         f "https://oauth2:%s@%s/%s.git" token gitlab_domain gitlab_full_name)
 
 let report_status command report code =
   Error (f {|Command "%s" %s %d\n|} command report code)
@@ -41,14 +41,14 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
                 Option.value
                   (Config.subkey_value
                      (Config.toml_of_string content)
-                     "mapping" "gitlab_domain" )
+                     "mapping" "gitlab_domain")
                   ~default:default_gitlab_domain
               in
               let gl_repo =
                 Option.value
                   (Config.subkey_value
                      (Config.toml_of_string content)
-                     "mapping" "gitlab" )
+                     "mapping" "gitlab")
                   ~default:gh_repo
               in
               ( match
@@ -78,7 +78,7 @@ let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
   >|= fun (gitlab_domain, gitlab_full_name) ->
   gitlab_repo ~gitlab_domain ~gitlab_full_name ~bot_info
   |> Result.map ~f:(fun gl_repo ->
-         {name= f "refs/heads/pr-%d" issue.number; repo_url= gl_repo} )
+         {name= f "refs/heads/pr-%d" issue.number; repo_url= gl_repo})
 
 let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 

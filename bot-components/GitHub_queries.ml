@@ -55,7 +55,7 @@ let get_pull_request_cards ~bot_info ~owner ~repo ~number =
             | Some items ->
                 items |> Array.to_list |> List.filter_opt
                 |> List.map ~f:(fun item ->
-                       (GitHub_ID.of_string item.item_id, item.projectV2.number) )
+                       (GitHub_ID.of_string item.item_id, item.projectV2.number))
           in
           Ok items
       | None ->
@@ -85,7 +85,7 @@ let get_pull_request_milestone ~bot_info ~pr_id =
           | Some _ ->
               Error (f "Node %s is not a pull request." pr_id)
           | None ->
-              Error (f "Pull request %s does not exist." pr_id) )
+              Error (f "Pull request %s does not exist." pr_id))
 
 let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID_and_Milestone in
@@ -107,13 +107,13 @@ let get_pull_request_id_and_milestone ~bot_info ~owner ~repo ~number =
               | None ->
                   Error
                     (f "Pull request %s/%s#%d does not have a milestone." owner
-                       repo number )
+                       repo number)
               | Some milestone ->
                   Ok
                     ( GitHub_ID.of_string pr.id
                     , milestone.description
                       |> Option.map ~f:(extract_backport_info ~bot_info)
-                      |> Option.value ~default:[] ) ) ) )
+                      |> Option.value ~default:[] ) ) ))
 
 let get_pull_request_id ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.PullRequest_ID in
@@ -131,7 +131,7 @@ let get_pull_request_id ~bot_info ~owner ~repo ~number =
                 Error
                   (f "Pull request %s/%s#%d does not exist." owner repo number)
             | Some pr ->
-                Ok (GitHub_ID.of_string pr.id) ) )
+                Ok (GitHub_ID.of_string pr.id) ))
 
 let get_milestone_id ~bot_info ~owner ~repo ~number =
   let open GitHub_GraphQL.Milestone_ID in
@@ -148,9 +148,9 @@ let get_milestone_id ~bot_info ~owner ~repo ~number =
             | None ->
                 Error
                   (f "Milestone %d does not exist in repository %s/%s." number
-                     owner repo )
+                     owner repo)
             | Some milestone ->
-                Ok (GitHub_ID.of_string milestone.id) ) )
+                Ok (GitHub_ID.of_string milestone.id) ))
 
 let team_membership_of_resp ~org ~team ~user resp =
   let open GitHub_GraphQL.TeamMembership in
@@ -169,7 +169,7 @@ let team_membership_of_resp ~org ~team ~user resp =
                   | Some member when String.equal member.login user ->
                       true
                   | _ ->
-                      false ) ->
+                      false) ->
           Ok true
       | _ ->
           Ok false ) )
@@ -181,7 +181,7 @@ let get_team_membership ~bot_info ~org ~team ~user =
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
-          f "Query get_team_membership failed with %s" err )
+          f "Query get_team_membership failed with %s" err)
   >|= Result.bind ~f:(team_membership_of_resp ~org ~team ~user)
 
 let pull_request_info_of_resp ~owner ~repo ~number resp =
@@ -205,18 +205,18 @@ let pull_request_info_of_resp ~owner ~repo ~number resp =
       | _, None, _ ->
           Error
             (f "No base repository found for pull request %s/%s#%d." owner repo
-               number )
+               number)
       | _, _, None ->
           Error
             (f "No head repository found for pull request %s/%s#%d." owner repo
-               number )
+               number)
       | Some nodes, Some base_repo, Some head_repo -> (
           let commits = nodes |> Array.to_list |> List.filter_opt in
           match List.hd commits with
           | None ->
               Error
                 (f "No commits found for pull request %s/%s#%d." owner repo
-                   number )
+                   number)
           | Some node ->
               Ok
                 { issue= GitHub_ID.of_string pull_request.id
@@ -238,7 +238,7 @@ let get_pull_request_refs ~bot_info ~owner ~repo ~number =
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
-          f "Query pull_request_info failed with %s" err )
+          f "Query pull_request_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_info_of_resp ~owner ~repo ~number)
 
 let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
@@ -286,7 +286,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                                  | `APPROVED ->
                                      Some author.login
                                  | _ ->
-                                     None ) ) )
+                                     None)))
             in
             let comment_reviews =
               let open Reviews in
@@ -300,7 +300,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                                    List.mem ~equal:String.equal approved_reviews
                                      author.login
                                  then None
-                                 else Some author.login ) ) )
+                                 else Some author.login)))
             in
             Ok
               { baseRef= baseRef.name
@@ -322,8 +322,7 @@ let pull_request_reviews_info_of_resp ~owner ~repo ~number resp :
                              |> Option.map ~f:(fun a : comment ->
                                     { id= GitHub_ID.of_string c.id
                                     ; author= a.login
-                                    ; created_by_email= c.createdViaEmail } ) )
-                  )
+                                    ; created_by_email= c.createdViaEmail })) )
               ; approved_reviews
               ; comment_reviews
               ; review_decision=
@@ -346,7 +345,7 @@ let get_pull_request_reviews_refs ~bot_info ~owner ~repo ~number =
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
-          f "Query pull_request_reviews_info failed with %s" err )
+          f "Query pull_request_reviews_info failed with %s" err)
   >|= Result.bind ~f:(pull_request_reviews_info_of_resp ~owner ~repo ~number)
 
 let file_content_of_resp ~owner ~repo resp : (string option, string) Result.t =
@@ -391,7 +390,7 @@ let get_default_branch ~bot_info ~owner ~repo =
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
-          f "Query get_default_branch failed with %s" err )
+          f "Query get_default_branch failed with %s" err)
   >|= Result.bind ~f:(default_branch_of_resp ~owner ~repo)
 
 let closer_info_of_pr pr =
@@ -400,7 +399,7 @@ let closer_info_of_pr pr =
   { milestone_id=
       pr.milestone
       |> Option.map ~f:(fun milestone ->
-             GitHub_ID.of_string milestone.Milestone.id )
+             GitHub_ID.of_string milestone.Milestone.id)
   ; pull_request_id= GitHub_ID.of_string pr.id }
 
 let closer_info_option_of_closer closer =
@@ -449,10 +448,10 @@ let issue_closer_info_of_resp ~owner ~repo ~number resp =
                      ; milestone_id=
                          issue.milestone
                          |> Option.map ~f:(fun milestone ->
-                                GitHub_ID.of_string milestone.Milestone.id )
+                                GitHub_ID.of_string milestone.Milestone.id)
                      ; closer= closer_info }
                | (ClosedByCommit | ClosedByOther | NoCloseEvent) as reason ->
-                   reason )
+                   reason)
       | _ ->
           Result.return NoCloseEvent ) )
 
@@ -505,7 +504,7 @@ let get_issue_closer_info ~bot_info ({owner; repo; number} : issue) =
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
-          f "Query issue_milestone failed with %s" err )
+          f "Query issue_milestone failed with %s" err)
   >|= Result.bind ~f:(issue_closer_info_of_resp ~owner ~repo ~number)
 
 let repo_id_of_resp ~owner ~repo resp =
@@ -523,7 +522,7 @@ let get_repository_id ~bot_info ~owner ~repo =
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
-          f "Query get_repository_id failed with %s" err )
+          f "Query get_repository_id failed with %s" err)
   >|= Result.bind ~f:(repo_id_of_resp ~owner ~repo)
 
 let get_status_check ~bot_info ~owner ~repo ~commit ~context =
@@ -533,7 +532,7 @@ let get_status_check ~bot_info ~owner ~repo ~commit ~context =
   |> send_graphql_query ~bot_info ~query
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.map_error ~f:(fun err ->
-          f "Query get_status_check failed with %s" err )
+          f "Query get_status_check failed with %s" err)
   >|= Result.bind ~f:(fun resp ->
           match resp.repository with
           | None ->
@@ -581,7 +580,7 @@ let get_status_check ~bot_info ~owner ~repo ~commit ~context =
                 in
                 Ok (check || status)
             | _ ->
-                Error (f "Unkown commit %s/%s@%s." owner repo commit) ) )
+                Error (f "Unkown commit %s/%s@%s." owner repo commit) ))
 
 let get_check_tab_info checkRun =
   let open GitHub_GraphQL.GetBaseAndHeadChecks.CheckRuns in
@@ -604,7 +603,7 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(fun resp ->
           resp.repository
-          |> Result.of_option ~error:(f "Unknown repository %s/%s." owner repo) )
+          |> Result.of_option ~error:(f "Unknown repository %s/%s." owner repo))
   >|= Result.bind ~f:(fun repository ->
           match (repository.pullRequest, repository.base, repository.head) with
           | None, _, _ ->
@@ -632,23 +631,23 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
               | (None | Some []), _ ->
                   Error
                     (f "No check suite %d for base commit %s/%s@%s." appId owner
-                       repo base )
+                       repo base)
               | _, (None | Some []) ->
                   Error
                     (f "No check suite %d for head commit %s/%s@%s." appId owner
-                       repo head )
+                       repo head)
               | Some (_ :: _ :: _), _ ->
                   Error
                     (f
                        "Got more than one checkSuite %d for base commit \
                         %s/%s@%s."
-                       appId owner repo base )
+                       appId owner repo base)
               | _, Some (_ :: _ :: _) ->
                   Error
                     (f
                        "Got more than one checkSuite %d for head commit \
                         %s/%s@%s."
-                       appId owner repo head )
+                       appId owner repo head)
               | Some [baseCheckSuite], Some [headCheckSuite] -> (
                   let extract_check_runs checkRuns =
                     let open CheckRuns in
@@ -664,11 +663,11 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                   | None, _ ->
                       Error
                         (f "No check runs %d for base commit %s/%s@%s." appId
-                           owner repo base )
+                           owner repo base)
                   | _, None ->
                       Error
                         (f "No check runs %d for head commit %s/%s@%s." appId
-                           owner repo head )
+                           owner repo head)
                   | Some baseCheckRuns, Some headCheckRuns ->
                       let open CheckRuns in
                       let completed_runs checkRuns description commit =
@@ -739,7 +738,7 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                                            "Unknown status %s for check run %s \
                                             (for %s commit %s/%s@%s"
                                            status checkRun.name description
-                                           owner repo commit ) ) )
+                                           owner repo commit ) ))
                       in
                       let labels : string list option =
                         let open GetChecks in
@@ -758,7 +757,7 @@ let get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number ~base ~head =
                         ; base_checks= completed_runs baseCheckRuns "base" base
                         ; head_checks= completed_runs headCheckRuns "head" head
                         ; draft= pull_request.isDraft
-                        ; labels= Option.value ~default:[] labels } ) ) )
+                        ; labels= Option.value ~default:[] labels } ) ))
 
 let get_pipeline_summary ~bot_info ~owner ~repo ~head =
   let appId = bot_info.app_id in
@@ -769,7 +768,7 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
        ~parse:(Fn.compose parse unsafe_fromJson)
   >|= Result.bind ~f:(fun resp ->
           resp.repository
-          |> Result.of_option ~error:(f "Unknown repository %s/%s." owner repo) )
+          |> Result.of_option ~error:(f "Unknown repository %s/%s." owner repo))
   >|= Result.bind ~f:(fun repository ->
           match repository.getPipelineSummaryCommit with
           | None ->
@@ -787,13 +786,13 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
               | None | Some [] ->
                   Error
                     (f "No check suite %d for head commit %s/%s@%s." appId owner
-                       repo head )
+                       repo head)
               | Some (_ :: _ :: _) ->
                   Error
                     (f
                        "Got more than one checkSuite %d for head commit \
                         %s/%s@%s."
-                       appId owner repo head )
+                       appId owner repo head)
               | Some [headCheckSuite] -> (
                 match headCheckSuite.getPipelineSummaryCheckRuns with
                 | None ->
@@ -801,7 +800,7 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                       (f
                          "No GitLab CI pipeline summary for head commit \
                           %s/%s@%s."
-                         owner repo head )
+                         owner repo head)
                 | Some checkRuns -> (
                   match
                     checkRuns.nodes
@@ -813,21 +812,21 @@ let get_pipeline_summary ~bot_info ~owner ~repo ~head =
                         (f
                            "No GitLab CI pipeline summary for head commit \
                             %s/%s@%s."
-                           owner repo head )
+                           owner repo head)
                   | Some [headCheckRun] ->
                       Stdlib.Option.to_result
                         ~none:
                           (f
                              "No GitLab CI pipeline summary for head commit \
                               %s/%s@%s."
-                             owner repo head )
+                             owner repo head)
                         headCheckRun.summary
                   | Some (_ :: _ :: _) ->
                       Error
                         (f
                            "Got more than one checkRun for head commit \
                             %s/%s@%s."
-                           owner repo head ) ) ) ) )
+                           owner repo head) ) ) ))
 
 let get_list getter =
   let rec get_list_aux cursor accu =
@@ -944,9 +943,9 @@ let get_label ~bot_info ~owner ~repo ~label =
               Ok
                 (Option.map
                    ~f:(fun {id} -> GitHub_ID.of_string id)
-                   result.label )
+                   result.label)
           | None ->
-              Error (f "Repository %s/%s does not exist." owner repo) )
+              Error (f "Repository %s/%s does not exist." owner repo))
 
 let get_pull_request_labels ~bot_info ~owner ~repo ~pr_number =
   let getter cursor =
@@ -1026,4 +1025,4 @@ let get_artifact_blob ~bot_info ~owner ~repo ~artifact_id =
   generic_get_zip ~bot_info
     (f "repos/%s/%s/actions/artifacts/%s/zip" owner repo artifact_id)
     (let open Zip in
-    List.map ~f:(fun (entry, contents) -> (entry.filename, contents)) )
+    List.map ~f:(fun (entry, contents) -> (entry.filename, contents)))
