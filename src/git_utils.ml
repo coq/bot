@@ -16,7 +16,7 @@ let report_status ?(mask = []) command report code =
     (List.fold_left
        ~init:(f {|Command "%s" %s %d%s|} command report code "\n")
        ~f:(fun acc m -> Str.global_replace (Str.regexp_string m) "XXXXX" acc)
-       mask)
+       mask )
 
 let gitlab_ref ~bot_info ~(issue : issue) ~github_mapping ~gitlab_mapping =
   let default_gitlab_domain = "gitlab.com" in

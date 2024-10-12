@@ -1,6 +1,6 @@
 module GetRetriedJobs =
-[%graphql
-{|
+  [%graphql
+  {|
   query getRetriedJobs($fullPath: ID!, $jobId: JobID!) {
     project(fullPath: $fullPath) {
       job(id: $jobId) {
