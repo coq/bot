@@ -2086,8 +2086,17 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
              comment_author )
         ~bot_info
       >>= GitHub_mutations.report_on_posting_comment
-  | Error f ->
-      Lwt_io.printf "Error: %s\n" f
+  | Error e ->
+      Lwt_io.printf "Error: %s\n" e
+      >>= fun () ->
+      GitHub_mutations.post_comment ~id:comment_thread_id
+        ~message:
+          (f
+             "Error encountered when attempting to start the coq bug minimizer:\n\
+              %s\n\n\
+              cc @JasonGross" e)
+        ~bot_info
+      >>= GitHub_mutations.report_on_posting_comment
 
 let coq_bug_minimizer_results_action ~bot_info ~ci ~key ~app_id body =
   if string_match ~regexp:"\\([^\n]+\\)\n\\([^\r]*\\)" body then
