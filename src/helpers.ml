@@ -169,3 +169,17 @@ let download ~uri dest =
 
 let download_to ~uri chan =
   download_cps ~uri ~with_file:(fun write_to -> write_to chan)
+
+let copy_stream ~src ~dst =
+  let open Lwt.Infix in
+  let buffer = Buffer.create 1024 in
+  let rec aux () =
+    Lwt_io.read_char_opt src
+    >>= function
+    | Some c ->
+        Buffer.add_char buffer c ;
+        Lwt_io.write_char dst c >>= aux
+    | None ->
+        Lwt.return (Buffer.contents buffer)
+  in
+  aux ()

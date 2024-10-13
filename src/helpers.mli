@@ -40,3 +40,6 @@ val download : uri:Uri.t -> string -> (unit, string) Lwt_result.t
 
 val download_to :
   uri:Uri.t -> Lwt_io.output_channel -> (unit, string) Lwt_result.t
+
+val copy_stream :
+  src:Lwt_io.input_channel -> dst:Lwt_io.output_channel -> string Lwt.t
