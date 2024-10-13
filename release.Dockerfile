@@ -15,6 +15,9 @@ COPY . .
 RUN sudo chown -R opam:nogroup .
 RUN opam install . --destdir /src/opam-install
 
+# Report the version of opam depext
+RUN opam depext --version
+
 # Store the dynamic dependencies of the server
 RUN opam depext -ln coq-bot > /src/depexts-coq-bot
 
