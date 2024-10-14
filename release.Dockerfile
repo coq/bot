@@ -16,7 +16,7 @@ RUN sudo chown -R opam:nogroup .
 RUN opam install . --destdir /src/opam-install
 
 # Store the dynamic dependencies of the server
-RUN opam depext -ln coq-bot > /src/depexts-coq-bot
+RUN OPAMSOLVERTIMEOUT=300 opam depext -ln coq-bot > /src/depexts-coq-bot
 
 
 FROM alpine:3.10 AS app
