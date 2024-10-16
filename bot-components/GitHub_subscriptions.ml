@@ -240,9 +240,8 @@ let receive_github ~secret headers body =
           match Header.get headers "X-Hub-Signature" with
           | Some signature ->
               let expected =
-                Mirage_crypto.Hash.SHA1.hmac ~key:(Cstruct.of_string secret)
-                  (Cstruct.of_string body)
-                |> Hex.of_cstruct |> Hex.show |> f "sha1=%s"
+                Digestif.SHA1.(to_raw_string (hmac_string ~key:secret body))
+                |> Ohex.encode |> f "sha1=%s"
               in
               if Eqaf.equal signature expected then Ok (Some install_id)
               else Error "Webhook signed but with wrong signature."
