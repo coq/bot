@@ -11,10 +11,13 @@ let gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name =
   |> Result.map ~f:(fun token ->
          f "https://oauth2:%s@%s/%s.git" token gitlab_domain gitlab_full_name )
 
-let report_status ?(mask = []) command report code =
+let report_status ?(mask = []) ?(stderr_content = "") command report code =
+  let stderr =
+    if String.is_empty stderr_content then "" else stderr_content ^ "\n"
+  in
   Error
     (List.fold_left
-       ~init:(f {|Command "%s" %s %d%s|} command report code "\n")
+       ~init:(f {|Command "%s" %s %d%s%s|} command report code "\n" stderr)
        ~f:(fun acc m -> Str.global_replace (Str.regexp_string m) "XXXXX" acc)
        mask )
 
@@ -89,12 +92,18 @@ let ( |&& ) command1 command2 = command1 ^ " && " ^ command2
 let execute_cmd ?(mask = []) command =
   Lwt_io.printf "Executing command: %s\n" command
   >>= fun () ->
-  Lwt_unix.system command
-  >|= fun status ->
+  let process = Lwt_process.open_process_full (Lwt_process.shell command) in
+  let stdout_pipe = copy_stream ~src:process#stdout ~dst:Lwt_io.stdout in
+  let stderr_pipe = copy_stream ~src:process#stderr ~dst:Lwt_io.stderr in
+  (* Capture stdout and stderr in parallel *)
+  (* Wait for the process to finish *)
+  let+ _stdout_content = stdout_pipe
+  and+ stderr_content = stderr_pipe
+  and+ status = process#status in
   match status with
   | Unix.WEXITED code ->
       if Int.equal code 0 then Ok ()
-      else report_status ~mask command "exited with status" code
+      else report_status ~mask ~stderr_content command "exited with status" code
   | Unix.WSIGNALED signal ->
       report_status ~mask command "was killed by signal number" signal
   | Unix.WSTOPPED signal ->
