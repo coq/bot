@@ -24,9 +24,10 @@ app_id="31373"
   gitlab="coq/coq"
   gitlab_domain="gitlab.inria.fr"
 
-  [mappings.opam-coq-archive]
-  github="coq/opam-coq-archive"
-  gitlab="coq/opam-coq-archive"
+  [mappings.opam]
+  github="coq/opam"
+  gitlab="coq/opam"
+  gitlab_domain="gitlab.inria.fr"
 
   [mappings.math-comp]
   github="math-comp/math-comp"
