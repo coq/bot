@@ -8,7 +8,7 @@ RUN echo 'archive-mirrors: [ "https://opam.ocaml.org/cache" ]' >> ~/.opam/config
   && opam repository set-url default http://opam.ocaml.org \
   && opam switch 4.10 \
   && echo 'pre-session-commands: [ "sudo" "apk" "add" depexts ]' >> ~/.opam/config \
-  && opam install --deps-only .
+  && OPAMSOLVERTIMEOUT=300 opam install --deps-only .
 
 COPY . .
 
