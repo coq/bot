@@ -52,8 +52,7 @@ let send_graphql_query ~bot_info ?(extra_headers = []) ~api ~query ~parse
       | errors ->
           let errors =
             to_list errors
-            |> List.map ~f:(fun error ->
-                   error |> member "message" |> to_string )
+            |> List.map ~f:(fun error -> error |> member "message" |> to_string)
           in
           Error
             ( "Server responded to GraphQL request with errors: "

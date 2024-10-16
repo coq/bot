@@ -56,7 +56,7 @@ webhooks coming from the web to this local server.
 
 We use `ocamlformat` to auto-format OCaml and Dune files.  If
 possible, run it with `dune build @fmt --auto-promote` before
-committing.  As of today, version 0.15.0 is required.
+committing.  As of today, version 0.26.2 is required.
 
 You may also configure your editor to auto-format your files on save.
 If you are inside a `nix-shell` and using Emacs, you can simply do so

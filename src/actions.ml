@@ -542,19 +542,19 @@ let job_failure ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     project_id failure_reason
   >>= fun () ->
   ( if String.equal failure_reason "runner_system_failure" then
-    Lwt.return (Retry "Runner failure reported by GitLab CI")
-  else
-    Lwt_io.printlf
-      "Failure reason reported by GitLab CI: %s.\nRetrieving the trace..."
-      failure_reason
-    >>= fun () ->
-    GitLab_queries.get_build_trace ~bot_info ~gitlab_domain ~project_id
-      ~build_id
-    >>= function
-    | Ok trace ->
-        trace_action ~repo_full_name:gitlab_repo_full_name trace
-    | Error err ->
-        Lwt.return (Ignore (f "Error while retrieving the trace: %s." err)) )
+      Lwt.return (Retry "Runner failure reported by GitLab CI")
+    else
+      Lwt_io.printlf
+        "Failure reason reported by GitLab CI: %s.\nRetrieving the trace..."
+        failure_reason
+      >>= fun () ->
+      GitLab_queries.get_build_trace ~bot_info ~gitlab_domain ~project_id
+        ~build_id
+      >>= function
+      | Ok trace ->
+          trace_action ~repo_full_name:gitlab_repo_full_name trace
+      | Error err ->
+          Lwt.return (Ignore (f "Error while retrieving the trace: %s." err)) )
   >>= function
   | Warn trace ->
       Lwt_io.printf "Actual failure.\n"
@@ -800,49 +800,50 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
      is non-None *)
   Lwt_io.with_temp_file (fun (bug_file_name, bug_file_ch) ->
       (let open Lwt.Infix in
-      match bug_file with
-      | None ->
-          Lwt.return_ok ()
-      | Some (MinimizeScript {body= bug_file_contents}) ->
-          Lwt_io.write bug_file_ch bug_file_contents >>= Lwt.return_ok
-      | Some (MinimizeAttachment {url}) -> (
-        match parse_github_artifact_url url with
-        | Some
-            ( ArtifactInfo {artifact_owner; artifact_repo; artifact_id} as
-            artifact ) -> (
-            Lwt_io.printlf
-              "Downloading artifact %s/%s:%s for %s/%s#%s (%s) (parsed from %s)"
-              artifact_owner artifact_repo artifact_id owner repo pr_number
-              (GitHub_ID.to_string comment_thread_id)
-              url
-            >>= fun () ->
-            GitHub_queries.get_artifact_blob ~bot_info ~owner:artifact_owner
-              ~repo:artifact_repo ~artifact_id
-            >>= function
-            | Ok [(_filename, bug_file_contents)] ->
-                Lwt_io.write bug_file_ch bug_file_contents >>= Lwt.return_ok
-            | Ok [] ->
-                Lwt.return_error
-                  (ArtifactError {url; artifact; artifact_error= ArtifactEmpty})
-            | Ok files ->
-                files
-                |> List.map ~f:(fun (filename, _contents) -> filename)
-                |> fun artifact_filenames ->
-                Lwt.return_error
-                  (ArtifactError
-                     { url
-                     ; artifact
-                     ; artifact_error=
-                         ArtifactContainsMultipleFiles artifact_filenames } )
-            | Error message ->
-                Lwt.return_error
-                  (ArtifactError
-                     { url
-                     ; artifact
-                     ; artifact_error= ArtifactDownloadError message } ) )
-        | None ->
-            download_to ~uri:(Uri.of_string url) bug_file_ch
-            |> Lwt_result.map_error (fun error -> DownloadError {url; error}) )
+       match bug_file with
+       | None ->
+           Lwt.return_ok ()
+       | Some (MinimizeScript {body= bug_file_contents}) ->
+           Lwt_io.write bug_file_ch bug_file_contents >>= Lwt.return_ok
+       | Some (MinimizeAttachment {url}) -> (
+         match parse_github_artifact_url url with
+         | Some
+             ( ArtifactInfo {artifact_owner; artifact_repo; artifact_id} as
+               artifact ) -> (
+             Lwt_io.printlf
+               "Downloading artifact %s/%s:%s for %s/%s#%s (%s) (parsed from \
+                %s)"
+               artifact_owner artifact_repo artifact_id owner repo pr_number
+               (GitHub_ID.to_string comment_thread_id)
+               url
+             >>= fun () ->
+             GitHub_queries.get_artifact_blob ~bot_info ~owner:artifact_owner
+               ~repo:artifact_repo ~artifact_id
+             >>= function
+             | Ok [(_filename, bug_file_contents)] ->
+                 Lwt_io.write bug_file_ch bug_file_contents >>= Lwt.return_ok
+             | Ok [] ->
+                 Lwt.return_error
+                   (ArtifactError {url; artifact; artifact_error= ArtifactEmpty})
+             | Ok files ->
+                 files
+                 |> List.map ~f:(fun (filename, _contents) -> filename)
+                 |> fun artifact_filenames ->
+                 Lwt.return_error
+                   (ArtifactError
+                      { url
+                      ; artifact
+                      ; artifact_error=
+                          ArtifactContainsMultipleFiles artifact_filenames } )
+             | Error message ->
+                 Lwt.return_error
+                   (ArtifactError
+                      { url
+                      ; artifact
+                      ; artifact_error= ArtifactDownloadError message } ) )
+         | None ->
+             download_to ~uri:(Uri.of_string url) bug_file_ch
+             |> Lwt_result.map_error (fun error -> DownloadError {url; error}) )
       )
       >>= fun () ->
       let open Lwt.Infix in
@@ -1294,13 +1295,13 @@ let accumulate_extra_minimizer_arguments options =
   let extra_args = getopts ~opt:"extra-arg" options in
   let inline_stdlib = getopt ~opt:"inline-stdlib" options in
   ( if String.equal inline_stdlib "yes" then Lwt.return ["--inline-coqlib"]
-  else
-    ( if not (String.equal inline_stdlib "") then
-      Lwt_io.printlf
-        "Ignoring invalid option to inline-stdlib '%s' not equal to 'yes'"
-        inline_stdlib
-    else Lwt.return_unit )
-    >>= fun () -> Lwt.return_nil )
+    else
+      ( if not (String.equal inline_stdlib "") then
+          Lwt_io.printlf
+            "Ignoring invalid option to inline-stdlib '%s' not equal to 'yes'"
+            inline_stdlib
+        else Lwt.return_unit )
+      >>= fun () -> Lwt.return_nil )
   >>= fun inline_stdlib_args -> inline_stdlib_args @ extra_args |> Lwt.return
 
 let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
@@ -1563,9 +1564,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
               | _ :: _ ->
                   (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
                   f
-                    "I am now [%s minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
-                     at commit %s on %s. I'll come \
-                     back to you with the results once it's done.%s"
+                    "I am now [%s \
+                     minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+                     at commit %s on %s. I'll come back to you with the \
+                     results once it's done.%s"
                     (if Option.is_none bug_file then "running" else "resuming")
                     head
                     (jobs_minimized |> String.concat ~sep:", ")
@@ -2081,8 +2083,10 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
       GitHub_mutations.post_comment ~id:comment_thread_id
         ~message:
           (f
-             "Hey @%s, the coq bug minimizer [is running](https://github.com/coq-community/run-coq-bug-minimizer/actions) your script, I'll come \
-              back to you with the results once it's done."
+             "Hey @%s, the coq bug minimizer [is \
+              running](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+              your script, I'll come back to you with the results once it's \
+              done."
              comment_author )
         ~bot_info
       >>= GitHub_mutations.report_on_posting_comment
@@ -2094,7 +2098,7 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
           (f
              "Error encountered when attempting to start the coq bug minimizer:\n\
               %s\n\n\
-              cc @JasonGross" e)
+              cc @JasonGross" e )
         ~bot_info
       >>= GitHub_mutations.report_on_posting_comment
 
@@ -2225,23 +2229,24 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
   let reasons_for_not_merging =
     List.filter_opt
       [ ( if String.equal comment_info.author pr.user then
-          Some "You are the author."
-        else if
-        List.exists
-          ~f:(String.equal comment_info.author)
-          comment_info.issue.assignees
-      then None
-        else Some "You are not among the assignees." )
+            Some "You are the author."
+          else if
+            List.exists
+              ~f:(String.equal comment_info.author)
+              comment_info.issue.assignees
+          then None
+          else Some "You are not among the assignees." )
       ; comment_info.issue.labels
         |> List.find ~f:(fun label -> string_match ~regexp:"needs:.*" label)
         |> Option.map ~f:(fun l -> f "There is still a `%s` label." l)
       ; ( if
-          comment_info.issue.labels
-          |> List.exists ~f:(fun label -> string_match ~regexp:"kind:.*" label)
-        then None
-        else Some "There is no `kind:` label." )
+            comment_info.issue.labels
+            |> List.exists ~f:(fun label ->
+                   string_match ~regexp:"kind:.*" label )
+          then None
+          else Some "There is no `kind:` label." )
       ; ( if comment_info.issue.milestoned then None
-        else Some "No milestone has been set." ) ]
+          else Some "No milestone has been set." ) ]
   in
   ( match reasons_for_not_merging with
   | _ :: _ ->
@@ -2325,9 +2330,9 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                            comment_info.issue.title )
                       ~commit_body:
                         ( List.fold_left reviews_info.approved_reviews ~init:""
-                            ~f:(fun s r -> s ^ f "Reviewed-by: %s\n" r)
+                            ~f:(fun s r -> s ^ f "Reviewed-by: %s\n" r )
                         ^ List.fold_left reviews_info.comment_reviews ~init:""
-                            ~f:(fun s r -> s ^ f "Ack-by: %s\n" r)
+                            ~f:(fun s r -> s ^ f "Ack-by: %s\n" r )
                         ^ f "Co-authored-by: %s <%s@users.noreply.github.com>\n"
                             comment_info.author comment_info.author )
                       ~merge_method:MERGE ()
@@ -2430,17 +2435,17 @@ let remove_labels_if_present ~bot_info (issue : issue_info) labels =
 let mirror_action ~bot_info ?(force = true) ~gitlab_domain ~owner ~repo
     ~base_ref ~head_sha () =
   (let open Lwt_result.Infix in
-  let local_ref = base_ref ^ "-" ^ head_sha in
-  let gh_ref =
-    {repo_url= f "https://github.com/%s/%s" owner repo; name= base_ref}
-  in
-  (* TODO: generalize to use repository mappings, with enhanced security *)
-  gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name:(owner ^ "/" ^ repo)
-  |> Lwt.return
-  >>= fun gl_repo ->
-  let gl_ref = {repo_url= gl_repo; name= base_ref} in
-  git_fetch gh_ref local_ref |> execute_cmd
-  >>= fun () -> git_push ~force ~remote_ref:gl_ref ~local_ref () |> execute_cmd
+   let local_ref = base_ref ^ "-" ^ head_sha in
+   let gh_ref =
+     {repo_url= f "https://github.com/%s/%s" owner repo; name= base_ref}
+   in
+   (* TODO: generalize to use repository mappings, with enhanced security *)
+   gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name:(owner ^ "/" ^ repo)
+   |> Lwt.return
+   >>= fun gl_repo ->
+   let gl_ref = {repo_url= gl_repo; name= base_ref} in
+   git_fetch gh_ref local_ref |> execute_cmd
+   >>= fun () -> git_push ~force ~remote_ref:gl_ref ~local_ref () |> execute_cmd
   )
   >>= function
   | Ok () ->
@@ -2631,30 +2636,30 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
   let team = "contributors" in
   (fun () ->
     (let open Lwt_result.Infix in
-    GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team
-      ~user:comment_info.author
-    >>= (fun is_member ->
-          if is_member then
-            let open Lwt.Syntax in
-            let* () = Lwt_io.printl "Authorized user: pushing to GitLab." in
-            match comment_info.pull_request with
-            | Some pr_info ->
-                update_pr ~skip_author_check:true pr_info ~bot_info
-                  ~gitlab_mapping ~github_mapping
-            | None ->
-                let {owner; repo; number} = comment_info.issue.issue in
-                GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
-                  ~number
-                >>= fun pr_info ->
-                update_pr ?full_ci ~skip_author_check:true
-                  {pr_info with issue= comment_info.issue}
-                  ~bot_info ~gitlab_mapping ~github_mapping
-          else
-            (* We inform the author of the request that they are not authorized. *)
-            inform_user_not_in_contributors ~bot_info comment_info
-            |> Lwt_result.ok )
-    |> Fn.flip Lwt_result.bind_lwt_error (fun err ->
-           Lwt_io.printf "Error: %s\n" err ) )
+     GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team
+       ~user:comment_info.author
+     >>= (fun is_member ->
+           if is_member then
+             let open Lwt.Syntax in
+             let* () = Lwt_io.printl "Authorized user: pushing to GitLab." in
+             match comment_info.pull_request with
+             | Some pr_info ->
+                 update_pr ~skip_author_check:true pr_info ~bot_info
+                   ~gitlab_mapping ~github_mapping
+             | None ->
+                 let {owner; repo; number} = comment_info.issue.issue in
+                 GitHub_queries.get_pull_request_refs ~bot_info ~owner ~repo
+                   ~number
+                 >>= fun pr_info ->
+                 update_pr ?full_ci ~skip_author_check:true
+                   {pr_info with issue= comment_info.issue}
+                   ~bot_info ~gitlab_mapping ~github_mapping
+           else
+             (* We inform the author of the request that they are not authorized. *)
+             inform_user_not_in_contributors ~bot_info comment_info
+             |> Lwt_result.ok )
+     |> Fn.flip Lwt_result.bind_lwt_error (fun err ->
+            Lwt_io.printf "Error: %s\n" err ) )
     >>= fun _ -> Lwt.return_unit )
   |> Lwt.async ;
   Server.respond_string ~status:`OK
@@ -3054,15 +3059,15 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
               (Str.quote "[bench](https://gitlab.inria.fr/coq/coq/-/jobs/")
           in
           ( if Helpers.string_match ~regexp summary then
-            Str.matched_group 1 summary
-          else raise @@ Stdlib.Failure "Could not find GitLab bench job ID" )
+              Str.matched_group 1 summary
+            else raise @@ Stdlib.Failure "Could not find GitLab bench job ID" )
           |> Stdlib.int_of_string
         in
         let project_id =
           let regexp = {|.*GitLab Project ID: \([0-9]*\)|} in
           ( if Helpers.string_match ~regexp summary then
-            Str.matched_group 1 summary
-          else raise @@ Stdlib.Failure "Could not find GitLab Project ID" )
+              Str.matched_group 1 summary
+            else raise @@ Stdlib.Failure "Could not find GitLab Project ID" )
           |> Int.of_string
         in
         Lwt.return_ok (build_id, project_id)
