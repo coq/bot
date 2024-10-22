@@ -1,6 +1,6 @@
 { pkgs ? import (fetchTarball {
-  url = "https://github.com/NixOS/nixpkgs/archive/280db3decab4cbeb22a4599bd472229ab74d25e1.tar.gz";
-  sha256 = "sha256:17n9wji64l7d16s8r100ypwlxkmwrypll4q3wkkfjswbilxkqjr6";
+  url = "https://github.com/NixOS/nixpkgs/archive/5ea573ca476915e0ccefb99be5687e4150fa049b.tar.gz";
+  sha256 = "0hsg6xjj4iclfrvplsf0rd9xiwkaazvmlp609qiwka65v7wcjja2";
 }) { } }:
 
 pkgs.stdenv.mkDerivation rec {
@@ -22,7 +22,7 @@ pkgs.stdenv.mkDerivation rec {
     camlzip
     cohttp
     cohttp-lwt-unix
-    hex
+    ohex
     iso8601
     mirage-crypto
     mirage-crypto-rng-lwt
@@ -31,7 +31,7 @@ pkgs.stdenv.mkDerivation rec {
     toml
     eqaf
     x509
-    cstruct
+    digestif
     ppx_expect
     odoc
   ];
