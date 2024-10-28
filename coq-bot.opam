@@ -7,7 +7,6 @@ license: "MIT"
 homepage: "https://github.com/coq/bot"
 bug-reports: "https://github.com/coq/bot/issues"
 depends: [
-  "ocaml" {>= "4.10"}
   "dune" {>= "2.2"}
   "base" {>= "v0.14.0"}
   "lwt" {>= "5.6.0"}
