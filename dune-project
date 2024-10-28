@@ -12,7 +12,6 @@
  (name coq-bot)
  (synopsis "A (Coq Development Team) bot written in OCaml")
  (depends
-  (ocaml (>= 4.10))
   (dune (>= 2.2))
   (base (>= v0.14.0))
   (lwt (>= 5.6.0))
@@ -40,7 +39,7 @@
   (cohttp-lwt (>= 2.5.4))
   (cohttp-lwt-unix (>= 2.5.4))
   (lwt_ssl (>= 1.1.3))
-  (ssl (= 0.5.9))
+  (ssl (>= 0.5.9))
   (stdio (>= v0.14.0))
   (ohex (>= 0.2.0))
   (mirage-crypto (>= 1.0.0))

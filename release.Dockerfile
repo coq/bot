@@ -1,4 +1,4 @@
-FROM ocaml/opam2:alpine-3.10-ocaml-4.10 AS builder
+FROM ocaml/opam:alpine-3.20-ocaml-5.2 AS builder
 
 WORKDIR /src
 COPY coq-bot.opam bot-components.opam ./
@@ -6,7 +6,7 @@ COPY coq-bot.opam bot-components.opam ./
 # Install the OCaml libraries needed to compile the program
 RUN echo 'archive-mirrors: [ "https://opam.ocaml.org/cache" ]' >> ~/.opam/config \
   && opam repository set-url default http://opam.ocaml.org \
-  && opam switch 4.10 \
+  && opam switch 5.2 \
   && echo 'pre-session-commands: [ "sudo" "apk" "add" depexts ]' >> ~/.opam/config \
   && OPAMSOLVERTIMEOUT=300 opam install --deps-only .
 
@@ -19,7 +19,7 @@ RUN opam install . --destdir /src/opam-install
 RUN OPAMSOLVERTIMEOUT=300 opam depext -ln coq-bot > /src/depexts-coq-bot
 
 
-FROM alpine:3.10 AS app
+FROM alpine:3.20 AS app
 
 WORKDIR /app
 
