@@ -1,0 +1,41 @@
+## This file allows joining the different accounts of the same person.
+## Cf for instance: git shortlog -nse. More details via: man git shortlog
+##
+## If you're mentioned here and want to update your information,
+## amend this file and submit a pull request.
+
+Ali Caglayan <alizter@gmail.com>                       Alizter <Alizter@users.noreply.github.com>
+Emilio Jesús Gallego Arias <e@x80.org>                 Emilio Jesus Gallego Arias <e+git@x80.org>
+Emilio Jesús Gallego Arias <e@x80.org>                 Emilio Jesús Gallego Arias <e+git@x80.org>
+Emilio Jesús Gallego Arias <e@x80.org>                 ejgallego <ejgallego@users.noreply.github.com>
+Emilio Jesús Gallego Arias <e@x80.org>                 ejgallego <e+git@x80.org>
+Erik Martin-Dorel <erik.martin-dorel@irit.fr>          Erik Martin-Dorel <erik@martin-dorel.org>
+Erik Martin-Dorel <erik.martin-dorel@irit.fr>          erikmd <erikmd@users.noreply.github.com>
+Gaëtan Gilbert <gaetan.gilbert@skyskimmer.net>         <gaetan.gilbert@ens-lyon.fr>
+Gaëtan Gilbert <gaetan.gilbert@skyskimmer.net>         <gaetan.gilbert@skyskimmer.net>
+Gaëtan Gilbert <gaetan.gilbert@skyskimmer.net>         SkySkimmer <SkySkimmer@users.noreply.github.com>
+Gaëtan Gilbert <gaetan.gilbert@skyskimmer.net>         <Gaëtan Gilbert <gaetan.gilbert@skyskimmer.net>
+Hannes Mehnert <hannes@mehnert.org>                    Hannes Mehnert <hannes@mehnert.org>
+Jason Gross <jgross@mit.edu>                           Jason Gross <t-jagro@microsoft.com>
+Jason Gross <jgross@mit.edu>                           Jason Gross <jasongross9@gmail.com>
+Jason Gross <jgross@mit.edu>                           JasonGross <JasonGross@users.noreply.github.com>
+Joseph Price <pricejosephd@gmail.com>                  Joseph Price <pricejosephd@gmail.com>
+Julien Coolen <jtcoolen@pm.me>                         Julien Coolen <jtcoolen@pm.me>
+Maxime Dénès <mail@maximedenes.fr>                     mdenes <mdenes@85f007b7-540e-0410-9357-904b9bb8a0f7>
+Maxime Dénès <mail@maximedenes.fr>                     Maxime Denes <maximedenes@gillespie.inria.fr>
+Maxime Dénès <mail@maximedenes.fr>                     Maxime Dénès <maxime.denes@fondation-inria.fr>
+Maxime Dénès <mail@maximedenes.fr>                     Maxime Dénès <maxime.denes@inria.fr>
+Maxime Dénès <mail@maximedenes.fr>                     maximedenes <maximedenes@users.noreply.github.com>
+Pierre-Marie Pédrot <pierre-marie.pedrot@inria.fr>     ppedrot <ppedrot@85f007b7-540e-0410-9357-904b9bb8a0f7>
+Pierre-Marie Pédrot <pierre-marie.pedrot@inria.fr>     Pierre-Marie Pédrot <pierre-marie.pedrot@irif.fr>
+Pierre-Marie Pédrot <pierre-marie.pedrot@inria.fr>     ppedrot <ppedrot@users.noreply.github.com>
+Pierre-Marie Pédrot <pierre-marie.pedrot@inria.fr>     <Pierre-Marie Pédrot <pierre-marie.pedrot@inria.fr>
+Théo Zimmermann <theo.zimmermann@telecom-paris.fr>     Théo Zimmermann <theo.zimmermann@inria.fr>
+Théo Zimmermann <theo.zimmermann@telecom-paris.fr>     Theo Zimmermann <theo.zimmermann@ens.fr>
+Théo Zimmermann <theo.zimmermann@telecom-paris.fr>     Théo Zimmermann <theo.zimmi@gmail.com>
+Théo Zimmermann <theo.zimmermann@telecom-paris.fr>     Théo Zimmermann <theo.zimmermann@univ-paris-diderot.fr>
+Théo Zimmermann <theo.zimmermann@telecom-paris.fr>     Zimmi48 <theo.zimmermann@univ-paris-diderot.fr>
+Théo Zimmermann <theo.zimmermann@telecom-paris.fr>     Zimmi48 <Zimmi48@users.noreply.github.com>
+Théo Zimmermann <theo.zimmermann@telecom-paris.fr>     <Théo Zimmermann <theo.zimmermann@inria.fr>
+Wenceslao Mateos <wenceslaomateos@gmail.com>           Wenceslao Mateos <wenceslaomateos@gmail.com>
+Mattias <5543639+mattiasdrp@users.noreply.github.com>  mattiasdrp <5543639+mattiasdrp@users.noreply.github.com>
