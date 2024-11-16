@@ -1679,9 +1679,12 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                   "I was unable to minimize any of the CI targets that you \
                    requested." ^ try_again_msg ^ "\n" ^ msg
               | _ :: _, _ ->
+                  (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
                   f
-                    "I am now %s minimization at commit %s on requested %s %s. \
-                     I'll come back to you with the results once it's done.%s\n\n\
+                    "I am now [%s \
+                     minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+                     at commit %s on requested %s %s. I'll come back to you \
+                     with the results once it's done.%s\n\n\
                      %s"
                     (if Option.is_none bug_file then "running" else "resuming")
                     head
@@ -1715,9 +1718,11 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 head try_again_msg failed_minimization_description
               |> Lwt.return_some
           | RequestSuggested, _ :: _, _ ->
+              (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
               f
-                "I have initiated minimization at commit %s for the suggested \
-                 %s %s as requested.%s\n\n\
+                "I have [initiated \
+                 minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+                 at commit %s for the suggested %s %s as requested.%s\n\n\
                  %s"
                 head
                 (pluralize "target" jobs_minimized)
