@@ -2811,7 +2811,7 @@ let add_to_column ~bot_info ~backport_to id option =
       Lwt.return_error
         (f "Error: Unexpected result when looking for '%s'." option)
   | Ok (project_id, None) -> (
-      Lwt_io.printf
+      Lwt_io.printlf
         "Required backporting field '%s' does not exist yet. Creating it..."
         field
       >>= fun () ->
