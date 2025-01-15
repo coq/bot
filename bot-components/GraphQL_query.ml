@@ -4,8 +4,8 @@ open Utils
 
 type api = GitHub | GitLab of string
 
-let send_graphql_query ~bot_info ?(extra_headers = []) ~api ~query ~parse
-    variables =
+let send_graphql_query ~bot_info ?(extra_headers = []) ?(ignore_errors = false)
+    ~api ~query ~parse variables =
   let uri =
     ( match api with
     | GitLab gitlab_domain ->
@@ -46,17 +46,20 @@ let send_graphql_query ~bot_info ?(extra_headers = []) ~api ~query ~parse
       let json = Yojson.Basic.from_string body in
       let open Yojson.Basic.Util in
       let data = json |> member "data" |> parse in
-      match member "errors" json with
-      | `Null ->
-          Ok data
-      | errors ->
-          let errors =
-            to_list errors
-            |> List.map ~f:(fun error -> error |> member "message" |> to_string)
-          in
-          Error
-            ( "Server responded to GraphQL request with errors: "
-            ^ String.concat ~sep:", " errors )
+      if ignore_errors then Ok data
+      else
+        match member "errors" json with
+        | `Null ->
+            Ok data
+        | errors ->
+            let errors =
+              to_list errors
+              |> List.map ~f:(fun error ->
+                     error |> member "message" |> to_string )
+            in
+            Error
+              ( "Server responded to GraphQL request with errors: "
+              ^ String.concat ~sep:", " errors )
     with
     | Failure err ->
         Error (f "Exception: %s" err)

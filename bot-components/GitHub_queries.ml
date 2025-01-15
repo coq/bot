@@ -992,7 +992,7 @@ let get_project_field_values ~bot_info ~organization ~project ~field ~options =
   let open GitHub_GraphQL.GetProjectFieldValues in
   makeVariables ~organization ~project ~field ~options ()
   |> serializeVariables |> variablesToJson
-  |> send_graphql_query ~bot_info ~query
+  |> send_graphql_query ~bot_info ~query ~ignore_errors:true
        ~parse:(Fn.compose parse unsafe_fromJson)
   >>= function
   | Ok result -> (
