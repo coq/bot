@@ -917,15 +917,16 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
         if
           string_match
             ~regexp:
-              "This job ran on the Docker image `\\([^`]+\\)`, depended on the \
-               build job `\\([^`]+\\)` with OCaml `\\([^`]+\\)`.\n\n"
+              "This job ran on the Docker image `\\([^`]+\\)` with OCaml `\\([^`]+\\)` and depended on jobs \
+               \\(\\(`[^`]+` ?\\)+\\) .\n\n"
             summary
         then
-          let docker_image, build_job, opam_switch =
+          let docker_image, opam_switch, dependencies =
             ( Str.matched_group 1 summary
             , Str.matched_group 2 summary
             , Str.matched_group 3 summary )
           in
+          let dependencies = Str.split (Str.regexp "[ `]+") dependencies in
           let missing_error, non_v_file =
             if
               string_match
@@ -941,16 +942,19 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
                 else Some filename )
             else (true, None)
           in
+          let extract_artifacts url =
+            List.partition_map ~f:(fun name ->
+                match extract_artifact_url name url with
+                | Some v -> First v
+                | None -> Second name)
+              (name::dependencies)
+          in
           match
-            ( extract_artifact_url build_job base_pipeline_summary
-            , extract_artifact_url build_job head_pipeline_summary
-            , extract_artifact_url name base_pipeline_summary
-            , extract_artifact_url name head_pipeline_summary )
+            ( extract_artifacts base_pipeline_summary
+            , extract_artifacts head_pipeline_summary )
           with
-          | ( Some base_build_url
-            , Some head_build_url
-            , Some base_job_url
-            , Some head_job_url ) ->
+          | ( (base_urls, [])
+            , (head_urls, []) ) ->
               Ok
                 ( { base_job_failed
                   ; base_job_errored
@@ -963,26 +967,18 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
                   ; full_target= name
                   ; docker_image
                   ; opam_switch
-                  ; failing_urls= head_build_url ^ " " ^ head_job_url
-                  ; passing_urls= base_build_url ^ " " ^ base_job_url } )
-          | None, _, _, _ ->
+                  ; failing_urls= String.concat ~sep:" " head_urls
+                  ; passing_urls= String.concat ~sep:" " base_urls } )
+          | (_, ((_ :: _) as base_failed)), _ ->
               Error
-                (f "Could not find base build job url for %s in:\n%s" build_job
+                (f "Could not find base dependencies artifacts for %s in:\n%s"
+                   (String.concat ~sep:" " base_failed)
                    (collapse_summary "Base Pipeline Summary"
                       base_pipeline_summary ) )
-          | _, None, _, _ ->
+          | _, (_, ((_ :: _) as head_failed)) ->
               Error
-                (f "Could not find head build job url for %s in:\n%s" build_job
-                   (collapse_summary "Head Pipeline Summary"
-                      head_pipeline_summary ) )
-          | _, _, None, _ ->
-              Error
-                (f "Could not find base job url for %s in:\n%s" name
-                   (collapse_summary "Base Pipeline Summary"
-                      base_pipeline_summary ) )
-          | _, _, _, None ->
-              Error
-                (f "Could not find head job url for %s in:\n%s" name
+                (f "Could not find head dependencies artifacts for %s in:\n%s"
+                   (String.concat ~sep:" " head_failed)
                    (collapse_summary "Head Pipeline Summary"
                       head_pipeline_summary ) )
         else
