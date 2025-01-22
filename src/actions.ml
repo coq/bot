@@ -12,7 +12,7 @@ open Lwt.Syntax
 
 type coq_job_info =
   { docker_image: string
-  ; build_dependency: string
+  ; dependencies: string list
   ; compiler: string
   ; opam_variant: string }
 
@@ -77,27 +77,33 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
               if string_match ~regexp line then Some (Str.matched_group 1 line)
               else None ) )
     in
+    let find_all regexps =
+      List.filter_map trace_lines ~f:(fun line ->
+          List.find_map regexps ~f:(fun regexp ->
+              if string_match ~regexp line then Some (Str.matched_group 1 line)
+              else None ) )
+    in
     find
       [ "^Using Docker executor with image \\([^ ]+\\)"
       ; "options=Options(docker='\\([^']+\\)')" ]
     >>= fun docker_image ->
-    find ["^Downloading artifacts for \\(build:[^ ]+\\)"]
-    >>= fun build_dependency ->
+    let dependencies = find_all ["^Downloading artifacts for \\([^ ]+\\)"] in
     find ["^COMPILER=\\(.*\\)"]
     >>= fun compiler ->
     find ["^OPAM_VARIANT=\\(.*\\)"]
     >>= fun opam_variant ->
-    Some {docker_image; build_dependency; compiler; opam_variant}
+    Some {docker_image; dependencies; compiler; opam_variant}
   in
   let* summary_tail_prefix =
     match coq_job_info with
-    | Some {docker_image; build_dependency; compiler; opam_variant} ->
+    | Some {docker_image; dependencies; compiler; opam_variant} ->
         let switch_name = compiler ^ opam_variant in
+        let dependencies = String.concat ~sep:"` `" dependencies in
         Lwt.return
           (f
-             "This job ran on the Docker image `%s`, depended on the build job \
-              `%s` with OCaml `%s`.\n\n"
-             docker_image build_dependency switch_name )
+             "This job ran on the Docker image `%s` with OCaml `%s` and depended on jobs \
+              `%s` .\n\n"
+             docker_image switch_name dependencies )
     | None ->
         Lwt.return ""
   in
