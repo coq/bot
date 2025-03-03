@@ -105,7 +105,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     | Some {docker_image; dependencies; targets; compiler; opam_variant} ->
         let switch_name = compiler ^ opam_variant in
         let dependencies = String.concat ~sep:"` `" dependencies in
-        let targets = String.concat ~sep:"` `" targets in 
+        let targets = String.concat ~sep:"` `" targets in
         Lwt.return
           (f
              "This job ran on the Docker image `%s` with OCaml `%s` and depended on jobs \
@@ -975,7 +975,7 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
                   ; job_target= target (*; overlayed= false (* XXX FIXME *)*) }
                 , { target
                   ; full_target= name
-                  ; ci_targets 
+                  ; ci_targets
                   ; docker_image
                   ; opam_switch
                   ; failing_urls= String.concat ~sep:" " head_urls
@@ -2167,11 +2167,12 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
       ; pr_number ] -> (
         message |> String.split ~on:'\n'
         |> function
-        | docker_image :: target :: opam_switch :: failing_urls :: passing_urls
+        | docker_image :: target :: ci_targets_joined :: opam_switch :: failing_urls :: passing_urls
           :: base :: head :: extra_arguments_joined :: bug_file_lines ->
             (let minimizer_extra_arguments =
                String.split ~on:' ' extra_arguments_joined
              in
+             let ci_targets = String.split ~on:' ' ci_targets_joined in
              let bug_file_contents = String.concat ~sep:"\n" bug_file_lines in
              fun () ->
                init_git_bare_repository ~bot_info
@@ -2184,7 +2185,7 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                     ~minimizer_extra_arguments
                     ~ci_minimization_infos:
                       [ { target
-                        ; ci_targets = [] (* dummmy value *)
+                        ; ci_targets
                         ; opam_switch
                         ; failing_urls
                         ; passing_urls

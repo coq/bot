@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target opam_switch failing_urls passing_urls base head minimizer_extra_arguments [bug_file]
+# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target ci-targets opam_switch failing_urls passing_urls base head minimizer_extra_arguments [bug_file]
 
 set -e
 
-if [ $# != 15 ] && [ $# != 16 ]; then >&2 echo Bad argument count; exit 1; fi
+if [ $# != 16 ] && [ $# != 17 ]; then >&2 echo Bad argument count; exit 1; fi
 
 comment_thread_id=$1
 token=$2
@@ -30,6 +30,7 @@ nl=$'\n'
 resumption_args=(
     "${docker_image}"
     "${target}"
+    "${ci_targets}"
     "${opam_switch}"
     "${failing_urls}"
     "${passing_urls}"
@@ -53,6 +54,7 @@ pushd "$wtree"
 printf "%s %s %s %s %s %s %s" "$comment_thread_id" "<>" "$repo_name" "$branch_name" "$owner" "$repo" "$pr_number" > coqbot-request-stamp
 sed -i 's~^\(\s*\)[^:\s]*custom_image:.*$~\1custom_image: '"'${docker_image}'~" .github/workflows/main.yml
 echo "${target}" > coqbot.ci-target
+echo "${ci_targets}" > coqbot.ci-targets
 echo "${opam_switch}" > coqbot.compiler
 echo "${failing_urls}" >  coqbot.failing-artifact-urls
 echo "${passing_urls}" >  coqbot.passing-artifact-urls
