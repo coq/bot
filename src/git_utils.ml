@@ -182,7 +182,7 @@ let git_coq_bug_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
   |> execute_cmd ~mask:[bot_info.github_pat]
 
 let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
-    ~docker_image ~target ~opam_switch ~failing_urls ~passing_urls ~base ~head
+    ~docker_image ~target ~ci_targets ~opam_switch ~failing_urls ~passing_urls ~base ~head
     ~minimizer_extra_arguments ~bug_file_name =
   (* To push a new branch we need to identify as coqbot the GitHub
      user, who is a collaborator on the run-coq-bug-minimizer repo,
@@ -196,6 +196,7 @@ let git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
     ; pr_number
     ; docker_image
     ; target
+    ; ci_targets |> String.concat ~sep:" "
     ; opam_switch
     ; failing_urls
     ; passing_urls

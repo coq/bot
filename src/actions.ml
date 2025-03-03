@@ -13,6 +13,7 @@ open Lwt.Syntax
 type coq_job_info =
   { docker_image: string
   ; dependencies: string list
+  ; targets : string list
   ; compiler: string
   ; opam_variant: string }
 
@@ -88,22 +89,28 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
       ; "options=Options(docker='\\([^']+\\)')" ]
     >>= fun docker_image ->
     let dependencies = find_all ["^Downloading artifacts for \\([^ ]+\\)"] in
+    (* The CI script prints "CI_TARGETS=foo bar" through "env" if it is non-default,
+       then "CI_TARGETS = foo bar" even if it is the default (from job name).
+       We use the later. *)
+    find ["^CI_TARGETS = \\(.*\\)"] >>= fun targets ->
+    let targets = String.split ~on:' ' targets in
     find ["^COMPILER=\\(.*\\)"]
     >>= fun compiler ->
     find ["^OPAM_VARIANT=\\(.*\\)"]
     >>= fun opam_variant ->
-    Some {docker_image; dependencies; compiler; opam_variant}
+    Some {docker_image; dependencies; targets; compiler; opam_variant}
   in
   let* summary_tail_prefix =
     match coq_job_info with
-    | Some {docker_image; dependencies; compiler; opam_variant} ->
+    | Some {docker_image; dependencies; targets; compiler; opam_variant} ->
         let switch_name = compiler ^ opam_variant in
         let dependencies = String.concat ~sep:"` `" dependencies in
+        let targets = String.concat ~sep:"` `" targets in 
         Lwt.return
           (f
              "This job ran on the Docker image `%s` with OCaml `%s` and depended on jobs \
-              `%s` .\n\n"
-             docker_image switch_name dependencies )
+              `%s`. It built targets `%s`.\n\n"
+             docker_image switch_name dependencies targets )
     | None ->
         Lwt.return ""
   in
@@ -734,6 +741,7 @@ let create_pipeline_summary ?summary_top pipeline_info pipeline_url =
 type ci_minimization_info =
   { target: string
   ; full_target: string
+  ; ci_targets: string list
   ; docker_image: string
   ; opam_switch: string
   ; failing_urls: string
@@ -857,9 +865,9 @@ let run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo ~pr_number
       >>= fun () ->
       let bug_file_name = Option.map ~f:(fun _ -> bug_file_name) bug_file in
       Lwt_list.map_s
-        (fun {target; opam_switch; failing_urls; passing_urls; docker_image} ->
+        (fun {target; ci_targets; opam_switch; failing_urls; passing_urls; docker_image} ->
           git_run_ci_minimization ~bot_info ~comment_thread_id ~owner ~repo
-            ~pr_number ~docker_image ~target ~opam_switch ~failing_urls
+            ~pr_number ~docker_image ~ci_targets ~target ~opam_switch ~failing_urls
             ~passing_urls ~base ~head ~minimizer_extra_arguments ~bug_file_name
           >>= fun result -> Lwt.return (target, result) )
         ci_minimization_infos
@@ -918,15 +926,17 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
           string_match
             ~regexp:
               "This job ran on the Docker image `\\([^`]+\\)` with OCaml `\\([^`]+\\)` and depended on jobs \
-               \\(\\(`[^`]+` ?\\)+\\) .\n\n"
+               \\(\\(`[^`]+` ?\\)+\\). It built targets \\(\\(`[^`]+` ?\\)+\\).\n\n"
             summary
         then
-          let docker_image, opam_switch, dependencies =
+          let docker_image, opam_switch, dependencies, targets =
             ( Str.matched_group 1 summary
             , Str.matched_group 2 summary
-            , Str.matched_group 3 summary )
+            , Str.matched_group 3 summary
+            , Str.matched_group 4 summary )
           in
           let dependencies = Str.split (Str.regexp "[ `]+") dependencies in
+          let ci_targets = Str.split (Str.regexp "[ `]+") targets in
           let missing_error, non_v_file =
             if
               string_match
@@ -965,6 +975,7 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
                   ; job_target= target (*; overlayed= false (* XXX FIXME *)*) }
                 , { target
                   ; full_target= name
+                  ; ci_targets 
                   ; docker_image
                   ; opam_switch
                   ; failing_urls= String.concat ~sep:" " head_urls
@@ -2173,6 +2184,7 @@ let coq_bug_minimizer_resume_ci_minimization_action ~bot_info ~key ~app_id body
                     ~minimizer_extra_arguments
                     ~ci_minimization_infos:
                       [ { target
+                        ; ci_targets = [] (* dummmy value *)
                         ; opam_switch
                         ; failing_urls
                         ; passing_urls

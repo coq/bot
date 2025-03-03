@@ -61,6 +61,7 @@ val git_run_ci_minimization :
   -> pr_number:string
   -> docker_image:string
   -> target:string
+  -> ci_targets:string list
   -> opam_switch:string
   -> failing_urls:string
   -> passing_urls:string
