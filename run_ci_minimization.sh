@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target opam_switch failing_urls passing_urls base head minimizer_extra_arguments [bug_file]
+# usage: coq_bug_minimizer.sh comment_thread_id github_token bot_name bot_domain owner repo pr_number docker_image target ci-targets opam_switch failing_urls passing_urls base head minimizer_extra_arguments [bug_file]
 
 set -e
 
-if [ $# != 15 ] && [ $# != 16 ]; then >&2 echo Bad argument count; exit 1; fi
+if [ $# != 16 ] && [ $# != 17 ]; then >&2 echo Bad argument count; exit 1; fi
 
 comment_thread_id=$1
 token=$2
@@ -15,13 +15,14 @@ repo=$6
 pr_number=$7
 docker_image=$8
 target=$9
-opam_switch=${10}
-failing_urls=${11}
-passing_urls=${12}
-base=${13}
-head=${14}
-minimizer_extra_arguments=${15}
-bug_file=${16}
+ci_targets=${10}
+opam_switch=${11}
+failing_urls=${12}
+passing_urls=${13}
+base=${14}
+head=${15}
+minimizer_extra_arguments=${16}
+bug_file=${17}
 branch_id=$(($(od -A n -t uI -N 5 /dev/urandom | tr -d ' ')))
 repo_name="coq-community/run-coq-bug-minimizer"
 branch_name="run-coq-bug-minimizer-$branch_id"
@@ -29,6 +30,7 @@ nl=$'\n'
 resumption_args=(
     "${docker_image}"
     "${target}"
+    "${ci_targets}"
     "${opam_switch}"
     "${failing_urls}"
     "${passing_urls}"
@@ -52,6 +54,7 @@ pushd "$wtree"
 printf "%s %s %s %s %s %s %s" "$comment_thread_id" "<>" "$repo_name" "$branch_name" "$owner" "$repo" "$pr_number" > coqbot-request-stamp
 sed -i 's~^\(\s*\)[^:\s]*custom_image:.*$~\1custom_image: '"'${docker_image}'~" .github/workflows/main.yml
 echo "${target}" > coqbot.ci-target
+echo "${ci_targets}" > coqbot.ci-targets
 echo "${opam_switch}" > coqbot.compiler
 echo "${failing_urls}" >  coqbot.failing-artifact-urls
 echo "${passing_urls}" >  coqbot.passing-artifact-urls
