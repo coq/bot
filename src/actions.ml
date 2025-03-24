@@ -941,7 +941,7 @@ let ci_minimization_extract_job_specific_info ~head_pipeline_summary
             ( Str.matched_group 1 summary
             , Str.matched_group 2 summary
             , Str.matched_group 3 summary
-            , Str.matched_group 4 summary )
+            , Str.matched_group 5 summary )
           in
           let dependencies = Str.split (Str.regexp "[ `]+") dependencies in
           let ci_targets = Str.split (Str.regexp "[ `]+") targets in
