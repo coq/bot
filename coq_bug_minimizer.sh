@@ -18,7 +18,7 @@ coq_version=$9
 ocaml_version=${10}
 minimizer_extra_arguments=${11}
 branch_id=$(($(od -A n -t uI -N 5 /dev/urandom | tr -d ' ')))
-repo_name="coq-community/run-coq-bug-minimizer"
+repo_name="rocq-community/run-coq-bug-minimizer"
 branch_name="run-coq-bug-minimizer-$branch_id"
 
 wtree=$(mktemp -d)

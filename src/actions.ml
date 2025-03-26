@@ -1585,10 +1585,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                      at commit %s.%s"
                     head try_again_msg
               | _ :: _ ->
-                  (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
+                  (* TODO: change https://github.com/rocq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
                   f
                     "I am now [%s \
-                     minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+                     minimization](https://github.com/rocq-community/run-coq-bug-minimizer/actions) \
                      at commit %s on %s. I'll come back to you with the \
                      results once it's done.%s"
                     (if Option.is_none bug_file then "running" else "resuming")
@@ -1702,10 +1702,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                   "I was unable to minimize any of the CI targets that you \
                    requested." ^ try_again_msg ^ "\n" ^ msg
               | _ :: _, _ ->
-                  (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
+                  (* TODO: change https://github.com/rocq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
                   f
                     "I am now [%s \
-                     minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+                     minimization](https://github.com/rocq-community/run-coq-bug-minimizer/actions) \
                      at commit %s on requested %s %s. I'll come back to you \
                      with the results once it's done.%s\n\n\
                      %s"
@@ -1741,10 +1741,10 @@ let minimize_failed_tests ~bot_info ~owner ~repo ~pr_number
                 head try_again_msg failed_minimization_description
               |> Lwt.return_some
           | RequestSuggested, _ :: _, _ ->
-              (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
+              (* TODO: change https://github.com/rocq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
               f
                 "I have [initiated \
-                 minimization](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+                 minimization](https://github.com/rocq-community/run-coq-bug-minimizer/actions) \
                  at commit %s for the suggested %s %s as requested.%s\n\n\
                  %s"
                 head
@@ -2107,12 +2107,12 @@ let run_coq_minimizer ~bot_info ~script ~comment_thread_id ~comment_author
     ~owner ~repo ~coq_version ~ocaml_version ~minimizer_extra_arguments
   >>= function
   | Ok () ->
-      (* TODO: change https://github.com/coq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
+      (* TODO: change https://github.com/rocq-community/run-coq-bug-minimizer/actions to a link to the particular action run when we can get that information *)
       GitHub_mutations.post_comment ~id:comment_thread_id
         ~message:
           (f
              "Hey @%s, the coq bug minimizer [is \
-              running](https://github.com/coq-community/run-coq-bug-minimizer/actions) \
+              running](https://github.com/rocq-community/run-coq-bug-minimizer/actions) \
               your script, I'll come back to you with the results once it's \
               done."
              comment_author )

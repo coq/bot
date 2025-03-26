@@ -272,7 +272,7 @@ let callback _conn req body =
       | Ok (Some install_id, PushEvent {owner; repo; base_ref; head_sha; _})
         -> (
         match (owner, repo) with
-        | "coq-community", ("docker-base" | "docker-coq" | "docker-rocq") ->
+        | "rocq-community", ("docker-base" | "docker-coq" | "docker-rocq") ->
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
