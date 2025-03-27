@@ -19,13 +19,13 @@ app_id="31373"
   bot_name="x-CBot"
 
 [mappings]
-  [mappings.coq]
-  github="coq/coq"
-  gitlab="coq/coq"
+  [mappings.rocq]
+  github="rocq-prover/rocq"
+  gitlab="coq/rocq"
   gitlab_domain="gitlab.inria.fr"
 
   [mappings.opam]
-  github="coq/opam"
+  github="rocq-prover/opam"
   gitlab="coq/opam"
   gitlab_domain="gitlab.inria.fr"
 
