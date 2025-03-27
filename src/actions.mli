@@ -80,7 +80,7 @@ val project_action :
   -> unit
   -> unit Lwt.t
 
-val coq_push_action :
+val rocq_push_action :
      bot_info:Bot_info.t
   -> base_ref:string
   -> commits_msg:string list
@@ -113,7 +113,7 @@ val coq_bug_minimizer_resume_ci_minimization_action :
   -> string
   -> (Cohttp.Response.t * Cohttp_lwt__Body.t) Lwt.t
 
-val coq_check_needs_rebase_pr :
+val rocq_check_needs_rebase_pr :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string
@@ -122,7 +122,7 @@ val coq_check_needs_rebase_pr :
   -> throttle:int
   -> unit Lwt.t
 
-val coq_check_stale_pr :
+val rocq_check_stale_pr :
      bot_info:Bot_info.t
   -> owner:string
   -> repo:string

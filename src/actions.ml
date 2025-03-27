@@ -10,7 +10,7 @@ open Helpers
 open Lwt.Infix
 open Lwt.Syntax
 
-type coq_job_info =
+type rocq_job_info =
   { docker_image: string
   ; dependencies: string list
   ; targets: string list
@@ -70,7 +70,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
           |> Fn.flip List.drop (index_of_error - 1)
           |> Fn.flip List.take 40 |> String.concat ~sep:"\n" )
   in
-  let coq_job_info =
+  let rocq_job_info =
     let open Option in
     let find regexps =
       List.find_map trace_lines ~f:(fun line ->
@@ -102,7 +102,7 @@ let send_status_check ~bot_info job_info ~pr_num (gh_owner, gh_repo)
     Some {docker_image; dependencies; targets; compiler; opam_variant}
   in
   let* summary_tail_prefix =
-    match coq_job_info with
+    match rocq_job_info with
     | Some {docker_image; dependencies; targets; compiler; opam_variant} ->
         let switch_name = compiler ^ opam_variant in
         let dependencies = String.concat ~sep:"` `" dependencies in
@@ -208,7 +208,7 @@ let rec send_doc_url_aux ~bot_info job_info ~fallback_urls (kind, url) =
     resp |> Response.status |> Code.code_of_status
   in
   let success_response url =
-    GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
+    GitHub_mutations.send_status_check ~repo_full_name:"rocq-prover/rocq"
       ~commit:job_info.common_info.head_commit ~state:"success" ~url ~context
       ~description:(description_base ^ ".") ~bot_info
   in
@@ -216,9 +216,9 @@ let rec send_doc_url_aux ~bot_info job_info ~fallback_urls (kind, url) =
     Lwt_io.printf "But we got a %d code when checking the URL.\n" code
     <&>
     let job_url =
-      f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id
+      f "https://gitlab.inria.fr/coq/rocq/-/jobs/%d" job_info.build_id
     in
-    GitHub_mutations.send_status_check ~repo_full_name:"coq/coq"
+    GitHub_mutations.send_status_check ~repo_full_name:"rocq-prover/rocq"
       ~commit:job_info.common_info.head_commit ~state:"failure" ~url:job_url
       ~context
       ~description:(description_base ^ ": not found.")
@@ -246,7 +246,7 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
     doc_key
   <&>
   let build_url artifact =
-    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/%s"
+    f "https://coq.gitlabpages.inria.fr/-/rocq/-/jobs/%d/artifacts/%s"
       job_info.build_id artifact
   in
   send_doc_url_aux ~bot_info job_info
@@ -255,17 +255,15 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
 
 let send_doc_url ~bot_info ~github_repo_full_name job_info =
   match (github_repo_full_name, job_info.build_name) with
-  | "coq/coq", ("doc:refman" | "doc:ci-refman") ->
-      (* Used to be a non-Dune job, now a Dune job, thus we need a fallback *)
+  | "rocq-prover/rocq", ("doc:refman" | "doc:ci-refman") ->
       send_doc_url_job ~bot_info
-        ~fallback_artifacts:["_install_ci/share/doc/coq/sphinx/html/index.html"]
         job_info "refman" "_build/default/doc/refman-html/index.html"
-  | ( "coq/coq"
+  | ( "rocq-prover/rocq"
     , ( "doc:stdlib" (* only after complete switch to Dune *)
       | "doc:stdlib:dune" (* only before complete switch to Dune *) ) ) ->
       send_doc_url_job ~bot_info job_info "stdlib"
         "_build/default/doc/stdlib/html/index.html"
-  | "coq/coq", "doc:ml-api:odoc" ->
+  | "rocq-prover/rocq", "doc:ml-api:odoc" ->
       send_doc_url_job ~bot_info job_info "ml-api"
         "_build/default/_doc/_html/index.html"
   | _ ->
@@ -294,7 +292,7 @@ let fetch_bench_results ~job_info () =
   in
   let artifact_url file =
     f
-      "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
+      "https://coq.gitlabpages.inria.fr/-/rocq/-/jobs/%d/artifacts/_bench/timings/%s"
       job_info.build_id file
   in
   let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
@@ -436,7 +434,7 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
           Lwt_io.printl "Pushing status check for bench job."
           <&>
           let gitlab_url =
-            f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id
+            f "https://gitlab.inria.fr/coq/rocq/-/jobs/%d" job_info.build_id
           in
           let summary =
             f "## GitLab Job URL:\n[GitLab Bench Job](%s)\n" gitlab_url
@@ -542,7 +540,7 @@ let trace_action ~repo_full_name trace =
        || test "fatal: [Cc]ouldn't find remote ref refs/heads/pr-"
      then Ignore "Normal failure: pull request was closed."
      else if
-       String.equal repo_full_name "coq/coq"
+       String.equal repo_full_name "coq/rocq"
        && test "Error response from daemon: manifest for .* not found"
      then Ignore "Docker image not found. Do not report anything specific."
      else Warn trace )
@@ -678,7 +676,7 @@ let job_action ~bot_info
           job_info.build_id
       in
       match (github_repo_full_name, job_info.build_name) with
-      | "coq/coq", "bench" ->
+      | "rocq-prover/rocq", "bench" ->
           update_bench_status ~bot_info job_info (gh_owner, gh_repo)
             ~external_id ~number:pr_num
       | _, _ -> (
@@ -1058,7 +1056,7 @@ let fetch_ci_minimization_info ~bot_info ~owner ~repo ~pr_number
         , f "Error while fetching PR refs for %s/%s#%d for CI minimization: %s"
             owner repo pr_number err )
   | Ok (base, head) -> (
-      (* TODO: figure out why there are quotes, cf https://github.com/coq/bot/issues/61 *)
+      (* TODO: figure out why there are quotes, cf https://github.com/rocq-prover/bot/issues/61 *)
       let base = Str.global_replace (Str.regexp {|"|}) "" base in
       let head = Str.global_replace (Str.regexp {|"|}) "" head in
       GitHub_queries.get_base_and_head_checks ~bot_info ~owner ~repo ~pr_number
@@ -1948,10 +1946,10 @@ let pipeline_action ~bot_info ({common_info= {http_repo_url}} as pipeline_info)
           Lwt_io.printlf "Error in pipeline action: %s" err
       | Ok (gh_owner, gh_repo) -> (
           let state, status, conclusion, title, summary_top =
-            (* For the Coq repo only, we report whether this was a full or a light CI *)
+            (* For the Rocq Prover repo only, we report whether this was a full or a light CI *)
             let full_ci =
               match (gh_owner, gh_repo) with
-              | "coq", "coq" -> (
+              | "rocq-prover", "rocq" -> (
                 try
                   List.find_map
                     ~f:(fun (key, value) ->
@@ -2050,7 +2048,7 @@ let pipeline_action ~bot_info ({common_info= {http_repo_url}} as pipeline_info)
                   Lwt_unix.sleep 5.
                   >>= fun () ->
                   match (gh_owner, gh_repo, pipeline_info.state, pr_number) with
-                  | "coq", "coq", "failed", Some pr_number ->
+                  | "rocq-prover", "rocq", "failed", Some pr_number ->
                       minimize_failed_tests ~bot_info ~owner:gh_owner
                         ~repo:gh_repo ~pr_number
                         ~head_pipeline_summary:(Some summary) ~request:Auto
@@ -2302,7 +2300,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
               Lwt.return_error
                 "Something unexpected happened: did not find merge comment \
                  after retrying three times.\n\
-                 cc @coq/coqbot-maintainers"
+                 cc @rocq-prover/coqbot-maintainers"
             else
               Lwt_unix.sleep t
               >>= fun () ->
@@ -2343,7 +2341,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                       requested."
                      comment_info.author )
             | APPROVED -> (
-                GitHub_queries.get_team_membership ~bot_info ~org:"coq"
+                GitHub_queries.get_team_membership ~bot_info ~org:"rocq-prover"
                   ~team:"pushers" ~user:comment_info.author
                 >>= function
                 | Ok false ->
@@ -2351,7 +2349,7 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                     Lwt.return_error
                       (f
                          "@%s: You can't merge this PR because you're not a \
-                          member of the `@coq/pushers` team. Look at the \
+                          member of the `@rocq-prover/pushers` team. Look at the \
                           contributing guide for how to join this team."
                          comment_info.author )
                 | Ok true -> (
@@ -2396,10 +2394,10 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                     Lwt.return_error
                       (f
                          "Something unexpected happened: %s\n\
-                          cc @coq/coqbot-maintainers" e ) ) )
+                          cc @rocq-prover/coqbot-maintainers" e ) ) )
       | Error e ->
           Lwt.return_error
-            (f "Something unexpected happened: %s\ncc @coq/coqbot-maintainers" e)
+            (f "Something unexpected happened: %s\ncc @rocq-prover/coqbot-maintainers" e)
       ) )
   >>= function
   | Ok () ->
@@ -2512,13 +2510,13 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
   if ok then (
     (* Remove rebase / stale label *)
     remove_labels_if_present ~bot_info pr_info.issue [rebase_label; stale_label] ;
-    (* In the Coq repo, we want to prevent untrusted contributors from
+    (* In the Rocq Prover repo, we want to prevent untrusted contributors from
        circumventing the fact that the bench job is a manual job by changing
        the CI configuration. *)
     let* can_trigger_ci =
       if
-        String.equal pr_info.issue.issue.owner "coq"
-        && String.equal pr_info.issue.issue.repo "coq"
+        String.equal pr_info.issue.issue.owner "rocq-prover"
+        && String.equal pr_info.issue.issue.repo "rocq"
         && not skip_author_check
       then
         let* config_modified =
@@ -2528,12 +2526,12 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
         if config_modified then (
           Lwt.async (fun () ->
               Lwt_io.printlf
-                "CI configuration modified in PR coq/coq#%d, checking if %s is \
-                 a member of @coq/contributors..."
+                "CI configuration modified in PR rocq-prover/rocq#%d, checking if %s is \
+                 a member of @rocq-prover/contributors..."
                 pr_info.issue.number pr_info.issue.user ) ;
           (* This is an approximation:
              we are checking who the PR author is and not who is pushing. *)
-          GitHub_queries.get_team_membership ~bot_info ~org:"coq"
+          GitHub_queries.get_team_membership ~bot_info ~org:"rocq-prover"
             ~team:"contributors" ~user:pr_info.issue.user )
         else Lwt.return_ok true
       else Lwt.return_ok true
@@ -2550,14 +2548,14 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
       >>= GitHub_mutations.report_on_posting_comment
       >>= fun () -> Lwt.return_ok () )
     else
-      (* In Coq repo, we have several special cases:
+      (* In Rocq Prover repo, we have several special cases:
          1. if something has changed in dev/ci/docker/, we rebuild the Docker image
          2. if there was a special label set, we run a full CI
       *)
       let get_options =
         if
-          String.equal pr_info.issue.issue.owner "coq"
-          && String.equal pr_info.issue.issue.repo "coq"
+          String.equal pr_info.issue.issue.owner "rocq-prover"
+          && String.equal pr_info.issue.issue.repo "rocq"
         then
           Lwt.all
             [ ( git_test_modified ~base:pr_info.base.sha ~head:pr_info.head.sha
@@ -2657,7 +2655,7 @@ let inform_user_not_in_contributors ~bot_info comment_info =
     ~message:
       (f
          "Sorry, @%s, I only accept requests from members of the \
-          `@coq/contributor` team. If you are a regular contributor, you can \
+          `@rocq-prover/contributors` team. If you are a regular contributor, you can \
           request to join the team by asking any core developer."
          comment_info.author )
   >>= GitHub_mutations.report_on_posting_comment
@@ -2667,7 +2665,7 @@ let run_ci_action ~bot_info ~comment_info ?full_ci ~gitlab_mapping
   let team = "contributors" in
   (fun () ->
     (let open Lwt_result.Infix in
-     GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team
+     GitHub_queries.get_team_membership ~bot_info ~org:"rocq-prover" ~team
        ~user:comment_info.author
      >>= (fun is_member ->
            if is_member then
@@ -2727,7 +2725,7 @@ let pull_request_updated_action ~bot_info
     ~(pr_info : GitHub_types.issue_info GitHub_types.pull_request_info)
     ~gitlab_mapping ~github_mapping =
   ( match (action, pr_info.base.branch.repo_url) with
-  | PullRequestOpened, "https://github.com/coq/coq"
+  | PullRequestOpened, "https://github.com/rocq-prover/rocq"
     when String.equal pr_info.base.branch.name pr_info.head.branch.name ->
       (fun () ->
         GitHub_mutations.post_comment ~bot_info ~id:pr_info.issue.id
@@ -2737,7 +2735,7 @@ let pull_request_updated_action ~bot_info
                 In the future, we strongly recommend that you *do not* use %s \
                 as the name of your branch when submitting a pull request.\n\
                 By the way, you may be interested in reading [our contributing \
-                guide](https://github.com/coq/coq/blob/master/CONTRIBUTING.md)."
+                guide](https://github.com/rocq-prover/rocq/blob/master/CONTRIBUTING.md)."
                pr_info.base.branch.name )
         >>= GitHub_mutations.report_on_posting_comment )
       |> Lwt.async
@@ -2807,7 +2805,7 @@ let project_action ~bot_info ~pr_id ~backport_to () =
            Change of milestone requested.\n"
           backport_to
         >>= fun () ->
-        GitHub_queries.get_milestone_id ~bot_info ~owner:"coq" ~repo:"coq"
+        GitHub_queries.get_milestone_id ~bot_info ~owner:"rocq-prover" ~repo:"rocq"
           ~number:rejected_milestone
         >>= function
         | Ok milestone ->
@@ -2823,7 +2821,7 @@ let project_action ~bot_info ~pr_id ~backport_to () =
 
 let add_to_column ~bot_info ~backport_to id option =
   let field = backport_to ^ " status" in
-  GitHub_queries.get_project_field_values ~bot_info ~organization:"coq"
+  GitHub_queries.get_project_field_values ~bot_info ~organization:"rocq-prover"
     ~project:11 ~field ~options:[|option|]
   >>= fun project_info ->
   ( match project_info with
@@ -2880,7 +2878,7 @@ let add_to_column ~bot_info ~backport_to id option =
   | Error err ->
       Lwt_io.printl err
 
-let coq_push_action ~bot_info ~base_ref ~commits_msg =
+let rocq_push_action ~bot_info ~base_ref ~commits_msg =
   let* () = Lwt_io.printl "Merge and backport commit messages:" in
   let commit_action commit_msg =
     if
@@ -2890,8 +2888,8 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
       let pr_number = Str.matched_group 2 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"coq"
-        ~repo:"coq" ~number:pr_number
+      GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"rocq-prover"
+        ~repo:"rocq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
       | Ok (pr_id, backport_info) ->
@@ -2922,7 +2920,7 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.get_pull_request_cards ~bot_info ~owner:"coq" ~repo:"coq"
+      GitHub_queries.get_pull_request_cards ~bot_info ~owner:"rocq-prover" ~repo:"rocq"
         ~number:pr_number
       >>= function
       | Ok items -> (
@@ -2935,7 +2933,7 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
           match card_id with
           | Some card_id ->
               Lwt_io.printlf
-                "Pull request coq/coq#%d found in project 11. Updating its \
+                "Pull request rocq-prover/rocq#%d found in project 11. Updating its \
                  fields."
                 pr_number
               >>= fun () ->
@@ -2943,7 +2941,7 @@ let coq_push_action ~bot_info ~base_ref ~commits_msg =
           | None ->
               (* We could do something in this case, like post a comment to
                  the PR and add the PR to the project. *)
-              Lwt_io.printlf "Pull request coq/coq#%d not found in project 11."
+              Lwt_io.printlf "Pull request rocq-prover/rocq#%d not found in project 11."
                 pr_number )
       | Error e ->
           Lwt_io.printf "%s\n" e
@@ -2998,7 +2996,7 @@ let apply_after_label ~bot_info ~owner ~repo ~after ~label ~action ~throttle ()
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
-let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
+let rocq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
     ~throttle =
   let rebase_label = "needs: rebase" in
   let stale_label = "stale" in
@@ -3036,7 +3034,7 @@ let coq_check_needs_rebase_pr ~bot_info ~owner ~repo ~warn_after ~close_after
   | Error err ->
       Lwt_io.print (f "Error: %s\n" err)
 
-let coq_check_stale_pr ~bot_info ~owner ~repo ~after ~throttle =
+let rocq_check_stale_pr ~bot_info ~owner ~repo ~after ~throttle =
   let label = "stale" in
   let action pr_id _pr_number =
     GitHub_mutations.post_comment ~id:pr_id
@@ -3087,7 +3085,7 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
         let build_id =
           let regexp =
             f {|.*%s\([0-9]*\)|}
-              (Str.quote "[bench](https://gitlab.inria.fr/coq/coq/-/jobs/")
+              (Str.quote "[bench](https://gitlab.inria.fr/coq/rocq/-/jobs/")
           in
           ( if Helpers.string_match ~regexp summary then
               Str.matched_group 1 summary
@@ -3110,7 +3108,7 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
              owner repo pr_number s ) )
   in
   let* allowed_to_bench =
-    GitHub_queries.get_team_membership ~bot_info ~org:"coq" ~team:"contributors"
+    GitHub_queries.get_team_membership ~bot_info ~org:"rocq-prover" ~team:"contributors"
       ~user:comment_info.author
   in
   match (allowed_to_bench, process_summary) with
