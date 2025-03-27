@@ -256,8 +256,8 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
 let send_doc_url ~bot_info ~github_repo_full_name job_info =
   match (github_repo_full_name, job_info.build_name) with
   | "rocq-prover/rocq", ("doc:refman" | "doc:ci-refman") ->
-      send_doc_url_job ~bot_info
-        job_info "refman" "_build/default/doc/refman-html/index.html"
+      send_doc_url_job ~bot_info job_info "refman"
+        "_build/default/doc/refman-html/index.html"
   | ( "rocq-prover/rocq"
     , ( "doc:stdlib" (* only after complete switch to Dune *)
       | "doc:stdlib:dune" (* only before complete switch to Dune *) ) ) ->
@@ -2349,8 +2349,8 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                     Lwt.return_error
                       (f
                          "@%s: You can't merge this PR because you're not a \
-                          member of the `@rocq-prover/pushers` team. Look at the \
-                          contributing guide for how to join this team."
+                          member of the `@rocq-prover/pushers` team. Look at \
+                          the contributing guide for how to join this team."
                          comment_info.author )
                 | Ok true -> (
                     GitHub_mutations.merge_pull_request ~bot_info ~pr_id:pr.id
@@ -2397,8 +2397,9 @@ let rec merge_pull_request_action ~bot_info ?(t = 1.) comment_info =
                           cc @rocq-prover/coqbot-maintainers" e ) ) )
       | Error e ->
           Lwt.return_error
-            (f "Something unexpected happened: %s\ncc @rocq-prover/coqbot-maintainers" e)
-      ) )
+            (f
+               "Something unexpected happened: %s\n\
+                cc @rocq-prover/coqbot-maintainers" e ) ) )
   >>= function
   | Ok () ->
       Lwt.return_unit
@@ -2526,8 +2527,8 @@ let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
         if config_modified then (
           Lwt.async (fun () ->
               Lwt_io.printlf
-                "CI configuration modified in PR rocq-prover/rocq#%d, checking if %s is \
-                 a member of @rocq-prover/contributors..."
+                "CI configuration modified in PR rocq-prover/rocq#%d, checking \
+                 if %s is a member of @rocq-prover/contributors..."
                 pr_info.issue.number pr_info.issue.user ) ;
           (* This is an approximation:
              we are checking who the PR author is and not who is pushing. *)
@@ -2655,8 +2656,8 @@ let inform_user_not_in_contributors ~bot_info comment_info =
     ~message:
       (f
          "Sorry, @%s, I only accept requests from members of the \
-          `@rocq-prover/contributors` team. If you are a regular contributor, you can \
-          request to join the team by asking any core developer."
+          `@rocq-prover/contributors` team. If you are a regular contributor, \
+          you can request to join the team by asking any core developer."
          comment_info.author )
   >>= GitHub_mutations.report_on_posting_comment
 
@@ -2805,8 +2806,8 @@ let project_action ~bot_info ~pr_id ~backport_to () =
            Change of milestone requested.\n"
           backport_to
         >>= fun () ->
-        GitHub_queries.get_milestone_id ~bot_info ~owner:"rocq-prover" ~repo:"rocq"
-          ~number:rejected_milestone
+        GitHub_queries.get_milestone_id ~bot_info ~owner:"rocq-prover"
+          ~repo:"rocq" ~number:rejected_milestone
         >>= function
         | Ok milestone ->
             GitHub_mutations.update_milestone ~bot_info ~issue:pr_id ~milestone
@@ -2888,8 +2889,8 @@ let rocq_push_action ~bot_info ~base_ref ~commits_msg =
       let pr_number = Str.matched_group 2 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was merged.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.get_pull_request_id_and_milestone ~bot_info ~owner:"rocq-prover"
-        ~repo:"rocq" ~number:pr_number
+      GitHub_queries.get_pull_request_id_and_milestone ~bot_info
+        ~owner:"rocq-prover" ~repo:"rocq" ~number:pr_number
       >>= fun pr_info ->
       match pr_info with
       | Ok (pr_id, backport_info) ->
@@ -2920,8 +2921,8 @@ let rocq_push_action ~bot_info ~base_ref ~commits_msg =
       let pr_number = Str.matched_group 1 commit_msg |> Int.of_string in
       Lwt_io.printf "%s\nPR #%d was backported.\n" commit_msg pr_number
       >>= fun () ->
-      GitHub_queries.get_pull_request_cards ~bot_info ~owner:"rocq-prover" ~repo:"rocq"
-        ~number:pr_number
+      GitHub_queries.get_pull_request_cards ~bot_info ~owner:"rocq-prover"
+        ~repo:"rocq" ~number:pr_number
       >>= function
       | Ok items -> (
           let backport_to =
@@ -2933,15 +2934,16 @@ let rocq_push_action ~bot_info ~base_ref ~commits_msg =
           match card_id with
           | Some card_id ->
               Lwt_io.printlf
-                "Pull request rocq-prover/rocq#%d found in project 11. Updating its \
-                 fields."
+                "Pull request rocq-prover/rocq#%d found in project 11. \
+                 Updating its fields."
                 pr_number
               >>= fun () ->
               add_to_column ~bot_info ~backport_to (`Card_ID card_id) "Shipped"
           | None ->
               (* We could do something in this case, like post a comment to
                  the PR and add the PR to the project. *)
-              Lwt_io.printlf "Pull request rocq-prover/rocq#%d not found in project 11."
+              Lwt_io.printlf
+                "Pull request rocq-prover/rocq#%d not found in project 11."
                 pr_number )
       | Error e ->
           Lwt_io.printf "%s\n" e
@@ -3108,8 +3110,8 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
              owner repo pr_number s ) )
   in
   let* allowed_to_bench =
-    GitHub_queries.get_team_membership ~bot_info ~org:"rocq-prover" ~team:"contributors"
-      ~user:comment_info.author
+    GitHub_queries.get_team_membership ~bot_info ~org:"rocq-prover"
+      ~team:"contributors" ~user:comment_info.author
   in
   match (allowed_to_bench, process_summary) with
   | Ok true, Ok (build_id, project_id) ->

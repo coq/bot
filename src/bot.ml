@@ -252,7 +252,11 @@ let callback _conn req body =
       | Ok
           ( Some install_id
           , PushEvent
-              {owner= "rocq-prover"; repo= "rocq"; base_ref; head_sha; commits_msg} ) ->
+              { owner= "rocq-prover"
+              ; repo= "rocq"
+              ; base_ref
+              ; head_sha
+              ; commits_msg } ) ->
           (fun () ->
             init_git_bare_repository ~bot_info
             >>= fun () ->
@@ -261,13 +265,14 @@ let callback _conn req body =
               (rocq_push_action ~base_ref ~commits_msg)
             <&> action_as_github_app_from_install_id ~bot_info ~key ~app_id
                   ~install_id
-                  (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner:"rocq-prover"
-                     ~repo:"rocq" ~base_ref ~head_sha () ) )
+                  (mirror_action ~gitlab_domain:"gitlab.inria.fr"
+                     ~owner:"rocq-prover" ~repo:"rocq" ~base_ref ~head_sha () )
+            )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
-              "Processing push event on the Rocq Prover repository: analyzing merge / \
-               backporting info."
+              "Processing push event on the Rocq Prover repository: analyzing \
+               merge / backporting info."
             ()
       | Ok (Some install_id, PushEvent {owner; repo; base_ref; head_sha; _})
         -> (
@@ -288,7 +293,8 @@ let callback _conn req body =
                     branch on GitLab."
                    owner repo )
               ()
-        | "math-comp", ("docker-mathcomp" | "math-comp") | "rocq-prover", "opam" ->
+        | "math-comp", ("docker-mathcomp" | "math-comp") | "rocq-prover", "opam"
+          ->
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
@@ -604,8 +610,8 @@ let callback _conn req body =
             let close_after = 30 in
             (fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner
-                (rocq_check_needs_rebase_pr ~owner ~repo ~warn_after ~close_after
-                   ~throttle:6 )
+                (rocq_check_needs_rebase_pr ~owner ~repo ~warn_after
+                   ~close_after ~throttle:6 )
               >>= fun () ->
               action_as_github_app ~bot_info ~key ~app_id ~owner
                 (rocq_check_stale_pr ~owner ~repo ~after:close_after ~throttle:4)
