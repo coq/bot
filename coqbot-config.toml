@@ -21,7 +21,7 @@ app_id="31373"
 [mappings]
   [mappings.rocq]
   github="rocq-prover/rocq"
-  gitlab="coq/rocq"
+  gitlab="coq/coq"
   gitlab_domain="gitlab.inria.fr"
 
   [mappings.opam]

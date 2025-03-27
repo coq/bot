@@ -216,7 +216,7 @@ let rec send_doc_url_aux ~bot_info job_info ~fallback_urls (kind, url) =
     Lwt_io.printf "But we got a %d code when checking the URL.\n" code
     <&>
     let job_url =
-      f "https://gitlab.inria.fr/coq/rocq/-/jobs/%d" job_info.build_id
+      f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id
     in
     GitHub_mutations.send_status_check ~repo_full_name:"rocq-prover/rocq"
       ~commit:job_info.common_info.head_commit ~state:"failure" ~url:job_url
@@ -246,7 +246,7 @@ let send_doc_url_job ~bot_info ?(fallback_artifacts = []) job_info doc_key
     doc_key
   <&>
   let build_url artifact =
-    f "https://coq.gitlabpages.inria.fr/-/rocq/-/jobs/%d/artifacts/%s"
+    f "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/%s"
       job_info.build_id artifact
   in
   send_doc_url_aux ~bot_info job_info
@@ -292,7 +292,7 @@ let fetch_bench_results ~job_info () =
   in
   let artifact_url file =
     f
-      "https://coq.gitlabpages.inria.fr/-/rocq/-/jobs/%d/artifacts/_bench/timings/%s"
+      "https://coq.gitlabpages.inria.fr/-/coq/-/jobs/%d/artifacts/_bench/timings/%s"
       job_info.build_id file
   in
   let* summary_table = artifact_url "bench_summary" |> fetch_artifact in
@@ -434,7 +434,7 @@ let update_bench_status ~bot_info job_info (gh_owner, gh_repo) ~external_id
           Lwt_io.printl "Pushing status check for bench job."
           <&>
           let gitlab_url =
-            f "https://gitlab.inria.fr/coq/rocq/-/jobs/%d" job_info.build_id
+            f "https://gitlab.inria.fr/coq/coq/-/jobs/%d" job_info.build_id
           in
           let summary =
             f "## GitLab Job URL:\n[GitLab Bench Job](%s)\n" gitlab_url
@@ -540,7 +540,7 @@ let trace_action ~repo_full_name trace =
        || test "fatal: [Cc]ouldn't find remote ref refs/heads/pr-"
      then Ignore "Normal failure: pull request was closed."
      else if
-       String.equal repo_full_name "coq/rocq"
+       String.equal repo_full_name "coq/coq"
        && test "Error response from daemon: manifest for .* not found"
      then Ignore "Docker image not found. Do not report anything specific."
      else Warn trace )
@@ -3085,7 +3085,7 @@ let run_bench ~bot_info ?key_value_pairs comment_info =
         let build_id =
           let regexp =
             f {|.*%s\([0-9]*\)|}
-              (Str.quote "[bench](https://gitlab.inria.fr/coq/rocq/-/jobs/")
+              (Str.quote "[bench](https://gitlab.inria.fr/coq/coq/-/jobs/")
           in
           ( if Helpers.string_match ~regexp summary then
               Str.matched_group 1 summary
