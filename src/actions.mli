@@ -90,8 +90,10 @@ val mirror_action :
      bot_info:Bot_info.t
   -> ?force:bool
   -> gitlab_domain:string
-  -> owner:string
-  -> repo:string
+  -> gh_owner:string
+  -> gh_repo:string
+  -> gl_owner:string
+  -> gl_repo:string
   -> base_ref:string
   -> head_sha:string
   -> unit

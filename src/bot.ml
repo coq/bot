@@ -266,8 +266,8 @@ let callback _conn req body =
             <&> action_as_github_app_from_install_id ~bot_info ~key ~app_id
                   ~install_id
                   (mirror_action ~gitlab_domain:"gitlab.inria.fr"
-                     ~owner:"rocq-prover" ~repo:"rocq" ~base_ref ~head_sha () )
-            )
+                     ~gh_owner:"rocq-prover" ~gh_repo:"rocq" ~gl_owner:"coq"
+                     ~gl_repo:"coq" ~base_ref ~head_sha () ) )
           |> Lwt.async ;
           Server.respond_string ~status:`OK
             ~body:
@@ -283,8 +283,9 @@ let callback _conn req body =
               >>= fun () ->
               action_as_github_app_from_install_id ~bot_info ~key ~app_id
                 ~install_id
-                (mirror_action ~gitlab_domain:"gitlab.com" ~owner ~repo
-                   ~base_ref ~head_sha () ) )
+                (mirror_action ~gitlab_domain:"gitlab.com" ~gh_owner:owner
+                   ~gh_repo:repo ~gl_owner:owner ~gl_repo:repo ~base_ref
+                   ~head_sha () ) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:
@@ -293,15 +294,32 @@ let callback _conn req body =
                     branch on GitLab."
                    owner repo )
               ()
-        | "math-comp", ("docker-mathcomp" | "math-comp") | "rocq-prover", "opam"
-          ->
+        | "math-comp", ("docker-mathcomp" | "math-comp") ->
             (fun () ->
               init_git_bare_repository ~bot_info
               >>= fun () ->
               action_as_github_app_from_install_id ~bot_info ~key ~app_id
                 ~install_id
-                (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~owner ~repo
-                   ~base_ref ~head_sha () ) )
+                (mirror_action ~gitlab_domain:"gitlab.inria.fr" ~gh_owner:owner
+                   ~gh_repo:repo ~gl_owner:owner ~gl_repo:repo ~base_ref
+                   ~head_sha () ) )
+            |> Lwt.async ;
+            Server.respond_string ~status:`OK
+              ~body:
+                (f
+                   "Processing push event on %s/%s repository: mirroring \
+                    branch on GitLab."
+                   owner repo )
+              ()
+        | "rocq-prover", ("opam" | "docker-rocq") ->
+            (fun () ->
+              init_git_bare_repository ~bot_info
+              >>= fun () ->
+              action_as_github_app_from_install_id ~bot_info ~key ~app_id
+                ~install_id
+                (mirror_action ~gitlab_domain:"gitlab.inria.fr"
+                   ~gh_owner:"rocq-prover" ~gh_repo:repo ~gl_owner:"coq"
+                   ~gl_repo:repo ~base_ref ~head_sha () ) )
             |> Lwt.async ;
             Server.respond_string ~status:`OK
               ~body:

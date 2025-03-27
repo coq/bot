@@ -2462,15 +2462,16 @@ let remove_labels_if_present ~bot_info (issue : issue_info) labels =
   |> Lwt.async
 
 (* TODO: ensure there's no race condition for 2 push with very close timestamps *)
-let mirror_action ~bot_info ?(force = true) ~gitlab_domain ~owner ~repo
-    ~base_ref ~head_sha () =
+let mirror_action ~bot_info ?(force = true) ~gitlab_domain ~gh_owner ~gh_repo
+    ~gl_owner ~gl_repo ~base_ref ~head_sha () =
   (let open Lwt_result.Infix in
    let local_ref = base_ref ^ "-" ^ head_sha in
    let gh_ref =
-     {repo_url= f "https://github.com/%s/%s" owner repo; name= base_ref}
+     {repo_url= f "https://github.com/%s/%s" gh_owner gh_repo; name= base_ref}
    in
    (* TODO: generalize to use repository mappings, with enhanced security *)
-   gitlab_repo ~bot_info ~gitlab_domain ~gitlab_full_name:(owner ^ "/" ^ repo)
+   gitlab_repo ~bot_info ~gitlab_domain
+     ~gitlab_full_name:(gl_owner ^ "/" ^ gl_repo)
    |> Lwt.return
    >>= fun gl_repo ->
    let gl_ref = {repo_url= gl_repo; name= base_ref} in
@@ -2483,7 +2484,7 @@ let mirror_action ~bot_info ?(force = true) ~gitlab_domain ~owner ~repo
   | Error e ->
       Lwt_io.printlf
         "Error while mirroring branch/tag %s of repository %s/%s: %s" base_ref
-        owner repo e
+        gh_owner gh_repo e
 
 (* TODO: ensure there's no race condition for 2 push with very close timestamps *)
 let update_pr ?full_ci ?(skip_author_check = false) ~bot_info
